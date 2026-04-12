@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Badlog",
+    "slug": "badlog",
+    "scheme": "badlog",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autorise Badlog a acceder a ta phototheque pour choisir une photo de profil."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Autorise Badlog a acceder a ta phototheque.",
+          "savePhotosPermission": "Autorise Badlog a enregistrer tes cartes de partage dans ta phototheque."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "extra": {
+      "router": {}
+    }
+  }
+}

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smashlog — Cartes Épiques Niveau 5</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --accent: #CEFF00;
+    --text: #f0f0f2;
+    --text-muted: #6b6b7a;
+    --text-dim: #9999aa;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+
+    /* Épique Weeks Streak — Or */
+    --gold: #FFD166;
+    --gold-bright: #FFE08A;
+    --gold-dim: rgba(255,209,102,0.35);
+    --gold-bg: #110d00;
+
+    /* Épique Sessions per Week — Braise */
+    --ember: #FF5722;
+    --ember-bright: #FF8A50;
+    --ember-dim: rgba(255,87,34,0.35);
+    --ember-bg: #140500;
+
+    /* Épique Cap Franchi — Légendaire */
+    --legend: #E8D5FF;
+    --legend-accent: #C084FC;
+    --legend-dim: rgba(192,132,252,0.35);
+    --legend-bg: #0c0014;
+  }
+
+  body {
+    background: #080809;
+    font-family: var(--font-body);
+    color: var(--text);
+    padding: 48px 24px 72px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; margin-bottom: 6px;
+  }
+  .page-sub { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 8px; }
+  .page-note {
+    font-size: 12px; color: var(--text-muted); opacity: 0.65;
+    text-align: center; margin-bottom: 52px;
+  }
+
+  .screens-row {
+    display: flex; gap: 28px;
+    justify-content: center; align-items: flex-start; flex-wrap: wrap;
+  }
+  .screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .screen-label {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    text-align: center;
+  }
+  .screen-sublabel { font-size: 11px; color: var(--text-muted); opacity: 0.55; margin-top: -8px; text-align: center; }
+
+  .phone {
+    width: 296px; background: var(--bg);
+    border-radius: 40px; border: 1.5px solid rgba(255,255,255,0.10); overflow: hidden;
+  }
+  .phone::before {
+    content: ''; display: block; width: 80px; height: 5px;
+    background: rgba(255,255,255,0.12); border-radius: 3px; margin: 13px auto 0;
+  }
+
+  .sh-top { padding: 16px 16px 0; text-align: center; }
+  .sh-congrats { font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--text); }
+  .sh-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .share-card { margin: 14px 12px 0; border-radius: 18px; overflow: hidden; }
+
+  /* ═══════════════════════════════════════════════
+     CARD 1 — WEEKS STREAK ÉPIQUE (Or / Flammes)
+  ═══════════════════════════════════════════════ */
+  .epic-weeks {
+    background: var(--gold-bg);
+    padding: 18px 16px 14px;
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+    border: 1px solid rgba(255,209,102,0.2);
+  }
+
+  /* Liseré doré en haut */
+  .epic-weeks::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), var(--gold-bright), var(--gold), transparent);
+  }
+
+  .ew-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 10px;
+  }
+
+  .ew-badge {
+    background: var(--gold);
+    color: #000;
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  /* Flammes SVG géométriques */
+  .flames {
+    display: flex; gap: 3px; align-items: flex-end;
+  }
+  .flame {
+    width: 10px;
+  }
+
+  .ew-number-wrap {
+    display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px;
+  }
+  .ew-number {
+    font-family: var(--font-display); font-size: 56px; font-weight: 800;
+    color: var(--gold-bright); line-height: 1; letter-spacing: -2px;
+  }
+  .ew-unit {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    color: var(--gold-dim); line-height: 1; padding-bottom: 6px;
+  }
+
+  .ew-sublabel {
+    font-size: 11px; color: rgba(255,209,102,0.45);
+    margin-bottom: 12px; letter-spacing: 0.04em;
+  }
+
+  .ew-message {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    color: var(--gold-bright); line-height: 1.4;
+    border-left: 2px solid var(--gold);
+    padding-left: 9px; margin-bottom: 12px;
+  }
+
+  .epic-footer {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .epic-logo {
+    font-family: var(--font-display); font-size: 12px; font-weight: 800;
+  }
+  .epic-username { font-size: 10px; opacity: 0.3; }
+
+  /* ═══════════════════════════════════════════════
+     CARD 2 — SESSIONS PER WEEK ÉPIQUE (Braise)
+  ═══════════════════════════════════════════════ */
+  .epic-spw {
+    background: var(--ember-bg);
+    padding: 18px 16px 14px;
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+    border: 1px solid rgba(255,87,34,0.2);
+  }
+
+  .epic-spw::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--ember), var(--ember-bright), var(--ember), transparent);
+  }
+
+  .espw-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 12px;
+  }
+
+  .espw-badge {
+    background: var(--ember);
+    color: #fff;
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .espw-count { text-align: right; }
+  .espw-count-num {
+    font-family: var(--font-display); font-size: 30px; font-weight: 800;
+    color: var(--ember-bright); line-height: 1;
+  }
+  .espw-count-label { font-size: 11px; color: var(--ember-dim); margin-top: 2px; }
+
+  /* Grille jours — version braise : toutes les cases allumées */
+  .espw-week {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 12px; align-items: flex-end;
+  }
+  .espw-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .espw-dot {
+    width: 26px; border-radius: 6px;
+    background: var(--ember);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 3px;
+    position: relative;
+  }
+  .espw-dot.today {
+    background: var(--ember-bright);
+    outline: 2px solid rgba(255,87,34,0.5); outline-offset: 2px;
+  }
+  .espw-dot-inner {
+    font-family: var(--font-display); font-size: 8px; font-weight: 800; color: #fff;
+  }
+  .espw-day-label { font-size: 9px; color: rgba(255,87,34,0.5); font-weight: 500; }
+  .espw-day-label.today-lbl { color: var(--ember-bright); font-weight: 700; }
+
+  /* badge ×N */
+  .espw-multi {
+    position: absolute; top: -5px; right: -5px;
+    background: var(--accent); color: #000;
+    font-family: var(--font-display); font-size: 7px; font-weight: 800;
+    width: 13px; height: 13px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .espw-message {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    color: var(--ember-bright); line-height: 1.4;
+    border-left: 2px solid var(--ember);
+    padding-left: 9px; margin-bottom: 12px;
+  }
+
+  /* ═══════════════════════════════════════════════
+     CARD 3 — CAP FRANCHI ÉPIQUE (Légendaire)
+  ═══════════════════════════════════════════════ */
+  .epic-milestone {
+    background: var(--legend-bg);
+    padding: 18px 16px 14px;
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+    border: 1px solid rgba(192,132,252,0.25);
+  }
+
+  .epic-milestone::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--legend-accent), var(--legend), var(--legend-accent), transparent);
+  }
+
+  /* Couronne SVG minimaliste */
+  .em-crown-wrap {
+    display: flex; justify-content: flex-start; margin-bottom: 8px;
+  }
+
+  .em-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 6px;
+  }
+
+  .em-badge {
+    background: var(--legend-accent);
+    color: #fff;
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .em-number {
+    font-family: var(--font-display); font-size: 64px; font-weight: 800;
+    color: var(--legend); line-height: 1; letter-spacing: -2px;
+  }
+  .em-number sup {
+    font-size: 20px; color: var(--legend-accent);
+    vertical-align: super; letter-spacing: 0;
+  }
+
+  .em-sublabel {
+    font-size: 12px; color: rgba(192,132,252,0.4);
+    margin-top: 2px; margin-bottom: 10px;
+  }
+
+  .em-message {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    color: var(--legend); line-height: 1.4;
+    border-left: 2px solid var(--legend-accent);
+    padding-left: 9px; margin-bottom: 12px;
+  }
+
+  /* ── Bottom sheet partagé ── */
+  .bottom-sheet { padding: 12px 16px 22px; }
+  .bs-hint { font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+  .bs-actions { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .bs-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bs-circle {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bs-circle svg { width: 17px; height: 17px; color: var(--text-dim); }
+  .bs-circle.ig { background: linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border: none; }
+  .bs-label { font-size: 9px; color: var(--text-muted); text-align: center; max-width: 44px; line-height: 1.3; }
+  .bs-divider { height: 1px; background: var(--border); margin-bottom: 10px; }
+  .bs-done { background: var(--accent); border-radius: 12px; height: 44px; display: flex; align-items: center; justify-content: center; }
+  .bs-done-text { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #000; }
+
+  /* ── Tableau de correspondance niveaux ── */
+  .levels-recap {
+    max-width: 900px; margin: 56px auto 0;
+  }
+  .levels-title {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; margin-bottom: 20px;
+  }
+  .levels-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .level-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 12px; text-align: center;
+  }
+  .level-card.epic { border-color: rgba(255,209,102,0.3); background: #110d00; }
+  .level-num {
+    font-family: var(--font-display); font-size: 20px; font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .level-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 8px; }
+  .level-swatches { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .level-swatch {
+    width: 14px; height: 14px; border-radius: 3px;
+  }
+  .level-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Smashlog — Cartes épiques niveau 5</h1>
+<p class="page-sub">Versions "legendary" pour les paliers les plus rares</p>
+<p class="page-note">Même structure que les cartes normales · Couleurs, bordure et typographie différenciées</p>
+
+<div class="screens-row">
+
+  <!-- ══ WEEKS STREAK ÉPIQUE ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Weeks Streak</div>
+    <div class="screen-sublabel">2 ans · niveau 5 · Or</div>
+    <div class="phone">
+      <div class="sh-top">
+        <div class="sh-congrats">Bien joué ! 🏸</div>
+        <div class="sh-sub">Séance enregistrée</div>
+      </div>
+
+      <div class="share-card">
+        <div class="epic-weeks">
+          <div>
+            <div class="ew-top">
+              <div class="ew-badge">
+                <!-- flammes SVG géométriques -->
+                <svg width="11" height="14" viewBox="0 0 11 14" fill="none">
+                  <path d="M5.5 1C5.5 1 8 4 8 6.5C8 8.5 6.5 9.5 5.5 9.5C4.5 9.5 3 8.5 3 6.5C3 4 5.5 1 5.5 1Z" fill="#000" opacity="0.6"/>
+                  <path d="M5.5 6C5.5 6 7 7.5 7 9C7 10.5 6.5 11 5.5 11C4.5 11 4 10.5 4 9C4 7.5 5.5 6 5.5 6Z" fill="#000" opacity="0.4"/>
+                </svg>
+                Streak
+              </div>
+              <div class="flames">
+                <svg class="flame" viewBox="0 0 10 16" fill="none">
+                  <path d="M5 1C5 1 8 5.5 8 8.5C8 11 6.8 12.5 5 12.5C3.2 12.5 2 11 2 8.5C2 5.5 5 1 5 1Z" fill="#FFD166" opacity="0.9"/>
+                  <path d="M5 7C5 7 6.5 9 6.5 10.5C6.5 12 5.8 12.5 5 12.5C4.2 12.5 3.5 12 3.5 10.5C3.5 9 5 7 5 7Z" fill="#FFE08A"/>
+                </svg>
+                <svg class="flame" viewBox="0 0 10 16" fill="none">
+                  <path d="M5 1C5 1 8 5.5 8 8.5C8 11 6.8 12.5 5 12.5C3.2 12.5 2 11 2 8.5C2 5.5 5 1 5 1Z" fill="#FFD166" opacity="0.7"/>
+                  <path d="M5 7C5 7 6.5 9 6.5 10.5C6.5 12 5.8 12.5 5 12.5C4.2 12.5 3.5 12 3.5 10.5C3.5 9 5 7 5 7Z" fill="#FFE08A" opacity="0.9"/>
+                </svg>
+                <svg class="flame" viewBox="0 0 10 16" fill="none">
+                  <path d="M5 1C5 1 8 5.5 8 8.5C8 11 6.8 12.5 5 12.5C3.2 12.5 2 11 2 8.5C2 5.5 5 1 5 1Z" fill="#FFD166"/>
+                  <path d="M5 7C5 7 6.5 9 6.5 10.5C6.5 12 5.8 12.5 5 12.5C4.2 12.5 3.5 12 3.5 10.5C3.5 9 5 7 5 7Z" fill="#FFE08A"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="ew-number-wrap">
+              <div class="ew-number">104</div>
+              <div class="ew-unit">sem.</div>
+            </div>
+            <div class="ew-sublabel">2 ans de streak consécutif</div>
+
+            <div class="ew-message">
+              "*player_name* a raccroché sa raquette<br>en voyant tes stats."
+            </div>
+          </div>
+
+          <div class="epic-footer">
+            <div class="epic-logo" style="color: var(--gold);">Smash<span style="color:rgba(255,209,102,0.4);">log</span></div>
+            <div class="epic-username">@tousername</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="bs-hint">Partager et inspirer ta communauté</div>
+        <div class="bs-actions">
+          <div class="bs-btn">
+            <div class="bs-circle ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg></div>
+            <div class="bs-label">Storys</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+            <div class="bs-label">Partager</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+            <div class="bs-label">Télécharger</div>
+          </div>
+        </div>
+        <div class="bs-divider"></div>
+        <div class="bs-done"><span class="bs-done-text">Terminer</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SESSIONS PER WEEK ÉPIQUE ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Sessions per Week</div>
+    <div class="screen-sublabel">15+ séances · niveau 5 · Braise</div>
+    <div class="phone">
+      <div class="sh-top">
+        <div class="sh-congrats">Bien joué ! 🏸</div>
+        <div class="sh-sub">Séance enregistrée</div>
+      </div>
+
+      <div class="share-card">
+        <div class="epic-spw">
+          <div>
+            <div class="espw-top">
+              <div class="espw-badge">
+                <svg width="10" height="13" viewBox="0 0 10 13" fill="none">
+                  <path d="M5 0.5C5 0.5 7.5 4 7.5 6.5C7.5 8.5 6.5 9.5 5 9.5C3.5 9.5 2.5 8.5 2.5 6.5C2.5 4 5 0.5 5 0.5Z" fill="#fff" opacity="0.7"/>
+                  <path d="M5 5.5C5 5.5 6.5 7 6.5 8.5C6.5 10 5.8 10.5 5 10.5C4.2 10.5 3.5 10 3.5 8.5C3.5 7 5 5.5 5 5.5Z" fill="#fff"/>
+                </svg>
+                Streak
+              </div>
+              <div class="espw-count">
+                <div class="espw-count-num">15</div>
+                <div class="espw-count-label"><strong>séances</strong> cette semaine</div>
+              </div>
+            </div>
+
+            <!-- Grille toutes cases allumées, hauteurs variables -->
+            <div class="espw-week">
+              <div class="espw-day">
+                <div class="espw-dot" style="height:36px;"><div class="espw-dot-inner">×2</div></div>
+                <div class="espw-day-label">Lun</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot" style="height:36px;"><div class="espw-dot-inner">×2</div></div>
+                <div class="espw-day-label">Mar</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot" style="height:28px;"><div class="espw-dot-inner">×1</div></div>
+                <div class="espw-day-label">Mer</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot" style="height:44px;"><div class="espw-dot-inner">×3</div></div>
+                <div class="espw-day-label">Jeu</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot" style="height:36px;"><div class="espw-dot-inner">×2</div></div>
+                <div class="espw-day-label">Ven</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot" style="height:36px;"><div class="espw-dot-inner">×2</div></div>
+                <div class="espw-day-label">Sam</div>
+              </div>
+              <div class="espw-day">
+                <div class="espw-dot today" style="height:28px;"><div class="espw-dot-inner">×1</div></div>
+                <div class="espw-day-label today-lbl">Dim</div>
+              </div>
+            </div>
+
+            <div class="espw-message">
+              "Là il faudrait songer<br>à trouver un travail."
+            </div>
+          </div>
+
+          <div class="epic-footer">
+            <div class="epic-logo" style="color:var(--ember-bright);">Smash<span style="color:rgba(255,87,34,0.4);">log</span></div>
+            <div class="epic-username">@tousername</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="bs-hint">Partager et inspirer ta communauté</div>
+        <div class="bs-actions">
+          <div class="bs-btn">
+            <div class="bs-circle ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg></div>
+            <div class="bs-label">Storys</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+            <div class="bs-label">Partager</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+            <div class="bs-label">Télécharger</div>
+          </div>
+        </div>
+        <div class="bs-divider"></div>
+        <div class="bs-done"><span class="bs-done-text">Terminer</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CAP FRANCHI ÉPIQUE ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Cap Franchi</div>
+    <div class="screen-sublabel">500 séances · niveau 5 · Légendaire</div>
+    <div class="phone">
+      <div class="sh-top">
+        <div class="sh-congrats">Bien joué ! 🏸</div>
+        <div class="sh-sub">Séance enregistrée</div>
+      </div>
+
+      <div class="share-card">
+        <div class="epic-milestone">
+          <div>
+            <!-- Couronne SVG minimaliste -->
+            <div class="em-crown-wrap">
+              <svg width="32" height="20" viewBox="0 0 32 20" fill="none">
+                <path d="M2 18L6 6L12 12L16 2L20 12L26 6L30 18H2Z" fill="none" stroke="#C084FC" stroke-width="1.5" stroke-linejoin="round"/>
+                <circle cx="2" cy="18" r="2" fill="#C084FC"/>
+                <circle cx="16" cy="2" r="2" fill="#E8D5FF"/>
+                <circle cx="30" cy="18" r="2" fill="#C084FC"/>
+              </svg>
+            </div>
+
+            <div class="em-top">
+              <div class="em-badge">
+                Légende
+              </div>
+            </div>
+
+            <div class="em-number">500<sup>e</sup></div>
+            <div class="em-sublabel">séance enregistrée</div>
+
+            <div class="em-message">
+              "À ce niveau, tu n'es plus<br>un joueur. Tu es une institution."
+            </div>
+          </div>
+
+          <div class="epic-footer">
+            <div class="epic-logo" style="color:var(--legend-accent);">Smash<span style="color:rgba(192,132,252,0.35);">log</span></div>
+            <div class="epic-username">@tousername</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="bs-hint">Partager et inspirer ta communauté</div>
+        <div class="bs-actions">
+          <div class="bs-btn">
+            <div class="bs-circle ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg></div>
+            <div class="bs-label">Storys</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+            <div class="bs-label">Partager</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+            <div class="bs-label">Télécharger</div>
+          </div>
+        </div>
+        <div class="bs-divider"></div>
+        <div class="bs-done"><span class="bs-done-text">Terminer</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tableau correspondance niveaux → style -->
+<div class="levels-recap" style="margin-top:56px;">
+  <div class="levels-title">Progression visuelle selon le niveau</div>
+  <div class="levels-grid">
+
+    <div class="level-card">
+      <div class="level-num" style="color:#6b6b7a;">1</div>
+      <div class="level-desc">Carte standard · Couleurs normales · pas de bordure</div>
+      <div class="level-swatches">
+        <div class="level-swatch" style="background:#0a1628;border:1px solid #CEFF00;"></div>
+        <div class="level-swatch" style="background:#110820;border:1px solid #FF4D6D;"></div>
+        <div class="level-swatch" style="background:#00191a;border:1px solid #00E5C8;"></div>
+      </div>
+      <div class="level-tag" style="color:#6b6b7a;">Standard</div>
+    </div>
+
+    <div class="level-card">
+      <div class="level-num" style="color:#9999aa;">2</div>
+      <div class="level-desc">Carte standard · Couleurs normales · pas de bordure</div>
+      <div class="level-swatches">
+        <div class="level-swatch" style="background:#0a1628;border:1px solid #CEFF00;"></div>
+        <div class="level-swatch" style="background:#110820;border:1px solid #FF4D6D;"></div>
+        <div class="level-swatch" style="background:#00191a;border:1px solid #00E5C8;"></div>
+      </div>
+      <div class="level-tag" style="color:#9999aa;">Standard</div>
+    </div>
+
+    <div class="level-card">
+      <div class="level-num" style="color:#f0f0f2;">3</div>
+      <div class="level-desc">Carte standard · Bordure légère · message plus intense</div>
+      <div class="level-swatches">
+        <div class="level-swatch" style="background:#0a1628;border:1px solid #CEFF00;"></div>
+        <div class="level-swatch" style="background:#110820;border:1px solid #FF4D6D;"></div>
+        <div class="level-swatch" style="background:#00191a;border:1px solid #00E5C8;"></div>
+      </div>
+      <div class="level-tag" style="color:#f0f0f2;">Renforcé</div>
+    </div>
+
+    <div class="level-card">
+      <div class="level-num" style="color:#FFD166;">4</div>
+      <div class="level-desc">Fond plus sombre · Accent plus lumineux · bordure visible</div>
+      <div class="level-swatches">
+        <div class="level-swatch" style="background:#0d0a00;border:1px solid #FFD166;"></div>
+        <div class="level-swatch" style="background:#0e0300;border:1px solid #FF5722;"></div>
+        <div class="level-swatch" style="background:#00100f;border:1px solid #00E5C8;"></div>
+      </div>
+      <div class="level-tag" style="color:#FFD166;">Intense</div>
+    </div>
+
+    <div class="level-card epic">
+      <div class="level-num" style="color:#FFE08A;">5</div>
+      <div class="level-desc">Palette épique · liseré lumineux · flammes ou couronne</div>
+      <div class="level-swatches">
+        <div class="level-swatch" style="background:#110d00;border:1px solid #FFD166;"></div>
+        <div class="level-swatch" style="background:#140500;border:1px solid #FF5722;"></div>
+        <div class="level-swatch" style="background:#0c0014;border:1px solid #C084FC;"></div>
+      </div>
+      <div class="level-tag" style="color:#FFE08A;">Épique</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

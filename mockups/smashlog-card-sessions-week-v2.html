@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smashlog — Carte Sessions per Week v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --accent: #CEFF00;
+    --accent2: #FF4D6D;
+    --teal: #00E5C8;
+    --teal-bg: #00191a;
+    --teal-mid: rgba(0,229,200,0.15);
+    --teal-dim: rgba(0,229,200,0.4);
+    --text: #f0f0f2;
+    --text-muted: #6b6b7a;
+    --text-dim: #9999aa;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  body {
+    background: #080809;
+    font-family: var(--font-body);
+    color: var(--text);
+    padding: 48px 24px 64px;
+  }
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; margin-bottom: 6px;
+  }
+  .page-sub { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 16px; }
+  .page-note {
+    font-size: 12px; color: var(--text-muted); text-align: center;
+    margin-bottom: 48px; opacity: 0.7;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 10px 20px;
+    max-width: 500px; margin-left: auto; margin-right: auto;
+  }
+
+  .screens-row {
+    display: flex; gap: 32px;
+    justify-content: center; align-items: flex-start; flex-wrap: wrap;
+  }
+  .screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .screen-label {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    text-align: center;
+  }
+  .screen-sublabel { font-size: 11px; color: var(--text-muted); opacity: 0.55; margin-top: -10px; text-align: center; }
+
+  .phone {
+    width: 300px; background: var(--bg);
+    border-radius: 40px; border: 1.5px solid rgba(255,255,255,0.10); overflow: hidden;
+  }
+  .phone::before {
+    content: ''; display: block; width: 80px; height: 5px;
+    background: rgba(255,255,255,0.12); border-radius: 3px; margin: 13px auto 0;
+  }
+
+  .sh-top { padding: 18px 18px 0; text-align: center; }
+  .sh-congrats { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--text); }
+  .sh-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .share-card { margin: 16px 14px 0; border-radius: 18px; overflow: hidden; }
+
+  /* ── CARTE TEAL ── */
+  .spw-card {
+    background: var(--teal-bg);
+    padding: 18px 16px 14px;
+    min-height: 210px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .spw-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 14px;
+  }
+
+  .spw-badge {
+    background: var(--teal);
+    color: #000;
+    font-family: var(--font-display);
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px;
+  }
+
+  .spw-count { text-align: right; }
+  .spw-count-num {
+    font-family: var(--font-display); font-size: 30px; font-weight: 800;
+    color: var(--teal); line-height: 1;
+  }
+  .spw-count-label { font-size: 11px; color: var(--teal-dim); margin-top: 2px; }
+
+  /* ── Grille 7 jours ── */
+  .spw-week {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 12px;
+  }
+  .spw-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+  /* Case de base */
+  .spw-day-dot {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(0,229,200,0.06);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .spw-day-dot.done { background: var(--teal); }
+  .spw-day-dot.today {
+    background: var(--teal);
+    outline: 2px solid var(--teal-dim); outline-offset: 2px;
+  }
+  .spw-day-dot svg { width: 11px; height: 11px; }
+
+  /* Badge ×N — option A */
+  .multi-badge {
+    position: absolute;
+    top: -5px; right: -5px;
+    background: var(--accent);
+    color: #000;
+    font-family: var(--font-display);
+    font-size: 8px; font-weight: 800;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+
+  .spw-day-label { font-size: 9px; color: var(--text-muted); font-weight: 500; text-align: center; }
+  .spw-day-label.today-lbl { color: var(--teal); font-weight: 700; }
+
+  /* ── Variante B : case plus haute ── */
+  .spw-day-dot.h2 { height: 36px; border-radius: 7px; }
+  .spw-day-dot.h3 { height: 44px; border-radius: 7px; }
+
+  /* compteur texte pour variante B */
+  .b-count {
+    font-family: var(--font-display);
+    font-size: 9px; font-weight: 800;
+    color: #000; line-height: 1;
+  }
+
+  .spw-message {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    color: var(--text); line-height: 1.4;
+    border-left: 3px solid var(--teal);
+    padding-left: 9px; margin-bottom: 12px;
+  }
+
+  .card-footer { display: flex; justify-content: space-between; align-items: center; }
+  .card-logo { font-family: var(--font-display); font-size: 12px; font-weight: 800; color: var(--accent); }
+  .card-logo span { color: rgba(255,255,255,0.5); }
+  .card-username { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+  /* ── Bottom sheet ── */
+  .bottom-sheet { padding: 14px 18px 24px; }
+  .bs-hint { font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 12px; }
+  .bs-actions { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+  .bs-btn { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .bs-circle {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bs-circle svg { width: 18px; height: 18px; color: var(--text-dim); }
+  .bs-circle.ig { background: linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border: none; }
+  .bs-label { font-size: 9px; color: var(--text-muted); text-align: center; max-width: 46px; line-height: 1.3; }
+  .bs-divider { height: 1px; background: var(--border); margin-bottom: 12px; }
+  .bs-done { background: var(--accent); border-radius: 12px; height: 46px; display: flex; align-items: center; justify-content: center; }
+  .bs-done-text { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: #000; }
+
+  /* ── Section comparaison options ── */
+  .compare {
+    max-width: 940px; margin: 56px auto 0;
+  }
+  .compare-title {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; margin-bottom: 24px;
+  }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .compare-card-title {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .compare-card-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; }
+
+  /* Mini grille demo */
+  .mini-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .mini-day { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .mini-dot {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(0,229,200,0.06);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .mini-dot.done { background: var(--teal); }
+  .mini-dot svg { width: 10px; height: 10px; }
+  .mini-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--accent); color: #000;
+    font-family: var(--font-display); font-size: 7px; font-weight: 800;
+    width: 13px; height: 13px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mini-dot.h2 { height: 34px; border-radius: 6px; align-items: flex-end; padding-bottom: 4px; }
+  .mini-dot.h3 { height: 44px; border-radius: 6px; align-items: flex-end; padding-bottom: 4px; }
+  .mini-b-count { font-family: var(--font-display); font-size: 8px; font-weight: 800; color: #000; }
+  .mini-lbl { font-size: 8px; color: var(--text-muted); }
+  .mini-lbl.teal { color: var(--teal); font-weight: 700; }
+
+  .pro-con { margin-top: 12px; }
+  .pro { font-size: 11px; color: #CEFF00; margin-bottom: 4px; }
+  .con { font-size: 11px; color: var(--text-muted); }
+
+  /* Récap palette */
+  .palette-recap {
+    max-width: 940px; margin: 20px auto 0;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .pal-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pal-swatch { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+  .pal-name { font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--text); }
+  .pal-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Smashlog — Sessions per Week v2</h1>
+<p class="page-sub">Couleur teal · Deux options pour les doubles journées</p>
+<p class="page-note">Les deux téléphones montrent la même carte (7 séances en 5 jours, avec lundi ×2 et jeudi ×2) — Option A à gauche, Option B à droite</p>
+
+<div class="screens-row">
+
+  <!-- OPTION A : badge ×N -->
+  <div class="screen-wrap">
+    <div class="screen-label">Option A</div>
+    <div class="screen-sublabel">Badge compteur sur la case</div>
+    <div class="phone">
+      <div class="sh-top">
+        <div class="sh-congrats">Bien joué ! 🏸</div>
+        <div class="sh-sub">Séance enregistrée</div>
+      </div>
+
+      <div class="share-card">
+        <div class="spw-card">
+          <div>
+            <div class="spw-top">
+              <span class="spw-badge">Streak</span>
+              <div class="spw-count">
+                <div class="spw-count-num">7</div>
+                <div class="spw-count-label"><strong>séances</strong> cette semaine</div>
+              </div>
+            </div>
+
+            <div class="spw-week">
+              <!-- Lun ×2 -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                  <div class="multi-badge">×2</div>
+                </div>
+                <div class="spw-day-label">Lun</div>
+              </div>
+              <!-- Mar -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label">Mar</div>
+              </div>
+              <!-- Mer vide -->
+              <div class="spw-day">
+                <div class="spw-day-dot"></div>
+                <div class="spw-day-label">Mer</div>
+              </div>
+              <!-- Jeu ×2 -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                  <div class="multi-badge">×2</div>
+                </div>
+                <div class="spw-day-label">Jeu</div>
+              </div>
+              <!-- Ven -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label">Ven</div>
+              </div>
+              <!-- Sam vide -->
+              <div class="spw-day">
+                <div class="spw-day-dot"></div>
+                <div class="spw-day-label">Sam</div>
+              </div>
+              <!-- Dim aujourd'hui -->
+              <div class="spw-day">
+                <div class="spw-day-dot today">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label today-lbl">Dim</div>
+              </div>
+            </div>
+
+            <div class="spw-message">
+              "Cette semaine, tu n'as laissé<br>aucune chance au canapé."
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="card-logo">Smash<span>log</span></div>
+            <div class="card-username">@tousername</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="bs-hint">Partager et inspirer ta communauté</div>
+        <div class="bs-actions">
+          <div class="bs-btn">
+            <div class="bs-circle ig">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
+            </div>
+            <div class="bs-label">Storys</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            </div>
+            <div class="bs-label">Partager</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="bs-label">Télécharger</div>
+          </div>
+        </div>
+        <div class="bs-divider"></div>
+        <div class="bs-done"><span class="bs-done-text">Terminer</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B : hauteur variable -->
+  <div class="screen-wrap">
+    <div class="screen-label">Option B</div>
+    <div class="screen-sublabel">Hauteur proportionnelle</div>
+    <div class="phone">
+      <div class="sh-top">
+        <div class="sh-congrats">Bien joué ! 🏸</div>
+        <div class="sh-sub">Séance enregistrée</div>
+      </div>
+
+      <div class="share-card">
+        <div class="spw-card">
+          <div>
+            <div class="spw-top">
+              <span class="spw-badge">Streak</span>
+              <div class="spw-count">
+                <div class="spw-count-num">7</div>
+                <div class="spw-count-label"><strong>séances</strong> cette semaine</div>
+              </div>
+            </div>
+
+            <div class="spw-week" style="align-items:flex-end;">
+              <!-- Lun ×2 — case haute -->
+              <div class="spw-day">
+                <div class="spw-day-dot done h2">
+                  <div class="b-count">×2</div>
+                </div>
+                <div class="spw-day-label">Lun</div>
+              </div>
+              <!-- Mar ×1 -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label">Mar</div>
+              </div>
+              <!-- Mer vide -->
+              <div class="spw-day">
+                <div class="spw-day-dot"></div>
+                <div class="spw-day-label">Mer</div>
+              </div>
+              <!-- Jeu ×2 -->
+              <div class="spw-day">
+                <div class="spw-day-dot done h2">
+                  <div class="b-count">×2</div>
+                </div>
+                <div class="spw-day-label">Jeu</div>
+              </div>
+              <!-- Ven ×1 -->
+              <div class="spw-day">
+                <div class="spw-day-dot done">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label">Ven</div>
+              </div>
+              <!-- Sam vide -->
+              <div class="spw-day">
+                <div class="spw-day-dot"></div>
+                <div class="spw-day-label">Sam</div>
+              </div>
+              <!-- Dim aujourd'hui ×1 -->
+              <div class="spw-day">
+                <div class="spw-day-dot today">
+                  <svg viewBox="0 0 11 11" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5.5 4.5,8 9,2.5"/></svg>
+                </div>
+                <div class="spw-day-label today-lbl">Dim</div>
+              </div>
+            </div>
+
+            <div class="spw-message">
+              "Cette semaine, tu n'as laissé<br>aucune chance au canapé."
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="card-logo">Smash<span>log</span></div>
+            <div class="card-username">@tousername</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-sheet">
+        <div class="bs-hint">Partager et inspirer ta communauté</div>
+        <div class="bs-actions">
+          <div class="bs-btn">
+            <div class="bs-circle ig">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#fff"/></svg>
+            </div>
+            <div class="bs-label">Storys</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            </div>
+            <div class="bs-label">Partager</div>
+          </div>
+          <div class="bs-btn">
+            <div class="bs-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="bs-label">Télécharger</div>
+          </div>
+        </div>
+        <div class="bs-divider"></div>
+        <div class="bs-done"><span class="bs-done-text">Terminer</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Comparaison options -->
+<div class="compare" style="margin-top:56px;">
+  <div class="compare-title">Comparaison des deux options</div>
+  <div class="compare-grid">
+
+    <div class="compare-card">
+      <div class="compare-card-title">Option A — Badge ×N</div>
+      <div class="compare-card-sub">La case reste carrée et uniforme. Un badge jaune dans le coin indique les séances supplémentaires.</div>
+      <div class="mini-week">
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg><div class="mini-badge">×2</div></div>
+          <div class="mini-lbl">Lun</div>
+        </div>
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl">Mar</div>
+        </div>
+        <div class="mini-day"><div class="mini-dot"></div><div class="mini-lbl">Mer</div></div>
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg><div class="mini-badge">×2</div></div>
+          <div class="mini-lbl">Jeu</div>
+        </div>
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl">Ven</div>
+        </div>
+        <div class="mini-day"><div class="mini-dot"></div><div class="mini-lbl">Sam</div></div>
+        <div class="mini-day">
+          <div class="mini-dot done" style="outline:2px solid rgba(0,229,200,0.4);outline-offset:2px;"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl teal">Dim</div>
+        </div>
+      </div>
+      <div class="pro-con">
+        <div class="pro">+ Grille régulière, lisible à toute taille</div>
+        <div class="pro">+ Implémentation simple</div>
+        <div class="con" style="margin-top:6px;">− Le badge peut déborder sur les cases voisines</div>
+      </div>
+    </div>
+
+    <div class="compare-card">
+      <div class="compare-card-title">Option B — Hauteur proportionnelle</div>
+      <div class="compare-card-sub">La case grandit selon le nombre de séances. ×1 = 28px, ×2 = 38px, ×3 = 48px.</div>
+      <div class="mini-week" style="align-items:flex-end;">
+        <div class="mini-day">
+          <div class="mini-dot done h2" style="height:38px;border-radius:6px;align-items:flex-end;padding-bottom:3px;"><div class="mini-b-count">×2</div></div>
+          <div class="mini-lbl">Lun</div>
+        </div>
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl">Mar</div>
+        </div>
+        <div class="mini-day"><div class="mini-dot"></div><div class="mini-lbl">Mer</div></div>
+        <div class="mini-day">
+          <div class="mini-dot done h2" style="height:38px;border-radius:6px;align-items:flex-end;padding-bottom:3px;"><div class="mini-b-count">×2</div></div>
+          <div class="mini-lbl">Jeu</div>
+        </div>
+        <div class="mini-day">
+          <div class="mini-dot done"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl">Ven</div>
+        </div>
+        <div class="mini-day"><div class="mini-dot"></div><div class="mini-lbl">Sam</div></div>
+        <div class="mini-day">
+          <div class="mini-dot done" style="outline:2px solid rgba(0,229,200,0.4);outline-offset:2px;"><svg viewBox="0 0 10 10" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"><polyline points="2,5 4,7.5 8,2"/></svg></div>
+          <div class="mini-lbl teal">Dim</div>
+        </div>
+      </div>
+      <div class="pro-con">
+        <div class="pro">+ Visuellement plus riche, donne un effet graphe</div>
+        <div class="pro">+ Valorise davantage les doubles journées</div>
+        <div class="con" style="margin-top:6px;">− Légèrement plus complexe à implémenter</div>
+        <div class="con">− Peut sembler incohérent avec la grille streak semaines</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Palette récap -->
+<div class="palette-recap" style="margin-top:20px;">
+  <div class="pal-card">
+    <div class="pal-swatch" style="background:#0a1628;border:2px solid #CEFF00;"></div>
+    <div>
+      <div class="pal-name">Streak — semaines</div>
+      <div class="pal-desc">Bleu nuit · jaune</div>
+    </div>
+  </div>
+  <div class="pal-card">
+    <div class="pal-swatch" style="background:#110820;border:2px solid #FF4D6D;"></div>
+    <div>
+      <div class="pal-name">Cap franchi</div>
+      <div class="pal-desc">Violet nuit · rouge</div>
+    </div>
+  </div>
+  <div class="pal-card">
+    <div class="pal-swatch" style="background:#00191a;border:2px solid #00E5C8;"></div>
+    <div>
+      <div class="pal-name">Streak — semaine</div>
+      <div class="pal-desc">Teal nuit · cyan</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

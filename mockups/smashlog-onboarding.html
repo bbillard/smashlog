@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smashlog — Onboarding</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --accent: #CEFF00;
+    --accent2: #FF4D6D;
+    --accent3: #00E5FF;
+    --text: #f0f0f2;
+    --text-muted: #6b6b7a;
+    --text-dim: #9999aa;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  body {
+    background: #080809;
+    font-family: var(--font-body);
+    color: var(--text);
+    padding: 48px 24px 80px;
+  }
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; margin-bottom: 6px;
+  }
+  .page-sub {
+    font-size: 13px; color: var(--text-muted);
+    text-align: center; margin-bottom: 52px;
+  }
+
+  .screens-row {
+    display: flex; gap: 28px;
+    justify-content: center; align-items: flex-start; flex-wrap: wrap;
+  }
+  .screen-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .screen-label {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    text-align: center;
+  }
+  .screen-step {
+    font-size: 11px; color: var(--text-muted); opacity: 0.5;
+    margin-top: -8px; text-align: center;
+  }
+
+  /* ── Phone shell ── */
+  .phone {
+    width: 288px; background: var(--bg);
+    border-radius: 40px;
+    border: 1.5px solid rgba(255,255,255,0.10);
+    overflow: hidden;
+    min-height: 580px;
+    display: flex; flex-direction: column;
+  }
+  .phone::before {
+    content: ''; display: block; width: 80px; height: 5px;
+    background: rgba(255,255,255,0.12); border-radius: 3px;
+    margin: 13px auto 0; flex-shrink: 0;
+  }
+
+  /* ── Barre de progression commune ── */
+  .ob-progress {
+    display: flex; gap: 5px;
+    padding: 14px 24px 0; flex-shrink: 0;
+  }
+  .ob-prog-seg {
+    flex: 1; height: 2px; border-radius: 2px;
+    background: rgba(255,255,255,0.08);
+  }
+  .ob-prog-seg.done { background: var(--accent); }
+  .ob-prog-seg.current {
+    background: var(--accent); opacity: 0.5;
+  }
+
+  /* ════════════════════════════════════════
+     ÉCRAN 0 — SPLASH
+  ════════════════════════════════════════ */
+  .splash {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 24px 40px; text-align: center;
+    position: relative;
+  }
+
+  /* Cercles décoratifs en arrière-plan */
+  .splash-bg {
+    position: absolute; inset: 0;
+    overflow: hidden; pointer-events: none;
+  }
+  .splash-circle {
+    position: absolute; border-radius: 50%;
+    border: 1px solid rgba(206,255,0,0.07);
+  }
+
+  .splash-logo-wrap {
+    position: relative; margin-bottom: 28px;
+  }
+  .splash-logo-bg {
+    width: 88px; height: 88px; border-radius: 22px;
+    background: var(--surface);
+    border: 1.5px solid rgba(206,255,0,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .splash-s {
+    font-family: var(--font-display); font-size: 52px; font-weight: 800;
+    color: var(--accent); line-height: 1; letter-spacing: -2px;
+  }
+
+  /* Point lumineux sous le logo */
+  .splash-glow {
+    width: 60px; height: 6px;
+    background: rgba(206,255,0,0.25);
+    border-radius: 50%;
+    margin: 10px auto 0;
+    filter: blur(4px);
+  }
+
+  .splash-name {
+    font-family: var(--font-display); font-size: 28px; font-weight: 800;
+    color: var(--text); letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .splash-name span { color: var(--accent); }
+
+  .splash-tagline {
+    font-size: 14px; color: var(--text-dim); line-height: 1.5;
+    max-width: 200px; margin: 0 auto 40px;
+  }
+
+  .splash-tap {
+    font-size: 12px; color: var(--text-muted); opacity: 0.5;
+    letter-spacing: 0.05em;
+  }
+
+  /* ════════════════════════════════════════
+     ÉCRAN 1 — CONCEPT
+  ════════════════════════════════════════ */
+  .concept {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 24px 22px 32px;
+  }
+
+  .ob-title {
+    font-family: var(--font-display); font-size: 24px; font-weight: 800;
+    color: var(--text); line-height: 1.2; margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .ob-title span { color: var(--accent); }
+
+  .ob-body {
+    font-size: 14px; color: var(--text-dim); line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  /* Illustration 3 étapes */
+  .steps-illustration {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 10px; margin-bottom: 28px;
+  }
+
+  .step-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px;
+  }
+
+  .step-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-content {}
+  .step-title {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    color: var(--text); margin-bottom: 2px;
+  }
+  .step-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  /* Connecteur entre étapes */
+  .step-connector {
+    width: 1px; height: 10px; background: var(--border);
+    margin-left: 29px; flex-shrink: 0;
+  }
+
+  /* ════════════════════════════════════════
+     ÉCRAN 2 — NOTIFICATIONS / PLANNING
+  ════════════════════════════════════════ */
+  .notif {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 24px 22px 32px;
+  }
+
+  /* Jours de la semaine */
+  .days-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 16px;
+  }
+  .day-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .day-label {
+    font-size: 9px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+  .day-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .day-btn.selected {
+    background: rgba(206,255,0,0.1);
+    border-color: var(--accent);
+  }
+  .day-btn-inner {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: transparent;
+  }
+  .day-btn.selected .day-btn-inner { background: var(--accent); }
+
+  /* Créneaux configurés */
+  .slots-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+  .slot-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .slot-day {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    color: var(--accent); min-width: 28px;
+  }
+  .slot-time { font-size: 13px; color: var(--text); flex: 1; }
+  .slot-bell { width: 16px; height: 16px; color: var(--text-muted); }
+
+  .skip-link {
+    font-size: 12px; color: var(--text-muted); text-align: center;
+    text-decoration: underline; opacity: 0.6; margin-top: 8px;
+  }
+
+  /* Famille selector */
+  .family-row {
+    display: flex; gap: 6px; margin-bottom: 12px;
+  }
+  .family-btn {
+    flex: 1; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    border: 1.5px solid var(--border); background: var(--surface2);
+    cursor: pointer;
+  }
+  .family-btn.badminton.selected {
+    background: rgba(0,229,200,0.1); border-color: #00E5C8;
+  }
+  .family-btn.physique.selected {
+    background: rgba(255,140,0,0.1); border-color: #FF8C00;
+  }
+  .family-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .family-label {
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .family-btn.badminton.selected .family-label { color: #00E5C8; }
+  .family-btn.physique.selected .family-label { color: #FF8C00; }
+  .family-btn:not(.selected) .family-label { color: var(--text-muted); }
+
+  /* Type pill sur les créneaux */
+  .slot-type {
+    font-family: var(--font-display); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+  }
+  .slot-type.badminton { background: rgba(0,229,200,0.12); color: #00E5C8; }
+  .slot-type.physique  { background: rgba(255,140,0,0.12);  color: #FF8C00; }
+
+  /* ════════════════════════════════════════
+     ÉCRAN 3 — PSEUDO
+  ════════════════════════════════════════ */
+  .pseudo-screen {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 24px 22px 32px;
+  }
+
+  .pseudo-illustration {
+    display: flex; justify-content: center; margin-bottom: 24px;
+  }
+
+  /* Mini carte de partage préview */
+  .pseudo-card-preview {
+    background: #0a1628;
+    border-radius: 14px; padding: 14px 16px;
+    width: 220px;
+    border: 1px solid rgba(206,255,0,0.15);
+  }
+  .pcp-top {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 10px;
+  }
+  .pcp-badge {
+    background: var(--accent); color: #000;
+    font-family: var(--font-display); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 20px;
+  }
+  .pcp-num {
+    font-family: var(--font-display); font-size: 18px; font-weight: 800;
+    color: var(--accent);
+  }
+  .pcp-footer {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .pcp-logo {
+    font-family: var(--font-display); font-size: 11px; font-weight: 800;
+    color: var(--accent);
+  }
+  .pcp-logo span { color: rgba(255,255,255,0.35); }
+  .pcp-username {
+    font-size: 10px; color: rgba(255,255,255,0.35);
+    font-style: italic;
+  }
+  .pcp-username.filled { color: rgba(206,255,0,0.6); font-style: normal; }
+
+  /* Champ pseudo */
+  .pseudo-field-wrap { margin-bottom: 12px; }
+  .pseudo-field-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .pseudo-field {
+    background: var(--surface); border: 1.5px solid var(--accent);
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pseudo-field-text {
+    font-family: var(--font-display); font-size: 16px; font-weight: 700;
+    color: var(--text); flex: 1;
+  }
+  .pseudo-cursor {
+    width: 2px; height: 18px; background: var(--accent);
+    border-radius: 1px; animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .pseudo-hint {
+    font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  }
+  .pseudo-hint strong { color: var(--text-dim); font-weight: 500; }
+
+  /* ── CTA commun ── */
+  .ob-cta {
+    background: var(--accent); border-radius: 14px;
+    height: 50px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ob-cta-text {
+    font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #000;
+  }
+  .ob-cta.disabled {
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .ob-cta.disabled .ob-cta-text { color: var(--text-muted); }
+
+  /* ── Spacer ── */
+  .spacer { flex: 1; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Smashlog — Onboarding</h1>
+<p class="page-sub">4 écrans · Zéro friction · Pseudo obligatoire · Notifications optionnelles</p>
+
+<div class="screens-row">
+
+  <!-- ══ ÉCRAN 0 — SPLASH ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Splash</div>
+    <div class="screen-step">Automatique</div>
+    <div class="phone">
+      <div class="splash">
+        <div class="splash-bg">
+          <div class="splash-circle" style="width:260px;height:260px;top:-60px;left:-60px;"></div>
+          <div class="splash-circle" style="width:180px;height:180px;bottom:-40px;right:-40px;opacity:0.5;"></div>
+        </div>
+
+        <div class="splash-logo-wrap">
+          <div class="splash-logo-bg">
+            <div class="splash-s">S</div>
+          </div>
+          <div class="splash-glow"></div>
+        </div>
+
+        <div class="splash-name">Smash<span>log</span></div>
+        <div class="splash-tagline">Le journal de bord du joueur qui progresse.</div>
+        <div class="spacer"></div>
+        <div class="splash-tap">Appuie pour commencer</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ÉCRAN 1 — CONCEPT ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Concept</div>
+    <div class="screen-step">Écran 1 / 3</div>
+    <div class="phone">
+      <div class="ob-progress">
+        <div class="ob-prog-seg current"></div>
+        <div class="ob-prog-seg"></div>
+        <div class="ob-prog-seg"></div>
+      </div>
+      <div class="concept">
+        <div class="ob-title">Joue.<br>Note.<br><span>Progresse.</span></div>
+        <div class="ob-body">Smashlog transforme chaque séance en leçon. En 2 minutes, tu analyses ce qui s'est passé et tu prépares la suivante.</div>
+
+        <div class="steps-illustration">
+          <div class="step-row">
+            <div class="step-icon" style="background:rgba(206,255,0,0.1);">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#CEFF00" stroke-width="1.8" stroke-linecap="round">
+                <rect x="3" y="2" width="12" height="14" rx="2"/>
+                <line x1="6" y1="6" x2="12" y2="6"/>
+                <line x1="6" y1="9" x2="12" y2="9"/>
+                <line x1="6" y1="12" x2="9" y2="12"/>
+              </svg>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Journalise ta séance</div>
+              <div class="step-desc">Ce qui a bien marché, ce qui peut mieux faire.</div>
+            </div>
+          </div>
+
+          <div class="step-connector"></div>
+
+          <div class="step-row">
+            <div class="step-icon" style="background:rgba(0,229,255,0.1);">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#00E5FF" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="9" cy="9" r="6"/>
+                <line x1="9" y1="6" x2="9" y2="9"/>
+                <line x1="9" y1="12" x2="9" y2="12.5" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Fixe ton intention</div>
+              <div class="step-desc">Un objectif concret pour ta prochaine séance.</div>
+            </div>
+          </div>
+
+          <div class="step-connector"></div>
+
+          <div class="step-row">
+            <div class="step-icon" style="background:rgba(255,77,109,0.1);">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#FF4D6D" stroke-width="1.8" stroke-linecap="round">
+                <polyline points="3,12 6,8 9,10 12,5 15,7"/>
+                <line x1="15" y1="7" x2="15" y2="7"/>
+              </svg>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Mesure ta progression</div>
+              <div class="step-desc">Tes stats et insights au fil du temps.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ob-cta">
+          <span class="ob-cta-text">C'est parti →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ÉCRAN 2 — NOTIFICATIONS ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Planning</div>
+    <div class="screen-step">Écran 2 / 3 · Optionnel</div>
+    <div class="phone">
+      <div class="ob-progress">
+        <div class="ob-prog-seg done"></div>
+        <div class="ob-prog-seg current"></div>
+        <div class="ob-prog-seg"></div>
+      </div>
+      <div class="notif">
+        <div class="ob-title" style="font-size:20px;margin-bottom:6px;">Quand<br>tu joues ?</div>
+        <div class="ob-body" style="margin-bottom:12px;">On te rappellera le bon objectif avant chaque séance.</div>
+
+        <!-- Sélecteur famille — étape 1 -->
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Type de séance</div>
+        <div class="family-row">
+          <div class="family-btn badminton selected">
+            <div class="family-dot" style="background:#00E5C8;"></div>
+            <div class="family-label">Badminton</div>
+          </div>
+          <div class="family-btn physique">
+            <div class="family-dot" style="background:#6b6b7a;"></div>
+            <div class="family-label">Physique</div>
+          </div>
+        </div>
+
+        <!-- Sélecteur jours — étape 2 -->
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Jour</div>
+        <div class="days-grid" style="margin-bottom:10px;">
+          <div class="day-col">
+            <div class="day-label">L</div>
+            <div class="day-btn"></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">M</div>
+            <div class="day-btn selected"><div class="day-btn-inner"></div></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">M</div>
+            <div class="day-btn"></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">J</div>
+            <div class="day-btn selected"><div class="day-btn-inner"></div></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">V</div>
+            <div class="day-btn"></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">S</div>
+            <div class="day-btn selected"><div class="day-btn-inner"></div></div>
+          </div>
+          <div class="day-col">
+            <div class="day-label">D</div>
+            <div class="day-btn"></div>
+          </div>
+        </div>
+
+        <!-- Créneaux configurés -->
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Créneaux</div>
+        <div class="slots-list">
+          <div class="slot-row">
+            <div class="slot-day">Mar</div>
+            <div class="slot-time">19h00</div>
+            <div class="slot-type badminton">Badminton</div>
+          </div>
+          <div class="slot-row">
+            <div class="slot-day">Jeu</div>
+            <div class="slot-time">20h30</div>
+            <div class="slot-type physique">Physique</div>
+          </div>
+          <div class="slot-row">
+            <div class="slot-day">Sam</div>
+            <div class="slot-time">10h00</div>
+            <div class="slot-type badminton">Badminton</div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="ob-cta" style="margin-bottom:10px;">
+          <span class="ob-cta-text">Activer les rappels →</span>
+        </div>
+        <div class="skip-link">Passer pour l'instant</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ÉCRAN 3 — PSEUDO ══ -->
+  <div class="screen-wrap">
+    <div class="screen-label">Pseudo</div>
+    <div class="screen-step">Écran 3 / 3 · Obligatoire</div>
+    <div class="phone">
+      <div class="ob-progress">
+        <div class="ob-prog-seg done"></div>
+        <div class="ob-prog-seg done"></div>
+        <div class="ob-prog-seg current"></div>
+      </div>
+      <div class="pseudo-screen">
+        <div class="ob-title" style="font-size:20px;margin-bottom:6px;">Comment<br>tu t'appelles<br><span>sur le terrain ?</span></div>
+        <div class="ob-body" style="margin-bottom:20px;">Il apparaîtra sur tes cartes de partage.</div>
+
+        <!-- Préview carte avec username -->
+        <div class="pseudo-illustration">
+          <div class="pseudo-card-preview">
+            <div class="pcp-top">
+              <div class="pcp-badge">Streak</div>
+              <div class="pcp-num">7</div>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:8px;"></div>
+            <div class="pcp-footer">
+              <div class="pcp-logo">Smash<span>log</span></div>
+              <div class="pcp-username filled">@SmashKing</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Champ de saisie -->
+        <div class="pseudo-field-wrap">
+          <div class="pseudo-field-label">Ton pseudo</div>
+          <div class="pseudo-field">
+            <div style="color:var(--text-muted);font-size:16px;font-family:var(--font-display);font-weight:700;">@</div>
+            <div class="pseudo-field-text">SmashKing</div>
+            <div class="pseudo-cursor"></div>
+          </div>
+        </div>
+
+        <div class="pseudo-hint">
+          Visible uniquement sur tes cartes partagées.<br>
+          <strong>Modifiable à tout moment dans les réglages.</strong>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="ob-cta">
+          <span class="ob-cta-text">Commencer →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Notes de design -->
+<div style="max-width:900px;margin:56px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+
+  <div style="background:#16161a;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;">
+    <div style="font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b6b7a;margin-bottom:8px;">Splash</div>
+    <div style="font-size:11px;color:#9999aa;line-height:1.6;">Tap n'importe où pour avancer. Pas de bouton "Commencer" — on retire une friction.</div>
+  </div>
+
+  <div style="background:#16161a;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;">
+    <div style="font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b6b7a;margin-bottom:8px;">Concept</div>
+    <div style="font-size:11px;color:#9999aa;line-height:1.6;">3 étapes visuelles plutôt que du texte. Le joueur comprend le flux sans lire.</div>
+  </div>
+
+  <div style="background:#16161a;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;">
+    <div style="font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b6b7a;margin-bottom:8px;">Planning</div>
+    <div style="font-size:11px;color:#9999aa;line-height:1.6;">Skip visible et accessible. La demande de permission notifs se fait au tap du CTA, pas avant.</div>
+  </div>
+
+  <div style="background:#16161a;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;">
+    <div style="font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6b6b7a;margin-bottom:8px;">Pseudo</div>
+    <div style="font-size:11px;color:#9999aa;line-height:1.6;">La préview de carte en temps réel justifie pourquoi on demande le pseudo. Le CTA est désactivé tant que le champ est vide.</div>
+  </div>
+
+</div>
+
+</body>
+</html>
