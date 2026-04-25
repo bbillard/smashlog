@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "Badlog",
-    "slug": "badlog",
-    "scheme": "badlog",
-    "version": "0.1.0",
+    "name": "Smashlog",
+    "slug": "smashlog",
+    "scheme": "smashlog",
+    "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./img/smashlog-logo.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
@@ -12,14 +13,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Autorise Badlog a acceder a ta phototheque pour choisir une photo de profil."
+          "photosPermission": "Autorise Smashlog à accéder à ta photothèque pour choisir une photo de profil."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Autorise Badlog a acceder a ta phototheque.",
-          "savePhotosPermission": "Autorise Badlog a enregistrer tes cartes de partage dans ta phototheque."
+          "photosPermission": "Autorise Smashlog à accéder à ta photothèque.",
+          "savePhotosPermission": "Autorise Smashlog à enregistrer tes cartes de partage dans ta photothèque."
         }
       ]
     ],
@@ -27,9 +28,16 @@
       "typedRoutes": true
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.smashlog.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.smashlog.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./img/smashlog-logo.png",
+        "backgroundColor": "#0d0d0f"
+      }
+    },
     "extra": {
       "router": {}
     }
