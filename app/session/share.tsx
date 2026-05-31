@@ -84,28 +84,40 @@ export default function ShareSessionScreen() {
   const genericTemplates: ShareTemplate[] =
     session && sessionNumber > 0
       ? [
-          {
-            key: "generic",
-            render: () => (
-              <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-            ),
-          },
-          {
-            key: "intention",
-            render: () => (
-              <IntentionShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-            ),
-          },
-          {
-            key: "progress",
-            render: () => (
-              <ProgressShareCard
-                sessionNumber={sessionNumber}
-                sessions={sessions}
-                username={profile.username}
-              />
-            ),
-          },
+          ...(session.nextIntention.trim().length > 0
+            ? [
+                {
+                  key: "generic",
+                  render: () => (
+                    <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+                  ),
+                },
+              ]
+            : []),
+          ...(session.nextIntention.trim().length > 0
+            ? [
+                {
+                  key: "intention",
+                  render: () => (
+                    <IntentionShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+                  ),
+                },
+              ]
+            : []),
+          ...(sessionNumber >= 3
+            ? [
+                {
+                  key: "progress",
+                  render: () => (
+                    <ProgressShareCard
+                      sessionNumber={sessionNumber}
+                      sessions={sessions}
+                      username={profile.username}
+                    />
+                  ),
+                },
+              ]
+            : []),
         ]
       : [];
 

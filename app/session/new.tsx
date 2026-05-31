@@ -127,11 +127,12 @@ export default function NewSessionScreen() {
     draft.freeNotes.trim().length > 0;
 
   const canGoToStepTwo = draft.type !== null;
+  const intentionRequired = draft.type === "match" || draft.type === "entrainement" || draft.type === "jeu_libre";
   const canSaveQuestions =
     draft.rating > 0 &&
     draft.wentWell.trim().length > 0 &&
     draft.wentWrong.trim().length > 0 &&
-    draft.nextIntention.trim().length > 0;
+    (!intentionRequired || draft.nextIntention.trim().length > 0);
   const copy = draft.type ? FIELD_COPY[draft.type] : null;
 
   async function handleSave() {
