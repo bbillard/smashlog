@@ -207,6 +207,8 @@ export function PlanningEditor({
           mode="time"
           minuteInterval={30}
           onChange={handlePickerChange}
+          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
           value={pickerDate}
         />
       ) : null}

@@ -123,18 +123,22 @@ export function DateTimeField({
 
       {showDatePicker ? (
         <DateTimePicker
-          display={Platform.OS === "ios" ? "inline" : "default"}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
           mode="date"
           onChange={handleNativeDateChange}
+          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
           value={value}
         />
       ) : null}
 
       {showTimePicker ? (
         <DateTimePicker
-          display="default"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
           mode="time"
           onChange={handleNativeTimeChange}
+          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
           value={value}
         />
       ) : null}
