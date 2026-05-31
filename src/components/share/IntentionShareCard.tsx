@@ -37,7 +37,7 @@ export function IntentionShareCard({
 
   return (
     <View style={styles.card}>
-      <View>
+      <View style={styles.content}>
         <View style={styles.eyebrow}>
           <Text style={styles.sessionMeta}>Séance {sessionNumber}</Text>
           <View style={styles.dot} />
@@ -51,8 +51,14 @@ export function IntentionShareCard({
           </View>
         </View>
         <Text style={styles.quoteMark}>"</Text>
-        <Text style={styles.intentionText}>
-          {truncate(session.nextIntention, 82)}
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.74}
+          numberOfLines={6}
+          style={styles.intentionText}
+        >
+          {truncate(session.nextIntention, 220)}
           {"\n"}
           <Text style={styles.intentionMeta}>— Prochaine séance</Text>
         </Text>
@@ -83,6 +89,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 14,
+  },
+  content: {
+    flexShrink: 1,
+    minHeight: 0,
   },
   sessionMeta: {
     fontSize: 11,

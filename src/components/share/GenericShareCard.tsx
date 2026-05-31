@@ -40,7 +40,7 @@ export function GenericShareCard({
 
   return (
     <View style={styles.card}>
-      <View>
+      <View style={styles.content}>
         <View style={styles.top}>
           <View>
             <Text style={styles.sessionNumber}>{sessionNumber}</Text>
@@ -57,14 +57,22 @@ export function GenericShareCard({
         </View>
 
         {session.title ? (
-          <Text style={styles.title}>{truncate(session.title, 52)}</Text>
+          <Text adjustsFontSizeToFit ellipsizeMode="tail" minimumFontScale={0.82} numberOfLines={2} style={styles.title}>
+            {truncate(session.title, 120)}
+          </Text>
         ) : null}
 
         <View style={styles.divider} />
 
         <Text style={styles.intentionLabel}>Prochaine séance</Text>
-        <Text style={styles.intentionText}>
-          {truncate(session.nextIntention, 96)}
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.76}
+          numberOfLines={4}
+          style={styles.intentionText}
+        >
+          {truncate(session.nextIntention, 220)}
         </Text>
       </View>
 
@@ -93,6 +101,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 14,
+  },
+  content: {
+    flexShrink: 1,
+    minHeight: 0,
   },
   sessionNumber: {
     fontFamily: fonts.displayExtraBold,

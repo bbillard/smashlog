@@ -471,7 +471,13 @@ function SessionsPerWeekShareCard({
           })}
         </View>
 
-        <Text style={[styles.spwMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}>
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.76}
+          numberOfLines={4}
+          style={[styles.spwMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+        >
           {card.message.text}
         </Text>
       </View>
@@ -541,7 +547,13 @@ function WeeksStreakShareCard({
           })}
         </View>
 
-        <Text style={[styles.ewMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}>
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.74}
+          numberOfLines={4}
+          style={[styles.ewMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+        >
           {card.message.text}
         </Text>
       </View>
@@ -583,7 +595,13 @@ function MilestoneShareCard({
           <Text style={[styles.milestoneSup, { color: theme.milestoneSupColor }]}>e</Text>
         </Text>
         <Text style={[styles.milestoneLabel, { color: theme.dimAccentColor }]}>séance enregistrée</Text>
-        <Text style={[styles.milestoneMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}>
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.76}
+          numberOfLines={4}
+          style={[styles.milestoneMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+        >
           {card.message.text}
         </Text>
       </View>

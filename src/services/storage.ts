@@ -45,3 +45,20 @@ export async function getSessionById(id: string): Promise<Session | null> {
   const sessions = await getSessions();
   return sessions.find((session) => session.id === id) ?? null;
 }
+
+export async function importSessions(incoming: Session[]): Promise<{ imported: number; skipped: number }> {
+  const existing = await getSessions();
+  const existingIds = new Set(existing.map((s) => s.id));
+
+  const toAdd = incoming.filter((s) => !existingIds.has(s.id));
+  const skipped = incoming.length - toAdd.length;
+
+  if (toAdd.length > 0) {
+    const merged = [...existing, ...toAdd].sort(
+      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    );
+    await persistSessions(merged);
+  }
+
+  return { imported: toAdd.length, skipped };
+}

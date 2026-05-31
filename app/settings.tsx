@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { router } from "expo-router";
+import * as Sharing from "expo-sharing";
 
 import { LabeledInput, ToggleRow } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -17,7 +20,7 @@ import {
   getNotificationSettings,
   saveNotificationSettings,
 } from "@/src/services/settings";
-import { getSessions, updateSession } from "@/src/services/storage";
+import { getSessions, importSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { NotificationSettings } from "@/src/types/session";
 
@@ -59,6 +62,9 @@ export default function SettingsScreen() {
   const [canOpenDebug, setCanOpenDebug] = useState(false);
   const [hasPlanning, setHasPlanning] = useState(false);
   const [nextSlotSummary, setNextSlotSummary] = useState("Aucune prochaine séance planifiée");
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const exportFileRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -73,6 +79,97 @@ export default function SettingsScreen() {
 
     load();
   }, []);
+
+  async function handleExport() {
+    setIsExporting(true);
+    try {
+      const sessions = await getSessions();
+      const json = JSON.stringify({ version: 1, sessions }, null, 2);
+      const fileName = `badlog-export-${new Date().toISOString().split("T")[0]}.json`;
+
+      // Write to a temp file then share it
+      const path = FileSystem.cacheDirectory + fileName;
+      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
+      exportFileRef.current = path;
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Partage indisponible", "Le partage de fichiers n'est pas disponible sur cet appareil.");
+        return;
+      }
+
+      await Sharing.shareAsync(path, { mimeType: "application/json", dialogTitle: "Exporter mes données" });
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'exporter les données.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleImport() {
+    setIsImporting(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: Platform.OS === "ios" ? "public.json" : "application/json",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        Alert.alert("Format invalide", "Le fichier sélectionné n'est pas un JSON valide.");
+        return;
+      }
+
+      // Validate shape
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        !("sessions" in parsed) ||
+        !Array.isArray((parsed as { sessions: unknown }).sessions)
+      ) {
+        Alert.alert("Format invalide", "Le fichier ne contient pas de données Badlog valides.");
+        return;
+      }
+
+      const incoming = (parsed as { sessions: unknown[] }).sessions;
+      const validSessions = incoming.filter(
+        (s) =>
+          typeof s === "object" &&
+          s !== null &&
+          typeof (s as Record<string, unknown>).id === "string" &&
+          typeof (s as Record<string, unknown>).createdAt === "string" &&
+          typeof (s as Record<string, unknown>).type === "string",
+      );
+
+      if (validSessions.length === 0) {
+        Alert.alert("Aucune séance", "Le fichier ne contient aucune séance valide.");
+        return;
+      }
+
+      const { imported, skipped } = await importSessions(validSessions as Parameters<typeof importSessions>[0]);
+
+      const message =
+        imported === 0
+          ? "Toutes les séances étaient déjà présentes."
+          : `${imported} séance${imported > 1 ? "s" : ""} importée${imported > 1 ? "s" : ""}${skipped > 0 ? ` · ${skipped} ignorée${skipped > 1 ? "s" : ""} (doublons)` : ""}.`;
+
+      Alert.alert("Import terminé", message);
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'importer les données.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
 
   async function handleSave() {
     setIsSaving(true);
@@ -198,6 +295,25 @@ export default function SettingsScreen() {
         />
       </SectionCard>
 
+      <SectionCard>
+        <Text style={[styles.dataTitle, { color: theme.text }]}>Mes données</Text>
+        <Text style={[styles.dataDescription, { color: theme.secondaryText }]}>
+          Exporte tes séances en JSON pour les sauvegarder ou les transférer. L'import fusionne sans écraser.
+        </Text>
+        <PrimaryButton
+          label={isExporting ? "Export en cours…" : "Exporter mes données"}
+          onPress={handleExport}
+          tone="secondary"
+        />
+        <View style={styles.importButton}>
+          <PrimaryButton
+            label={isImporting ? "Import en cours…" : "Importer mes données"}
+            onPress={handleImport}
+            tone="secondary"
+          />
+        </View>
+      </SectionCard>
+
       {canOpenDebug ? (
         <SectionCard>
           <Text style={[styles.debugTitle, { color: theme.text }]}>Debug développement</Text>
@@ -252,6 +368,20 @@ const styles = StyleSheet.create({
   nextSessionLink: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
+  },
+  dataTitle: {
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    marginBottom: 8,
+  },
+  dataDescription: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 12,
+  },
+  importButton: {
+    marginTop: 8,
   },
   debugTitle: {
     fontSize: 18,
