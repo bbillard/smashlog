@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -116,6 +116,16 @@ export default function NewSessionScreen() {
   const [draft, setDraft] = useState<DraftSession>(INITIAL_DRAFT);
   const [isSaving, setIsSaving] = useState(false);
 
+  const hasUnsavedDraft =
+    step > 1 ||
+    draft.type !== null ||
+    draft.rating > 0 ||
+    draft.title.trim().length > 0 ||
+    draft.wentWell.trim().length > 0 ||
+    draft.wentWrong.trim().length > 0 ||
+    draft.nextIntention.trim().length > 0 ||
+    draft.freeNotes.trim().length > 0;
+
   const canGoToStepTwo = draft.type !== null;
   const canSaveQuestions =
     draft.rating > 0 &&
@@ -182,7 +192,40 @@ export default function NewSessionScreen() {
     </View>
   );
 
+  function handleHeaderExit() {
+    if (!hasUnsavedDraft) {
+      router.replace("/");
+      return;
+    }
+
+    Alert.alert(
+      "Revenir à l'écran d'accueil ?",
+      "Cela va supprimer les données qui ne sont pas enregistrées.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Confirmer",
+          style: "destructive",
+          onPress: () => router.replace("/"),
+        },
+      ],
+    );
+  }
+
   return (
+    <>
+      <Stack.Screen
+        options={{
+          headerBackVisible: false,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={handleHeaderExit} style={styles.headerExitButton}>
+              <Ionicons color={theme.headerText} name="chevron-back" size={18} />
+              <Text style={[styles.headerExitText, { color: theme.headerText }]}>Accueil</Text>
+            </Pressable>
+          ),
+        }}
+      />
     <Screen key={step} footer={footer} scrollable>
       <View style={styles.header}>
         {step > 1 ? (
@@ -264,6 +307,7 @@ export default function NewSessionScreen() {
         </View>
       ) : null}
     </Screen>
+    </>
   );
 }
 
@@ -273,6 +317,16 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 16,
+  },
+  headerExitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingRight: 6,
+  },
+  headerExitText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
   },
   backRow: {
     flexDirection: "row",
