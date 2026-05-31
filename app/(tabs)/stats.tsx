@@ -1,6 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { AppSidebar } from "@/src/components/AppSidebar";
 import { EmptyState } from "@/src/components/EmptyState";
@@ -62,6 +63,11 @@ export default function StatsScreen() {
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
   const sidebarSwipe = useSidebarSwipe(() => setIsMenuOpen(true));
 
   const loadSessions = useCallback(async () => {
@@ -78,18 +84,30 @@ export default function StatsScreen() {
     }, [loadSessions]),
   );
 
+  function goToPrevMonth() {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }
+
+  function goToNextMonth() {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }
+
+  const today = new Date();
+  const isCurrentMonth =
+    calendarDate.getMonth() === today.getMonth() &&
+    calendarDate.getFullYear() === today.getFullYear();
+
   const averageRating =
     sessions.length === 0 ? 0 : sessions.reduce((sum, session) => sum + session.rating, 0) / sessions.length;
   const latestIntention = sessions[0]?.nextIntention;
-  const currentMonth = new Date();
-  const calendarDays = buildMonthGrid(currentMonth);
+  const calendarDays = buildMonthGrid(calendarDate);
   const sessionDatesThisMonth = new Set(
     sessions
       .map((session) => new Date(session.createdAt))
       .filter(
         (date) =>
-          date.getMonth() === currentMonth.getMonth() &&
-          date.getFullYear() === currentMonth.getFullYear(),
+          date.getMonth() === calendarDate.getMonth() &&
+          date.getFullYear() === calendarDate.getFullYear(),
       )
       .map((date) => toDayKey(date)),
   );
@@ -149,10 +167,18 @@ export default function StatsScreen() {
             </SectionCard>
 
             <SectionCard>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendrier du mois</Text>
-              <Text style={[styles.calendarMonth, { color: theme.secondaryText }]}>
-                {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(currentMonth)}
-              </Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendrier</Text>
+              <View style={styles.calendarNav}>
+                <Pressable onPress={goToPrevMonth} hitSlop={8}>
+                  <Ionicons name="chevron-back" size={18} color={theme.text} />
+                </Pressable>
+                <Text style={[styles.calendarMonth, { color: theme.secondaryText }]}>
+                  {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(calendarDate)}
+                </Text>
+                <Pressable onPress={goToNextMonth} hitSlop={8} disabled={isCurrentMonth}>
+                  <Ionicons name="chevron-forward" size={18} color={isCurrentMonth ? theme.tertiaryText : theme.text} />
+                </Pressable>
+              </View>
               <View style={styles.calendarHeaderRow}>
                 {["L", "M", "M", "J", "V", "S", "D"].map((label, index) => (
                   <Text key={`${label}-${index}`} style={[styles.weekdayLabel, { color: theme.secondaryText }]}>
@@ -271,11 +297,18 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 999,
   },
+  calendarNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   calendarMonth: {
     fontSize: 13,
     fontFamily: fonts.bodyRegular,
     textTransform: "capitalize",
-    marginBottom: 8,
+    flex: 1,
+    textAlign: "center",
   },
   calendarHeaderRow: {
     flexDirection: "row",

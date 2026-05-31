@@ -66,7 +66,7 @@ const FIELD_COPY: Record<
   entrainement: {
     wentWellLabel: "Ce qui a bien fonctionné",
     wentWellPlaceholder: "Ex: la longueur sur les lobs, ma concentration sur toute la séance...",
-    wentWrongLabel: "Ce qui est a moins bien fonctionné",
+    wentWrongLabel: "Ce qui a moins bien fonctionné",
     wentWrongPlaceholder: "Ex: précision smash croisé, déplacements retard...",
     nextLabel: "Intention pour la prochaine séance",
     nextPlaceholder: "Ex: travailler mon smash croisé pendant 15 minutes.",

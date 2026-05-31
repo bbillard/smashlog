@@ -24,6 +24,8 @@ export function Screen({ children, scrollable = false, footer }: ScreenProps) {
               styles.scrollContent,
               footer ? styles.withFooter : null,
             ])}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
           >
             {children}
           </ScrollView>

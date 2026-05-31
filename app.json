@@ -34,7 +34,7 @@
     "android": {
       "package": "com.smashlog.app",
       "adaptiveIcon": {
-        "foregroundImage": "./img/smashlog-logo.png",
+        "foregroundImage": "./img/smashlog-logo-android.png",
         "backgroundColor": "#0d0d0f"
       },
       "permissions": [
