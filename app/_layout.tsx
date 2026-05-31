@@ -4,11 +4,12 @@ import {
   DMSans_600SemiBold,
 } from "@expo-google-fonts/dm-sans";
 import { Syne_700Bold, Syne_800ExtraBold } from "@expo-google-fonts/syne";
+import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -21,6 +22,8 @@ import {
   syncLegacyProfileIntoOnboarding,
 } from "@/src/services/onboarding";
 import { getSessions } from "@/src/services/storage";
+
+const HEADER_BUTTON_COLOR = "#F0F0F2";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -116,6 +119,13 @@ export default function RootLayout() {
     },
   };
 
+  const headerBackToHome = () => (
+    <Pressable onPress={() => router.replace("/")} style={styles.headerBackHome}>
+      <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
+      <Text style={[styles.headerBackHomeText, { color: HEADER_BUTTON_COLOR }]}>Accueil</Text>
+    </Pressable>
+  );
+
   return (
     <ThemeProvider value={navigationTheme}>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
@@ -151,6 +161,8 @@ export default function RootLayout() {
             options={{
               title: "Nouvelle séance",
               presentation: "card",
+              headerBackVisible: false,
+              headerLeft: headerBackToHome,
             }}
           />
           <Stack.Screen
@@ -165,13 +177,31 @@ export default function RootLayout() {
             options={{
               title: "Partager",
               presentation: "card",
+              headerBackVisible: false,
+              headerLeft: () => null,
+              gestureEnabled: false,
             }}
           />
-          <Stack.Screen name="debug" options={{ title: "Debug partage" }} />
-          <Stack.Screen name="planning" options={{ title: "Planning" }} />
-          <Stack.Screen name="profile" options={{ title: "Profil" }} />
-          <Stack.Screen name="sessions" options={{ title: "Séances" }} />
-          <Stack.Screen name="settings" options={{ title: "Réglages notifications" }} />
+          <Stack.Screen
+            name="debug"
+            options={{ title: "Debug partage", headerBackVisible: false, headerLeft: headerBackToHome }}
+          />
+          <Stack.Screen
+            name="planning"
+            options={{ title: "Planning", headerBackVisible: false, headerLeft: headerBackToHome }}
+          />
+          <Stack.Screen
+            name="profile"
+            options={{ title: "Profil", headerBackVisible: false, headerLeft: headerBackToHome }}
+          />
+          <Stack.Screen
+            name="sessions"
+            options={{ title: "Séances", headerBackVisible: false, headerLeft: headerBackToHome }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{ title: "Réglages", headerBackVisible: false, headerLeft: headerBackToHome }}
+          />
         </Stack>
       </View>
     </ThemeProvider>
@@ -184,5 +214,14 @@ const styles = {
     alignItems: "center" as const,
     justifyContent: "center" as const,
     backgroundColor: "#0d0d0f",
+  },
+  headerBackHome: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 3,
+    paddingRight: 6,
+  },
+  headerBackHomeText: {
+    fontSize: 13,
   },
 };

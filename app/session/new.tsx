@@ -42,6 +42,8 @@ const INITIAL_DRAFT: DraftSession = {
   freeNotes: "",
 };
 
+const HEADER_BUTTON_COLOR = "#F0F0F2";
+
 const FIELD_COPY: Record<
   SessionType,
   {
@@ -221,8 +223,8 @@ export default function NewSessionScreen() {
           headerBackTitleVisible: false,
           headerLeft: () => (
             <Pressable onPress={handleHeaderExit} style={styles.headerExitButton}>
-              <Ionicons color={theme.headerText} name="chevron-back" size={18} />
-              <Text style={[styles.headerExitText, { color: theme.headerText }]}>Accueil</Text>
+              <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
+              <Text style={[styles.headerExitText, { color: HEADER_BUTTON_COLOR }]}>Accueil</Text>
             </Pressable>
           ),
         }}

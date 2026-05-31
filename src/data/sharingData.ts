@@ -145,7 +145,7 @@ export const MESSAGES: ShareMessage[] = [
   { id: 11, template: "Cette semaine, tu as joué. La semaine prochaine aussi ?",                                                       type: 'sessions_per_week', level: 1, hasPlayer: false },
   { id: 12, template: "*player_name* a commencé quelque part, toi aussi.",                                                            type: null,               level: 1, hasPlayer: true  },
   { id: 13, template: "Un smash puissant se construit une séance à la fois.",                                                          type: null,               level: 1, hasPlayer: false },
-  { id: 14, template: "Séance enregistrée. Le volant s'en souvient.",                                                                 type: null,               level: 1, hasPlayer: false },
+  { id: 14, template: "Séance enregistrée. Le gymnase s'en souvient.",                                                                 type: null,               level: 1, hasPlayer: false },
   { id: 15, template: "Pas de grands joueurs sans petites séances.",                                                                   type: 'low_session_rate', level: 1, hasPlayer: false },
 
   // Niveau 2
