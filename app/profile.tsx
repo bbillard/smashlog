@@ -14,6 +14,8 @@ import { getProfile, saveProfile } from "@/src/services/profile";
 import { fonts } from "@/src/theme/typography";
 import { Profile } from "@/src/types/profile";
 
+const USERNAME_MAX_LENGTH = 20;
+
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
@@ -57,7 +59,7 @@ export default function ProfileScreen() {
     setIsSaving(true);
 
     try {
-      const nextUsername = profile.username.trim() || "Joueur Badlog";
+      const nextUsername = profile.username.trim().slice(0, USERNAME_MAX_LENGTH) || "Joueur Badlog";
 
       await saveProfile({
         username: nextUsername,
@@ -100,6 +102,7 @@ export default function ProfileScreen() {
       </SectionCard>
       <LabeledInput
         label="Username"
+        maxLength={USERNAME_MAX_LENGTH}
         onChangeText={(username) => setProfile((current) => ({ ...current, username }))}
         placeholder="Ex : smash.baptiste"
         value={profile.username}

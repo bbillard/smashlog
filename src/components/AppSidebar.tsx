@@ -50,7 +50,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
               <View style={styles.menuIdentity}>
                 <ProfileAvatar size={52} uri={profile.photoUri} />
                 <View style={styles.menuIdentityText}>
-                  <Text style={[styles.menuTitle, { color: theme.text }]}>{profile.username}</Text>
+                  <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.menuTitle, { color: theme.text }]}>
+                    {profile.username}
+                  </Text>
                   <Text style={[styles.menuSubtitle, { color: theme.secondaryText }]}>Compte local</Text>
                 </View>
               </View>
@@ -142,6 +144,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontFamily: fonts.displayBold,
+    flexShrink: 1,
   },
   menuSubtitle: {
     fontSize: 12,
