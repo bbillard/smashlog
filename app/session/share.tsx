@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ViewShot from "react-native-view-shot";
 
+import { FallbackShareCard } from "@/src/components/share/FallbackShareCard";
 import { GenericShareCard } from "@/src/components/share/GenericShareCard";
 import { IntentionShareCard } from "@/src/components/share/IntentionShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
@@ -126,7 +127,22 @@ export default function ShareSessionScreen() {
     render: () => <SpecialShareCard card={card} sessions={sessions} username={profile.username} />,
   }));
 
-  const templates = [...specialTemplates, ...genericTemplates];
+  const fallbackTemplate: ShareTemplate | null =
+    session && sessionNumber > 0
+      ? {
+          key: "fallback",
+          render: () => (
+            <FallbackShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+          ),
+        }
+      : null;
+
+  // Fallback en position 0 par défaut, en position 1 si une carte spéciale est présente
+  const templates: ShareTemplate[] = fallbackTemplate
+    ? specialTemplates.length > 0
+      ? [specialTemplates[0], fallbackTemplate, ...specialTemplates.slice(1), ...genericTemplates]
+      : [fallbackTemplate, ...genericTemplates]
+    : [...specialTemplates, ...genericTemplates];
   const canGoPrevTemplate = activeTemplate > 0;
   const canGoNextTemplate = activeTemplate < templates.length - 1;
 
@@ -239,9 +255,11 @@ export default function ShareSessionScreen() {
   return (
     <Screen scrollable={Platform.OS === "web"}>
       <View style={styles.shareTop}>
-        <Text style={[styles.shareCongrats, { color: theme.text }]}>Bien joué ! 🏸</Text>
+        <Text style={[styles.shareCongrats, { color: theme.text }]}>
+          {sessionNumber === 1 ? "Félicitations 🎉" : "Séance notée 🏸"}
+        </Text>
         <Text style={[styles.shareSub, { color: theme.secondaryText }]}>
-          Séance enregistrée · Partage ta session
+          {sessionNumber === 1 ? "Ta première séance est enregistrée" : "Continue sur cette lancée"}
         </Text>
       </View>
 
