@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
@@ -95,6 +96,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
           </View>
 
           <View style={styles.menuSwipeSpacer} />
+          <Text style={[styles.versionLabel, { color: theme.secondaryText }]}>
+            v{Constants.expoConfig?.version ?? "—"}
+          </Text>
         </View>
       </View>
     </Modal>
@@ -163,5 +167,11 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
+  },
+  versionLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    textAlign: "center",
+    paddingBottom: 16,
   },
 });

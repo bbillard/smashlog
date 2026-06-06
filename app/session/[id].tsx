@@ -16,7 +16,7 @@ import { getNotificationSettings } from "@/src/services/settings";
 import { rescheduleNotifications } from "@/src/services/notifications";
 import { deleteSession, getSessionById, getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
-import { Session } from "@/src/types/session";
+import { Match, Session } from "@/src/types/session";
 import { formatDate } from "@/src/utils/format";
 
 interface EditableSession {
@@ -29,6 +29,126 @@ interface EditableSession {
   nextIntention: string;
   freeNotes: string;
 }
+
+// ── Helpers matchs ────────────────────────────────────────────────────────────
+
+function formatMatchScore(sets: Match["sets"]): string {
+  if (sets.length === 0) return "";
+  return sets.map((s) => `${s.scoreNous}-${s.scoreEux}`).join(", ");
+}
+
+const MATCH_MODE_LABELS: Record<Match["mode"], string> = {
+  simple: "Simple",
+  double: "Double",
+  mixte: "Mixte",
+};
+
+const MATCH_RESULT_LABELS: Record<Match["resultat"], string> = {
+  victoire: "Victoire",
+  defaite: "Défaite",
+};
+
+// ── Carte match (vue lecture) ─────────────────────────────────────────────────
+
+function MatchDetailCard({ match }: { match: Match }) {
+  const { theme } = useAppTheme();
+  const isWin = match.resultat === "victoire";
+  const barColor = isWin ? "#CEFF00" : "#FF4D6D";
+  const score = formatMatchScore(match.sets);
+
+  return (
+    <View
+      style={[
+        matchStyles.card,
+        { borderColor: theme.border },
+      ]}
+    >
+      <View style={[matchStyles.bar, { backgroundColor: barColor }]} />
+      <View style={matchStyles.content}>
+        <View style={matchStyles.topRow}>
+          <View
+            style={[
+              matchStyles.resultBadge,
+              { backgroundColor: isWin ? "rgba(206,255,0,0.1)" : "rgba(255,77,109,0.1)" },
+            ]}
+          >
+            <Text style={[matchStyles.resultBadgeText, { color: isWin ? "#CEFF00" : "#FF4D6D" }]}>
+              {MATCH_RESULT_LABELS[match.resultat]}
+            </Text>
+          </View>
+          <View style={[matchStyles.modeBadge, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
+            <Text style={[matchStyles.modeBadgeText, { color: theme.secondaryText }]}>
+              {MATCH_MODE_LABELS[match.mode]}
+            </Text>
+          </View>
+          {score ? (
+            <Text style={[matchStyles.score, { color: theme.text }]}>{score}</Text>
+          ) : null}
+        </View>
+        <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}>
+          vs.{" "}
+          <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.adversaire}</Text>
+          {match.partenaire ? (
+            <Text style={{ color: theme.tertiaryText }}> · avec {match.partenaire}</Text>
+          ) : null}
+        </Text>
+        {match.commentaire ? (
+          <Text style={[matchStyles.comment, { color: theme.secondaryText, borderLeftColor: theme.border }]}>
+            {match.commentaire}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+// ── Section matchs ────────────────────────────────────────────────────────────
+
+function MatchesSection({ matches }: { matches: Match[] }) {
+  const { theme } = useAppTheme();
+  if (matches.length === 0) return null;
+
+  const wins = matches.filter((m) => m.resultat === "victoire").length;
+  const losses = matches.filter((m) => m.resultat === "defaite").length;
+  const winRate = Math.round((wins / matches.length) * 100);
+
+  return (
+    <SectionCard>
+      <Text style={[styles.matchesSectionTitle, { color: theme.secondaryText }]}>
+        Matchs · {matches.length} joué{matches.length > 1 ? "s" : ""}
+      </Text>
+
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+          <Text style={[styles.statValue, { color: "#CEFF00" }]}>{wins}</Text>
+          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
+            Victoire{wins > 1 ? "s" : ""}
+          </Text>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+          <Text style={[styles.statValue, { color: "#FF4D6D" }]}>{losses}</Text>
+          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
+            Défaite{losses > 1 ? "s" : ""}
+          </Text>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+          <Text style={[styles.statValue, { color: theme.tertiaryText }]}>{winRate}%</Text>
+          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Win rate</Text>
+        </View>
+      </View>
+
+      {/* Cartes match */}
+      <View style={styles.matchList}>
+        {matches.map((match, index) => (
+          <MatchDetailCard key={index} match={match} />
+        ))}
+      </View>
+    </SectionCard>
+  );
+}
+
+// ── Composant Field ───────────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string }) {
   const { theme } = useAppTheme();
@@ -291,6 +411,9 @@ export default function SessionDetailScreen() {
           <Field label="Ce qui a posé problème" value={session.wentWrong} />
           <Field label="Intention pour la prochaine séance" value={session.nextIntention} />
           {session.freeNotes ? <Field label="Notes libres" value={session.freeNotes} /> : null}
+          {session.matches && session.matches.length > 0 ? (
+            <MatchesSection matches={session.matches} />
+          ) : null}
           {session.notificationScheduledAt ? (
             <Field label="Prochain rappel prévu" value={formatDate(session.notificationScheduledAt)} />
           ) : null}
@@ -299,6 +422,67 @@ export default function SessionDetailScreen() {
     </Screen>
   );
 }
+
+// ── Styles matchs (locaux au module) ─────────────────────────────────────────
+
+const matchStyles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  bar: {
+    width: 3,
+  },
+  content: {
+    flex: 1,
+    padding: 11,
+    gap: 5,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  resultBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  resultBadgeText: {
+    fontFamily: fonts.displayBold,
+    fontSize: 9,
+  },
+  modeBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  modeBadgeText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 9,
+  },
+  score: {
+    fontFamily: fonts.displayBold,
+    fontSize: 12,
+    marginLeft: "auto",
+  },
+  vs: {
+    fontSize: 12,
+  },
+  vsName: {
+    fontFamily: fonts.bodySemiBold,
+  },
+  comment: {
+    fontSize: 11,
+    fontStyle: "italic",
+    borderLeftWidth: 2,
+    paddingLeft: 8,
+  },
+});
+
+// ── Styles principaux ─────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   headerRow: {
@@ -349,5 +533,36 @@ const styles = StyleSheet.create({
   editLink: {
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
+  },
+  matchesSectionTitle: {
+    fontSize: 11,
+    fontFamily: fonts.displayBold,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 7,
+  },
+  statBox: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    gap: 2,
+  },
+  statValue: {
+    fontFamily: fonts.displayExtraBold,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontFamily: fonts.bodyRegular,
+  },
+  matchList: {
+    gap: 7,
   },
 });

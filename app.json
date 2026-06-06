@@ -3,7 +3,7 @@
     "name": "Smashlog",
     "slug": "smashlog",
     "scheme": "smashlog",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./img/smashlog-logo.png",
     "userInterfaceStyle": "automatic",
@@ -29,10 +29,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.smashlog.app"
+      "bundleIdentifier": "com.smashlog.app",
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.smashlog.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./img/smashlog-logo-android.png",
         "backgroundColor": "#0d0d0f"

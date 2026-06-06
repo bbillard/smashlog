@@ -14,7 +14,10 @@ export async function getSessions(): Promise<Session[]> {
     return [];
   }
 
-  const sessions = JSON.parse(raw) as Session[];
+  const sessions = (JSON.parse(raw) as Session[]).map((session) => ({
+    ...session,
+    matches: session.matches ?? [],
+  }));
   return sessions.sort(
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );

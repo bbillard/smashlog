@@ -11,6 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
@@ -127,84 +128,81 @@ export default function RootLayout() {
   );
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
-        <Stack
-          screenOptions={{
-            animation: "fade",
-            headerStyle: {
-              backgroundColor: theme.surface,
-            },
-            headerTintColor: theme.headerText,
-            headerShadowVisible: true,
-            headerBackTitleVisible: false,
-            headerTitleAlign: "center",
-            headerTransparent: false,
-            headerTitleStyle: {
-              fontFamily: "Syne_700Bold",
-              fontSize: 16,
-            },
-            headerBackgroundContainerStyle: {
-              borderBottomWidth: 1,
-              borderBottomColor: theme.border,
-            },
-            contentStyle: {
-              backgroundColor: theme.background,
-            },
-          }}
-        >
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="session/new"
-            options={{
-              title: "Nouvelle séance",
-              presentation: "card",
-              headerBackVisible: false,
-              headerLeft: headerBackToHome,
+    <SafeAreaProvider>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        <View style={{ flex: 1, backgroundColor: theme.background }}>
+          <Stack
+            screenOptions={{
+              animation: "fade",
+              headerStyle: {
+                backgroundColor: theme.surface,
+              },
+              headerTintColor: theme.headerText,
+              headerShadowVisible: true,
+              headerTitleAlign: "center",
+              headerTransparent: false,
+              headerTitleStyle: {
+                fontFamily: "Syne_700Bold",
+                fontSize: 16,
+              },
+              contentStyle: {
+                backgroundColor: theme.background,
+              },
             }}
-          />
-          <Stack.Screen
-            name="session/[id]"
-            options={{
-              title: "Détail de séance",
-              presentation: "card",
-            }}
-          />
-          <Stack.Screen
-            name="session/share"
-            options={{
-              title: "Partager",
-              presentation: "card",
-              headerBackVisible: false,
-              headerLeft: () => null,
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="debug"
-            options={{ title: "Debug partage", headerBackVisible: false, headerLeft: headerBackToHome }}
-          />
-          <Stack.Screen
-            name="planning"
-            options={{ title: "Planning", headerBackVisible: false, headerLeft: headerBackToHome }}
-          />
-          <Stack.Screen
-            name="profile"
-            options={{ title: "Profil", headerBackVisible: false, headerLeft: headerBackToHome }}
-          />
-          <Stack.Screen
-            name="sessions"
-            options={{ title: "Séances", headerBackVisible: false, headerLeft: headerBackToHome }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{ title: "Réglages", headerBackVisible: false, headerLeft: headerBackToHome }}
-          />
-        </Stack>
-      </View>
-    </ThemeProvider>
+          >
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="session/new"
+              options={{
+                title: "Nouvelle séance",
+                presentation: "card",
+                headerBackVisible: false,
+                headerLeft: headerBackToHome,
+              }}
+            />
+            <Stack.Screen
+              name="session/[id]"
+              options={{
+                title: "Détail de séance",
+                presentation: "card",
+              }}
+            />
+            <Stack.Screen
+              name="session/share"
+              options={{
+                title: "Partager",
+                presentation: "card",
+                headerBackVisible: false,
+                headerLeft: () => null,
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="debug"
+              options={{ title: "Debug partage", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="planning"
+              options={{ title: "Planning", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="profile"
+              options={{ title: "Profil", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="sessions"
+              options={{ title: "Séances", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{ title: "Réglages", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+          </Stack>
+        </View>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

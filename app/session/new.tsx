@@ -1,8 +1,9 @@
 import { Stack, router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -16,7 +17,7 @@ import { rescheduleNotifications } from "@/src/services/notifications";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
 import { addSession, getSessions, updateSession } from "@/src/services/storage";
-import { Session, SessionType } from "@/src/types/session";
+import { Match, Session, SessionType } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
 import { createId } from "@/src/utils/id";
 
@@ -29,6 +30,7 @@ interface DraftSession {
   wentWrong: string;
   nextIntention: string;
   freeNotes: string;
+  matches: Match[];
 }
 
 const INITIAL_DRAFT: DraftSession = {
@@ -40,6 +42,7 @@ const INITIAL_DRAFT: DraftSession = {
   wentWrong: "",
   nextIntention: "",
   freeNotes: "",
+  matches: [],
 };
 
 const HEADER_BUTTON_COLOR = "#F0F0F2";
@@ -154,6 +157,7 @@ export default function NewSessionScreen() {
       wentWrong: draft.wentWrong.trim(),
       nextIntention: draft.nextIntention.trim(),
       freeNotes: draft.freeNotes.trim() || undefined,
+      matches: draft.matches,
     };
 
     try {
@@ -201,6 +205,16 @@ export default function NewSessionScreen() {
       return;
     }
 
+    if (Platform.OS === "web") {
+      const confirmed = globalThis.confirm?.(
+        "Revenir à l'accueil ? Les données non enregistrées seront perdues.",
+      );
+      if (confirmed) {
+        router.replace("/");
+      }
+      return;
+    }
+
     Alert.alert(
       "Revenir à l'écran d'accueil ?",
       "Cela va supprimer les données qui ne sont pas enregistrées.",
@@ -220,7 +234,6 @@ export default function NewSessionScreen() {
       <Stack.Screen
         options={{
           headerBackVisible: false,
-          headerBackTitleVisible: false,
           headerLeft: () => (
             <Pressable onPress={handleHeaderExit} style={styles.headerExitButton}>
               <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
@@ -294,6 +307,13 @@ export default function NewSessionScreen() {
             placeholder={copy?.nextPlaceholder ?? ""}
             value={draft.nextIntention}
           />
+
+          {draft.type === "match" || draft.type === "jeu_libre" ? (
+            <MatchesAccordion
+              matches={draft.matches}
+              onChange={(matches) => setDraft((current) => ({ ...current, matches }))}
+            />
+          ) : null}
         </View>
       ) : null}
 

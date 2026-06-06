@@ -1,3 +1,12 @@
+export interface Match {
+  adversaire: string;
+  partenaire?: string; // uniquement si mode double ou mixte
+  resultat: "victoire" | "defaite";
+  mode: "simple" | "double" | "mixte";
+  sets: { scoreNous: number; scoreEux: number }[];
+  commentaire?: string;
+}
+
 export type SessionType =
   | "match"
   | "entrainement"
@@ -16,6 +25,7 @@ export interface Session {
   wentWrong: string;
   nextIntention: string;
   freeNotes?: string;
+  matches?: Match[];
   notificationScheduledAt?: string;
   notificationIds?: string[];
 }
