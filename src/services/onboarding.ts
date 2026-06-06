@@ -45,7 +45,11 @@ export async function getScheduledSlots(): Promise<ScheduledSlot[]> {
     return [];
   }
 
-  return JSON.parse(raw) as ScheduledSlot[];
+  try {
+    return JSON.parse(raw) as ScheduledSlot[];
+  } catch {
+    return [];
+  }
 }
 
 export async function saveScheduledSlots(slots: ScheduledSlot[]) {

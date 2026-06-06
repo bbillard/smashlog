@@ -17,6 +17,8 @@ export async function getSessions(): Promise<Session[]> {
   const sessions = (JSON.parse(raw) as Session[]).map((session) => ({
     ...session,
     matches: session.matches ?? [],
+    nextIntention: session.nextIntention ?? "",
+    freeNotes: session.freeNotes ?? "",
   }));
   return sessions.sort(
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
