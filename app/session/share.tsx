@@ -244,7 +244,7 @@ export default function ShareSessionScreen() {
           <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
             Impossible de retrouver la séance à partager.
           </Text>
-          <Pressable onPress={() => router.replace("/")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
+          <Pressable onPress={() => router.replace("/(tabs)")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
             <Text style={[styles.doneButtonText, { color: theme.buttonTextOnPrimary }]}>Retour à l'accueil</Text>
           </Pressable>
         </View>
@@ -385,7 +385,7 @@ export default function ShareSessionScreen() {
 
         <View style={[styles.shareDivider, { backgroundColor: theme.border }]} />
 
-        <Pressable onPress={() => router.replace("/")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
+        <Pressable onPress={() => router.replace("/(tabs)")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
           <Text style={[styles.doneButtonText, { color: theme.buttonTextOnPrimary }]}>
             {isSharing ? "Partage..." : "Terminer"}
           </Text>

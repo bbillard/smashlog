@@ -180,6 +180,7 @@ export default function SessionDetailScreen() {
     navigation.setOptions({
       headerLeft: () => (
         <Pressable
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           onPress={() =>
             router.replace({ pathname: "/intentions", params: { filter: filter ?? "tous" } })
           }
@@ -236,7 +237,7 @@ export default function SessionDetailScreen() {
     if (latestSession) {
       await updateSession(latestSession.id, notificationState);
     }
-    router.replace("/");
+    router.replace("/(tabs)");
   }
 
   async function handleDelete() {

@@ -121,7 +121,11 @@ export default function RootLayout() {
   };
 
   const headerBackToHome = () => (
-    <Pressable onPress={() => router.replace("/")} style={styles.headerBackHome}>
+    <Pressable
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      onPress={() => router.replace("/(tabs)")}
+      style={styles.headerBackHome}
+    >
       <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
       <Text style={[styles.headerBackHomeText, { color: HEADER_BUTTON_COLOR }]}>Accueil</Text>
     </Pressable>

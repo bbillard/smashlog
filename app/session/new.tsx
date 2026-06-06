@@ -201,7 +201,7 @@ export default function NewSessionScreen() {
 
   function handleHeaderExit() {
     if (!hasUnsavedDraft) {
-      router.replace("/");
+      router.replace("/(tabs)");
       return;
     }
 
@@ -210,7 +210,7 @@ export default function NewSessionScreen() {
         "Revenir à l'accueil ? Les données non enregistrées seront perdues.",
       );
       if (confirmed) {
-        router.replace("/");
+        router.replace("/(tabs)");
       }
       return;
     }
@@ -223,7 +223,7 @@ export default function NewSessionScreen() {
         {
           text: "Confirmer",
           style: "destructive",
-          onPress: () => router.replace("/"),
+          onPress: () => router.replace("/(tabs)"),
         },
       ],
     );
