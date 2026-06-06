@@ -128,9 +128,11 @@ function MatchCard({
 export function MatchesAccordion({
   matches,
   onChange,
+  singleMatch = false,
 }: {
   matches: Match[];
   onChange: (matches: Match[]) => void;
+  singleMatch?: boolean;
 }) {
   const { theme } = useAppTheme();
   const [isOpen, setIsOpen] = useState(false);
@@ -161,13 +163,14 @@ export function MatchesAccordion({
     });
   }
 
-  function getSetBorderColor(s: SetDraft): string {
-    if (s.scoreNous === "" || s.scoreEux === "") return theme.border;
+  function getSetColors(s: SetDraft): { colorNous: string; colorEux: string } {
+    if (s.scoreNous === "" || s.scoreEux === "")
+      return { colorNous: theme.border, colorEux: theme.border };
     const n = Number(s.scoreNous);
     const e = Number(s.scoreEux);
-    if (n > e) return "rgba(206,255,0,0.25)";
-    if (e > n) return "rgba(255,77,109,0.25)";
-    return theme.border;
+    if (n > e) return { colorNous: "rgba(206,255,0,0.35)", colorEux: "rgba(255,77,109,0.35)" };
+    if (e > n) return { colorNous: "rgba(255,77,109,0.35)", colorEux: "rgba(206,255,0,0.35)" };
+    return { colorNous: theme.border, colorEux: theme.border };
   }
 
   // Actif dès qu'au moins un champ contient une valeur
@@ -222,13 +225,13 @@ export function MatchesAccordion({
         ]}
       >
         <View style={styles.accordionIcon}>
-          <Ionicons color="#FF4D6D" name="information-circle-outline" size={14} />
+          <Ionicons color="#00E5FF" name="information-circle-outline" size={14} />
         </View>
         <View style={styles.accordionTextBlock}>
           <Text style={[styles.accordionTitle, { color: theme.tertiaryText }]}>
-            {"Détail des matchs joués"}
+            {singleMatch ? "Détail du match joué" : "Détail des matchs joués"}
             {matches.length > 0 ? (
-              <Text style={{ color: "#FF4D6D" }}> · {matches.length}</Text>
+              <Text style={{ color: "#00E5FF" }}> · {matches.length}</Text>
             ) : null}
           </Text>
           <Text style={[styles.accordionSub, { color: theme.secondaryText }]}>
@@ -247,10 +250,10 @@ export function MatchesAccordion({
       {/* Header */}
       <Pressable onPress={() => setIsOpen(false)} style={styles.accordionOpenHeader}>
         <View style={styles.aohIcon}>
-          <Ionicons color="#FF4D6D" name="information-circle-outline" size={13} />
+          <Ionicons color="#00E5FF" name="information-circle-outline" size={13} />
         </View>
-        <Text style={styles.accordionOpenTitle}>Détail des matchs joués</Text>
-        <Ionicons color="#FF4D6D" name="chevron-up" size={13} />
+        <Text style={styles.accordionOpenTitle}>{singleMatch ? "Détail du match joué" : "Détail des matchs joués"}</Text>
+        <Ionicons color="#00E5FF" name="chevron-up" size={13} />
       </Pressable>
 
       <View style={styles.accordionOpenBody}>
@@ -265,8 +268,8 @@ export function MatchesAccordion({
         ))}
 
         {/* Formulaire d'ajout */}
-        <View style={styles.addMatchForm}>
-          <Text style={styles.addMatchFormTitle}>+ Match {matches.length + 1}</Text>
+        {singleMatch && matches.length >= 1 ? null : <View style={styles.addMatchForm}>
+          <Text style={styles.addMatchFormTitle}>{singleMatch ? "Match joué" : `+ Match ${matches.length + 1}`}</Text>
 
           {/* 1. Mode */}
           <View style={styles.formRow}>
@@ -393,7 +396,7 @@ export function MatchesAccordion({
             {/* Lignes de sets */}
             {Array.from({ length: visibleSetsCount }, (_, i) => {
               const s = draft.sets[i];
-              const borderColor = getSetBorderColor(s);
+              const { colorNous, colorEux } = getSetColors(s);
               return (
                 <View key={i} style={styles.scoreRow}>
                   <Text style={[styles.scoreSetLabelText, { color: theme.secondaryText }]}>
@@ -407,7 +410,7 @@ export function MatchesAccordion({
                     placeholderTextColor={theme.secondaryText}
                     style={[
                       styles.scoreInput,
-                      { backgroundColor: theme.surface, borderColor, color: theme.text },
+                      { backgroundColor: theme.surface, borderColor: colorNous, color: theme.text },
                     ]}
                     textAlign="center"
                     value={s.scoreNous}
@@ -421,7 +424,7 @@ export function MatchesAccordion({
                     placeholderTextColor={theme.secondaryText}
                     style={[
                       styles.scoreInput,
-                      { backgroundColor: theme.surface, borderColor, color: theme.text },
+                      { backgroundColor: theme.surface, borderColor: colorEux, color: theme.text },
                     ]}
                     textAlign="center"
                     value={s.scoreEux}
@@ -476,7 +479,7 @@ export function MatchesAccordion({
             style={[styles.addMatchBtn, !canAddMatch && styles.addMatchBtnDisabled]}
           >
             <Ionicons
-              color={canAddMatch ? "#ffffff" : "rgba(255,255,255,0.25)"}
+              color={canAddMatch ? "#000000" : "rgba(0,229,255,0.4)"}
               name="add"
               size={12}
             />
@@ -486,7 +489,7 @@ export function MatchesAccordion({
               Ajouter ce match
             </Text>
           </Pressable>
-        </View>
+        </View>}
       </View>
     </View>
   );
@@ -509,9 +512,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: "rgba(255,77,109,0.08)",
+    backgroundColor: "rgba(0,229,255,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,77,109,0.15)",
+    borderColor: "rgba(0,229,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -531,7 +534,7 @@ const styles = StyleSheet.create({
   // ── Accordéon ouvert ─────────────────────────────────────────────────────────
   accordionOpen: {
     borderWidth: 1,
-    borderColor: "rgba(255,77,109,0.2)",
+    borderColor: "rgba(0,229,255,0.2)",
     borderRadius: 14,
     overflow: "hidden",
   },
@@ -542,14 +545,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,77,109,0.1)",
-    backgroundColor: "rgba(255,77,109,0.04)",
+    borderBottomColor: "rgba(0,229,255,0.1)",
+    backgroundColor: "rgba(0,229,255,0.04)",
   },
   aohIcon: {
     width: 26,
     height: 26,
     borderRadius: 7,
-    backgroundColor: "rgba(255,77,109,0.1)",
+    backgroundColor: "rgba(0,229,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -557,7 +560,7 @@ const styles = StyleSheet.create({
   accordionOpenTitle: {
     fontFamily: fonts.displayBold,
     fontSize: 11,
-    color: "#FF4D6D",
+    color: "#00E5FF",
     flex: 1,
   },
   accordionOpenBody: {
@@ -637,9 +640,9 @@ const styles = StyleSheet.create({
 
   // ── Formulaire ajout ─────────────────────────────────────────────────────────
   addMatchForm: {
-    backgroundColor: "rgba(255,77,109,0.04)",
+    backgroundColor: "rgba(0,229,255,0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255,77,109,0.2)",
+    borderColor: "rgba(0,229,255,0.2)",
     borderStyle: "dashed",
     borderRadius: 12,
     padding: 12,
@@ -650,7 +653,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "#FF4D6D",
+    color: "#00E5FF",
   },
   formRow: {
     gap: 5,
@@ -785,19 +788,19 @@ const styles = StyleSheet.create({
   addMatchBtn: {
     height: 34,
     borderRadius: 9,
-    backgroundColor: "#FF4D6D",
+    backgroundColor: "#00E5FF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
   },
   addMatchBtnDisabled: {
-    backgroundColor: "rgba(255,77,109,0.25)",
+    backgroundColor: "rgba(0,229,255,0.25)",
   },
   addMatchBtnText: {
     fontFamily: fonts.displayBold,
     fontSize: 11,
-    color: "#ffffff",
+    color: "#000000",
   },
   addMatchBtnTextDisabled: {
     color: "rgba(255,255,255,0.3)",

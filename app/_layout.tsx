@@ -167,6 +167,8 @@ export default function RootLayout() {
               options={{
                 title: "Détail de séance",
                 presentation: "card",
+                headerBackVisible: false,
+                headerLeft: headerBackToHome,
               }}
             />
             <Stack.Screen

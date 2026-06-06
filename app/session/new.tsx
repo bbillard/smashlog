@@ -312,6 +312,7 @@ export default function NewSessionScreen() {
             <MatchesAccordion
               matches={draft.matches}
               onChange={(matches) => setDraft((current) => ({ ...current, matches }))}
+              singleMatch={draft.type === "match"}
             />
           ) : null}
         </View>
