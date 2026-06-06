@@ -1,5 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { DateTimeField } from "@/src/components/DateTimeField";
@@ -163,13 +165,32 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export default function SessionDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
+  const { id, from, filter } = useLocalSearchParams<{ id: string; from?: string; filter?: string }>();
   const { theme } = useAppTheme();
   const [session, setSession] = useState<Session | null>(null);
   const [draft, setDraft] = useState<EditableSession | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Surcharge du bouton retour quand on vient de "Mes intentions"
+  useEffect(() => {
+    if (from !== "intentions") return;
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          onPress={() =>
+            router.replace({ pathname: "/intentions", params: { filter: filter ?? "tous" } })
+          }
+          style={styles.headerBack}
+        >
+          <Ionicons color="#9999AA" name="chevron-back" size={18} />
+          <Text style={[styles.headerBackText, { color: "#9999AA" }]}>Mes intentions</Text>
+        </Pressable>
+      ),
+    });
+  }, [from, filter, navigation, router]);
 
   const loadSession = useCallback(async () => {
     if (!id) {
@@ -564,5 +585,15 @@ const styles = StyleSheet.create({
   },
   matchList: {
     gap: 7,
+  },
+  headerBack: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingRight: 8,
+  },
+  headerBackText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
   },
 });

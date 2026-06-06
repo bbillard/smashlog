@@ -201,6 +201,10 @@ export default function RootLayout() {
               name="settings"
               options={{ title: "Réglages", headerBackVisible: false, headerLeft: headerBackToHome }}
             />
+            <Stack.Screen
+              name="intentions"
+              options={{ title: "Mes intentions", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
           </Stack>
         </View>
       </ThemeProvider>
