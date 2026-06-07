@@ -30,7 +30,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smashlog.app",
-      "buildNumber": "2"
+      "buildNumber": "2",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.smashlog.app",
