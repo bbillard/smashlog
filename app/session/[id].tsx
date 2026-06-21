@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -16,7 +17,7 @@ import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getNotificationSettings } from "@/src/services/settings";
 import { rescheduleNotifications } from "@/src/services/notifications";
-import { deleteSession, getExerciseById, getSessionById, getSessions, updateSession } from "@/src/services/storage";
+import { deleteSession, getExerciseById, getExercises, getSessionById, getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
@@ -166,7 +167,10 @@ function LinkedExercisesSection({ exercises }: { exercises: Exercise[] }) {
         <Pressable
           key={ex.id}
           onPress={() =>
-            router.push({ pathname: "/exercise/[id]", params: { id: ex.id } })
+            router.push({
+              pathname: "/exercise/[id]",
+              params: { id: ex.id, from: "session" },
+            })
           }
           style={[
             linkedStyles.row,
@@ -247,7 +251,10 @@ export default function SessionDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [linkedExercises, setLinkedExercises] = useState<Exercise[]>([]);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [editingExerciseIds, setEditingExerciseIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
 
   // Surcharge du bouton retour quand on vient de "Mes intentions"
   useEffect(() => {
@@ -297,6 +304,18 @@ export default function SessionDetailScreen() {
       setLinkedExercises(exs.filter((e): e is Exercise => e !== null));
     } else {
       setLinkedExercises([]);
+    }
+    // Charge tous les exercices pour l'accordéon d'édition
+    const allExs = await getExercises();
+    setAllExercises(allExs);
+    // Détecte un exercice créé depuis le mode édition (retour de /exercise/new)
+    if (exerciseSnapshotRef.current !== null) {
+      const snapshot = exerciseSnapshotRef.current;
+      exerciseSnapshotRef.current = null;
+      const newIds = allExs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
+      if (newIds.length > 0) {
+        setEditingExerciseIds((prev) => [...prev, ...newIds]);
+      }
     }
     setIsLoading(false);
   }, [id]);
@@ -377,6 +396,7 @@ export default function SessionDetailScreen() {
         wentWrong: draft.wentWrong.trim(),
         nextIntention: draft.nextIntention.trim(),
         freeNotes: draft.freeNotes.trim() || undefined,
+        exerciseIds: editingExerciseIds.length > 0 ? editingExerciseIds : undefined,
       });
 
       const sessions = await getSessions();
@@ -416,6 +436,7 @@ export default function SessionDetailScreen() {
     <View style={styles.footerButtons}>
       <PrimaryButton label="Annuler" onPress={() => {
         setIsEditing(false);
+        setEditingExerciseIds(session.exerciseIds ?? []);
         setDraft({
           createdAt: new Date(session.createdAt),
           title: session.title ?? "",
@@ -431,13 +452,16 @@ export default function SessionDetailScreen() {
     </View>
   ) : (
     <View style={styles.footerButtons}>
-      <PrimaryButton label="Modifier la séance" onPress={() => setIsEditing(true)} />
+      <PrimaryButton label="Modifier la séance" onPress={() => {
+        setIsEditing(true);
+        setEditingExerciseIds(session.exerciseIds ?? []);
+      }} />
       <PrimaryButton label="Supprimer la séance" onPress={handleDelete} tone="danger" />
     </View>
   );
 
   return (
-    <Screen scrollable footer={footer}>
+    <Screen scrollable footer={footer} nativeHeader>
       <SectionCard>
         <View style={styles.headerRow}>
           <View style={styles.headingBlock}>
@@ -445,7 +469,10 @@ export default function SessionDetailScreen() {
             <Text style={[styles.heading, { color: theme.text }]}>{SESSION_TYPE_LABELS[session.type]}</Text>
           </View>
           {!isEditing ? (
-            <Pressable onPress={() => setIsEditing(true)}>
+            <Pressable onPress={() => {
+              setIsEditing(true);
+              setEditingExerciseIds(session.exerciseIds ?? []);
+            }}>
               <Text style={[styles.editLink, { color: theme.primary }]}>Modifier</Text>
             </Pressable>
           ) : null}
@@ -507,6 +534,23 @@ export default function SessionDetailScreen() {
             onChangeText={(freeNotes) => setDraft((current) => (current ? { ...current, freeNotes } : current))}
             value={draft.freeNotes}
           />
+          {draft.type === "entrainement" ? (
+            <ExercisesAccordion
+              exerciseIds={editingExerciseIds}
+              allExercises={allExercises}
+              defaultOpen={editingExerciseIds.length > 0}
+              onAdd={(exId) => setEditingExerciseIds((prev) => [...prev, exId])}
+              onRemove={(exId) => setEditingExerciseIds((prev) => prev.filter((e) => e !== exId))}
+              onCreateNew={() => {
+                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
+                router.push({ pathname: "/exercise/new", params: { fromWizard: "true" } });
+              }}
+              onOpenLibrary={async () => {
+                const exs = await getExercises();
+                setAllExercises(exs);
+              }}
+            />
+          ) : null}
         </>
       ) : (
         <>

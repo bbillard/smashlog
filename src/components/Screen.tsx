@@ -7,30 +7,46 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 interface ScreenProps extends PropsWithChildren {
   scrollable?: boolean;
   footer?: ReactNode;
+  /**
+   * Mettre à true pour les écrans sous un header Stack natif.
+   * Le header natif gère déjà le top safe area (notch/status bar),
+   * donc on retire le top edge du SafeAreaView pour éviter le double espacement.
+   */
+  nativeHeader?: boolean;
 }
 
-export function Screen({ children, scrollable = false, footer }: ScreenProps) {
+export function Screen({ children, scrollable = false, footer, nativeHeader = false }: ScreenProps) {
   const { theme } = useAppTheme();
 
+  const edges = nativeHeader
+    ? (["right", "bottom", "left"] as const)
+    : (["top", "right", "bottom", "left"] as const);
+
+  const paddingTop = nativeHeader ? 16 : 20;
+
   return (
-    <SafeAreaView style={StyleSheet.flatten([styles.safeArea, { backgroundColor: theme.background }])}>
+    <SafeAreaView
+      edges={edges}
+      style={StyleSheet.flatten([styles.safeArea, { backgroundColor: theme.background }])}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
       >
         {scrollable ? (
           <ScrollView
-            contentContainerStyle={StyleSheet.flatten([
+            contentContainerStyle={[
               styles.scrollContent,
+              { paddingTop },
               footer ? styles.withFooter : null,
-            ])}
+            ]}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
             {children}
           </ScrollView>
         ) : (
-          <View style={StyleSheet.flatten([styles.content, footer ? styles.withFooter : null])}>
+          <View style={[styles.content, { paddingTop }, footer ? styles.withFooter : null]}>
             {children}
           </View>
         )}
@@ -53,11 +69,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 16,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 16,
   },
   footer: {

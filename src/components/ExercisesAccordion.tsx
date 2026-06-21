@@ -29,6 +29,8 @@ interface ExercisesAccordionProps {
   onCreateNew: () => void;
   /** Appelé juste avant l'ouverture de la modale — permet au parent de recharger les exercices */
   onOpenLibrary?: () => Promise<void>;
+  /** Ouvre l'accordéon par défaut (utile en mode édition quand des exercices existent déjà) */
+  defaultOpen?: boolean;
 }
 
 export function ExercisesAccordion({
@@ -38,9 +40,10 @@ export function ExercisesAccordion({
   onRemove,
   onCreateNew,
   onOpenLibrary,
+  defaultOpen = false,
 }: ExercisesAccordionProps) {
   const { theme } = useAppTheme();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [libraryVisible, setLibraryVisible] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -153,6 +156,7 @@ export function ExercisesAccordion({
               }}
               style={[
                 styles.actionBtn,
+                styles.libraryActionBtn,
                 {
                   backgroundColor: "rgba(0,229,255,0.08)",
                   borderColor: "rgba(0,229,255,0.2)",
@@ -160,8 +164,11 @@ export function ExercisesAccordion({
               ]}
             >
               <Ionicons name="library-outline" size={13} color={theme.accent3} />
-              <Text style={[styles.actionText, { color: theme.accent3 }]}>
-                Depuis ma bibliothèque
+              <Text
+                numberOfLines={1}
+                style={[styles.actionText, { color: theme.accent3 }]}
+              >
+                Bibliothèque
               </Text>
             </Pressable>
 
@@ -169,6 +176,7 @@ export function ExercisesAccordion({
               onPress={onCreateNew}
               style={[
                 styles.actionBtn,
+                styles.createActionBtn,
                 {
                   backgroundColor: theme.surfaceAlt,
                   borderColor: theme.border,
@@ -177,7 +185,10 @@ export function ExercisesAccordion({
               ]}
             >
               <Ionicons name="add" size={13} color={theme.secondaryText} />
-              <Text style={[styles.actionText, { color: theme.secondaryText }]}>
+              <Text
+                numberOfLines={1}
+                style={[styles.actionText, { color: theme.secondaryText }]}
+              >
                 Créer nouveau
               </Text>
             </Pressable>
@@ -377,18 +388,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionBtn: {
-    flex: 1,
-    height: 36,
+    height: 38,
     borderRadius: 10,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
+    paddingHorizontal: 12,
+    minWidth: 0,
+  },
+  libraryActionBtn: {
+    flex: 1.25,
+  },
+  createActionBtn: {
+    flex: 0.95,
   },
   actionText: {
     fontSize: 11,
     fontFamily: fonts.displayBold,
+    flexShrink: 1,
+    textAlign: "center",
   },
   // Modal
   modalKAV: {

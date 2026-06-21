@@ -18,13 +18,22 @@ import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
 
 const ORIENTATION_OPTIONS = [
-  { label: "Tous", value: null },
+  { label: "Tous", value: "all" },
   { label: "Simple", value: "simple" },
   { label: "Double", value: "double" },
   { label: "Mixte", value: "mixte" },
 ] as const;
 
-type OrientationFilter = "simple" | "double" | "mixte" | null;
+const PLAYERS_COUNT_OPTIONS = [
+  { label: "Tous", value: "all" },
+  { label: "1", value: 1 },
+  { label: "2", value: 2 },
+  { label: "3", value: 3 },
+  { label: "4", value: 4 },
+] as const;
+
+type OrientationFilter = "simple" | "double" | "mixte";
+type PlayersCountFilter = 1 | 2 | 3 | 4;
 
 function playersLabel(count: number) {
   if (count === 1) return "Solo";
@@ -102,7 +111,8 @@ export default function ExercisesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  const [orientationFilter, setOrientationFilter] = useState<OrientationFilter>(null);
+  const [selectedOrientations, setSelectedOrientations] = useState<OrientationFilter[]>([]);
+  const [selectedPlayersCounts, setSelectedPlayersCounts] = useState<PlayersCountFilter[]>([]);
 
   const loadExercises = useCallback(async () => {
     setIsLoading(true);
@@ -134,11 +144,16 @@ export default function ExercisesScreen() {
         selectedLabels.some((l) => ex.labels.includes(l));
 
       const matchOrientation =
-        orientationFilter === null || ex.orientation === orientationFilter;
+        selectedOrientations.length === 0 ||
+        (ex.orientation !== undefined && selectedOrientations.includes(ex.orientation));
 
-      return matchSearch && matchLabels && matchOrientation;
+      const matchPlayersCount =
+        selectedPlayersCounts.length === 0 ||
+        selectedPlayersCounts.includes(ex.playersCount);
+
+      return matchSearch && matchLabels && matchOrientation && matchPlayersCount;
     });
-  }, [exercises, search, selectedLabels, orientationFilter]);
+  }, [exercises, search, selectedLabels, selectedOrientations, selectedPlayersCounts]);
 
   function toggleLabel(label: string) {
     setSelectedLabels((prev) =>
@@ -150,7 +165,29 @@ export default function ExercisesScreen() {
     setSelectedLabels([]);
   }
 
+  function toggleOrientation(value: OrientationFilter) {
+    setSelectedOrientations((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+    );
+  }
+
+  function clearOrientations() {
+    setSelectedOrientations([]);
+  }
+
+  function togglePlayersCount(value: PlayersCountFilter) {
+    setSelectedPlayersCounts((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+    );
+  }
+
+  function clearPlayersCounts() {
+    setSelectedPlayersCounts([]);
+  }
+
   const isAllSelected = selectedLabels.length === 0;
+  const areAllOrientationsSelected = selectedOrientations.length === 0;
+  const areAllPlayersCountsSelected = selectedPlayersCounts.length === 0;
 
   return (
     <Screen>
@@ -234,20 +271,58 @@ export default function ExercisesScreen() {
           contentContainerStyle={styles.filterRow}
         >
           {ORIENTATION_OPTIONS.map((opt) => {
-            const active = orientationFilter === opt.value;
+            const active =
+              opt.value === "all"
+                ? areAllOrientationsSelected
+                : selectedOrientations.includes(opt.value);
             return (
               <Pressable
                 key={opt.label}
-                onPress={() => setOrientationFilter(opt.value)}
+                onPress={() =>
+                  opt.value === "all" ? clearOrientations() : toggleOrientation(opt.value)
+                }
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: active ? theme.primaryMuted : theme.surface,
-                    borderColor: active ? theme.primary : theme.border,
+                    backgroundColor: active ? "rgba(0,229,255,0.1)" : theme.surface,
+                    borderColor: active ? theme.accent3 : theme.border,
                   },
                 ]}
               >
-                <Text style={[styles.chipText, { color: active ? theme.primary : theme.secondaryText }]}>
+                <Text style={[styles.chipText, { color: active ? theme.accent3 : theme.secondaryText }]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Row 3 — Players count */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {PLAYERS_COUNT_OPTIONS.map((opt) => {
+            const active =
+              opt.value === "all"
+                ? areAllPlayersCountsSelected
+                : selectedPlayersCounts.includes(opt.value);
+            return (
+              <Pressable
+                key={opt.label}
+                onPress={() =>
+                  opt.value === "all" ? clearPlayersCounts() : togglePlayersCount(opt.value)
+                }
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: active ? "rgba(255,77,109,0.1)" : theme.surface,
+                    borderColor: active ? theme.accent2 : theme.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.chipText, { color: active ? theme.accent2 : theme.secondaryText }]}>
                   {opt.label}
                 </Text>
               </Pressable>
@@ -298,7 +373,7 @@ export default function ExercisesScreen() {
                 onPress={() =>
                   router.push({
                     pathname: "/exercise/[id]",
-                    params: { id: ex.id },
+                    params: { id: ex.id, from: "exercises" },
                   })
                 }
               />

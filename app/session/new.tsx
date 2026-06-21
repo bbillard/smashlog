@@ -275,7 +275,7 @@ export default function NewSessionScreen() {
           ),
         }}
       />
-    <Screen key={step} footer={footer} scrollable>
+    <Screen key={step} footer={footer} scrollable nativeHeader>
       <View style={styles.header}>
         {step > 1 ? (
           <Pressable onPress={() => setStep(step - 1)} style={styles.backRow}>

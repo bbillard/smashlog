@@ -31,7 +31,7 @@ export default function SessionsScreen() {
   );
 
   return (
-    <Screen scrollable>
+    <Screen scrollable nativeHeader>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Séances</Text>
         <Text style={[styles.subtitle, { color: theme.secondaryText }]}>

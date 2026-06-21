@@ -50,6 +50,7 @@ export default function PlanningScreen() {
 
   return (
     <Screen
+      nativeHeader
       scrollable
       footer={<PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />}
     >

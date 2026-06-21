@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
@@ -12,9 +12,11 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LoadingView } from "@/src/components/LoadingView";
+import { PrimaryButton } from "@/src/components/PrimaryButton";
+import { Screen } from "@/src/components/Screen";
+import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { deleteExercise, getExerciseById } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
@@ -40,36 +42,16 @@ function playersLabel(count: number) {
   return `👥 ${count} joueurs`;
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-
-function SectionTitle({ label }: { label: string }) {
+function Field({ label, value }: { label: string; value: string }) {
   const { theme } = useAppTheme();
+
   return (
-    <View style={sectionStyles.row}>
-      <Text style={[sectionStyles.text, { color: theme.secondaryText }]}>{label}</Text>
-      <View style={[sectionStyles.line, { backgroundColor: theme.border }]} />
-    </View>
+    <SectionCard>
+      <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>{label}</Text>
+      <Text style={[styles.fieldValue, { color: theme.text }]}>{value}</Text>
+    </SectionCard>
   );
 }
-
-const sectionStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  text: {
-    fontSize: 9,
-    fontFamily: fonts.displayBold,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  line: {
-    flex: 1,
-    height: 1,
-  },
-});
 
 // ─── Label chip (read-only) ───────────────────────────────────────────────────
 
@@ -126,11 +108,12 @@ const chipStyles = StyleSheet.create({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ExerciseDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { theme } = useAppTheme();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  const backLabel = from === "session" ? "Séance" : "Mes exercices";
 
   useFocusEffect(
     useCallback(() => {
@@ -179,100 +162,126 @@ export default function ExerciseDetailScreen() {
 
   if (!exercise) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
-        <LoadingView />
-      </SafeAreaView>
+      <>
+        <Stack.Screen
+          options={{
+            title: "Détail de l'exercice",
+            headerBackVisible: false,
+            headerLeft: () => (
+              <Pressable
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => router.back()}
+                style={styles.headerBack}
+              >
+                <Ionicons color={theme.secondaryText} name="chevron-back" size={18} />
+                <Text style={[styles.headerBackText, { color: theme.secondaryText }]}>
+                  {backLabel}
+                </Text>
+              </Pressable>
+            ),
+          }}
+        />
+        <Screen nativeHeader>
+          <LoadingView />
+        </Screen>
+      </>
     );
   }
-
-  const hasOptional =
-    exercise.durationMinutes !== undefined ||
-    exercise.level !== undefined ||
-    exercise.orientation !== undefined;
 
   const hasAttention = !!exercise.attentionPoints?.trim();
   const hasVariants =
     !!exercise.variantEasier?.trim() || !!exercise.variantHarder?.trim();
   const hasPhotos = exercise.photos && exercise.photos.length > 0;
   const hasSource = !!exercise.source?.trim();
+  const footer = (
+    <View style={styles.footerButtons}>
+      <PrimaryButton label="Modifier l'exercice" onPress={handleEdit} tone="secondary" />
+      <PrimaryButton
+        label={isDeleting ? "Suppression..." : "Supprimer l'exercice"}
+        onPress={handleDelete}
+        tone="danger"
+        disabled={isDeleting}
+      />
+    </View>
+  );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
-      {/* ── Header bar ── */}
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
-          <Ionicons name="chevron-back" size={16} color={theme.secondaryText} />
-          <Text style={[styles.backText, { color: theme.secondaryText }]}>Mes exercices</Text>
-        </Pressable>
-      </View>
+    <>
+      <Stack.Screen
+        options={{
+          title: "Détail de l'exercice",
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => router.back()}
+              style={styles.headerBack}
+            >
+              <Ionicons color={theme.secondaryText} name="chevron-back" size={18} />
+              <Text style={[styles.headerBackText, { color: theme.secondaryText }]}>
+                {backLabel}
+              </Text>
+            </Pressable>
+          ),
+        }}
+      />
+      <Screen scrollable footer={footer} nativeHeader>
+        <SectionCard>
+          <View style={styles.summaryHeader}>
+            <View style={styles.summaryHeading}>
+              <Text style={[styles.exerciseName, { color: theme.text }]}>{exercise.name}</Text>
+              <Text style={[styles.exerciseMeta, { color: theme.secondaryText }]}>
+                {exercise.labels.join(" · ")}
+              </Text>
+            </View>
+            <Pressable onPress={handleEdit}>
+              <Text style={[styles.editLink, { color: theme.primary }]}>Modifier</Text>
+            </Pressable>
+          </View>
+          <View style={styles.summaryChips}>
+            {exercise.durationMinutes !== undefined ? (
+              <MetaChip label={`${exercise.durationMinutes} min`} variant="neutral" />
+            ) : null}
+            {exercise.level !== undefined ? (
+              <MetaChip label={LEVEL_LABELS[exercise.level]} variant="accent" />
+            ) : null}
+            <MetaChip label={playersLabel(exercise.playersCount)} variant="cyan" />
+            {exercise.orientation !== undefined ? (
+              <MetaChip label={ORIENTATION_LABELS[exercise.orientation]} variant="gold" />
+            ) : null}
+          </View>
+        </SectionCard>
 
-      {/* ── Hero ── */}
-      <View style={[styles.hero, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-        <Text style={[styles.heroCategory, { color: theme.primary }]}>
-          {exercise.labels.slice(0, 2).join(" · ")}
-        </Text>
-        <Text style={[styles.heroName, { color: theme.text }]}>{exercise.name}</Text>
-        <View style={styles.heroChips}>
-          {exercise.durationMinutes !== undefined ? (
-            <MetaChip label={`${exercise.durationMinutes} min`} variant="neutral" />
-          ) : null}
-          {exercise.level !== undefined ? (
-            <MetaChip label={LEVEL_LABELS[exercise.level]} variant="accent" />
-          ) : null}
-          <MetaChip label={playersLabel(exercise.playersCount)} variant="cyan" />
-          {exercise.orientation !== undefined ? (
-            <MetaChip label={ORIENTATION_LABELS[exercise.orientation]} variant="gold" />
-          ) : null}
-        </View>
-      </View>
+        <Field label="Description" value={exercise.description} />
 
-      {/* ── Scrollable content ── */}
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Description */}
-        <View style={styles.section}>
-          <SectionTitle label="Description" />
-          <Text style={[styles.bodyText, { color: theme.tertiaryText }]}>
-            {exercise.description}
+        <SectionCard>
+          <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>
+            Ce que ça travaille
           </Text>
-        </View>
-
-        {/* Labels */}
-        <View style={styles.section}>
-          <SectionTitle label="Ce que ça travaille" />
           <View style={styles.chipsWrap}>
             {exercise.labels.map((l) => (
               <LabelChip key={l} label={l} />
             ))}
           </View>
-        </View>
+        </SectionCard>
 
-        {/* Attention points */}
         {hasAttention ? (
-          <View style={styles.section}>
-            <SectionTitle label="Points d'attention" />
-            <Text style={[styles.bodyText, { color: theme.tertiaryText }]}>
-              {exercise.attentionPoints}
-            </Text>
-          </View>
+          <Field label="Points d'attention" value={exercise.attentionPoints!} />
         ) : null}
 
-        {/* Variants */}
         {hasVariants ? (
-          <View style={styles.section}>
-            <SectionTitle label="Variantes" />
+          <SectionCard>
+            <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Variantes</Text>
             <View style={styles.variantsRow}>
               {exercise.variantEasier?.trim() ? (
                 <View
                   style={[
                     styles.variantCard,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
+                    { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
                   ]}
                 >
                   <Text style={[styles.variantLabel, { color: "#00E5C8" }]}>Plus simple</Text>
-                  <Text style={[styles.variantText, { color: theme.tertiaryText }]}>
+                  <Text style={[styles.variantText, { color: theme.text }]}>
                     {exercise.variantEasier}
                   </Text>
                 </View>
@@ -281,23 +290,22 @@ export default function ExerciseDetailScreen() {
                 <View
                   style={[
                     styles.variantCard,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
+                    { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
                   ]}
                 >
                   <Text style={[styles.variantLabel, { color: theme.accent2 }]}>Plus difficile</Text>
-                  <Text style={[styles.variantText, { color: theme.tertiaryText }]}>
+                  <Text style={[styles.variantText, { color: theme.text }]}>
                     {exercise.variantHarder}
                   </Text>
                 </View>
               ) : null}
             </View>
-          </View>
+          </SectionCard>
         ) : null}
 
-        {/* Photos */}
         {hasPhotos ? (
-          <View style={styles.section}>
-            <SectionTitle label="Photos" />
+          <SectionCard>
+            <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Photos</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -315,63 +323,25 @@ export default function ExerciseDetailScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
+          </SectionCard>
         ) : null}
 
-        {/* Source */}
         {hasSource ? (
-          <View style={styles.section}>
-            <SectionTitle label="Source" />
+          <SectionCard>
+            <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Source</Text>
             <View style={styles.sourceRow}>
               <Ionicons
                 name="information-circle-outline"
                 size={14}
                 color={theme.secondaryText}
               />
-              <Text style={[styles.sourceText, { color: theme.secondaryText }]}>
+              <Text style={[styles.sourceText, { color: theme.text }]}>
                 {exercise.source}
               </Text>
             </View>
-          </View>
+          </SectionCard>
         ) : null}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-
-      {/* ── Footer ── */}
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: theme.background, borderTopColor: theme.border },
-        ]}
-      >
-        <Pressable
-          onPress={handleEdit}
-          style={[
-            styles.footerBtn,
-            { backgroundColor: theme.surfaceAlt, borderColor: theme.border, flex: 1 },
-          ]}
-        >
-          <Ionicons name="pencil-outline" size={14} color={theme.secondaryText} />
-          <Text style={[styles.footerBtnText, { color: theme.secondaryText }]}>Modifier</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleDelete}
-          disabled={isDeleting}
-          style={[
-            styles.footerBtn,
-            {
-              backgroundColor: "rgba(255,77,109,0.08)",
-              borderColor: "rgba(255,77,109,0.2)",
-              opacity: isDeleting ? 0.5 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="trash-outline" size={14} color={theme.accent2} />
-          <Text style={[styles.footerBtnText, { color: theme.accent2 }]}>Supprimer</Text>
-        </Pressable>
-      </View>
+      </Screen>
 
       {/* ── Lightbox ── */}
       <Modal
@@ -400,70 +370,62 @@ export default function ExerciseDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  backRow: {
+  headerBack: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    paddingRight: 8,
   },
-  backText: {
-    fontSize: 12,
+  headerBackText: {
+    fontSize: 13,
     fontFamily: fonts.bodyRegular,
   },
-  hero: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    gap: 5,
+  summaryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
   },
-  heroCategory: {
-    fontSize: 10,
-    fontFamily: fonts.displayBold,
-    letterSpacing: 1,
-    textTransform: "uppercase",
+  summaryHeading: {
+    flex: 1,
+    gap: 4,
   },
-  heroName: {
-    fontSize: 22,
+  exerciseName: {
+    fontSize: 20,
+    lineHeight: 24,
     fontFamily: fonts.displayExtraBold,
-    letterSpacing: -0.4,
-    lineHeight: 27,
   },
-  heroChips: {
+  exerciseMeta: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+  },
+  summaryChips: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 5,
-    marginTop: 4,
-  },
-  scroll: {
-    padding: 14,
-    gap: 4,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  bodyText: {
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    lineHeight: 21,
   },
   chipsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 5,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  fieldValue: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: fonts.bodyRegular,
   },
   variantsRow: {
     flexDirection: "row",
@@ -503,36 +465,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sourceText: {
-    fontSize: 12,
+    fontSize: 16,
     fontFamily: fonts.bodyRegular,
-    fontStyle: "italic",
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 24,
   },
-  bottomSpacer: {
-    height: 8,
+  footerButtons: {
+    gap: 12,
   },
-  footer: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-  },
-  footerBtn: {
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-  },
-  footerBtnText: {
-    fontSize: 13,
-    fontFamily: fonts.displayBold,
+  editLink: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
   },
   // Lightbox
   lightboxOverlay: {

@@ -230,7 +230,7 @@ export default function ShareSessionScreen() {
 
   if (isLoading) {
     return (
-      <Screen scrollable>
+      <Screen scrollable nativeHeader>
         <LoadingView />
       </Screen>
     );
@@ -238,7 +238,7 @@ export default function ShareSessionScreen() {
 
   if (!session || !templates.length) {
     return (
-      <Screen scrollable>
+      <Screen scrollable nativeHeader>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Partage indisponible</Text>
           <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
@@ -253,7 +253,7 @@ export default function ShareSessionScreen() {
   }
 
   return (
-    <Screen scrollable={Platform.OS === "web"}>
+    <Screen scrollable={Platform.OS === "web"} nativeHeader>
       <View style={styles.shareTop}>
         <Text style={[styles.shareCongrats, { color: theme.text }]}>
           {sessionNumber === 1 ? "Félicitations 🎉" : "Séance notée 🏸"}

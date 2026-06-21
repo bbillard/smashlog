@@ -80,6 +80,7 @@ export default function ProfileScreen() {
 
   return (
     <Screen
+      nativeHeader
       scrollable
       footer={<PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />}
     >

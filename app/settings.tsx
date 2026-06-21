@@ -197,6 +197,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen
+      nativeHeader
       scrollable
       footer={<PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />}
     >
