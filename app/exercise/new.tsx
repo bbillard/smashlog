@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
@@ -46,13 +46,16 @@ export default function NewExerciseScreen() {
   }
 
   return (
-    <ExerciseForm
-      mode="create"
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ExerciseForm
+        mode="create"
       customLabels={customLabels}
       onAddCustomLabel={handleAddCustomLabel}
       onSave={handleSave}
       onCancel={() => router.back()}
       isSaving={isSaving}
     />
+    </>
   );
 }

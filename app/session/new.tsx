@@ -1,5 +1,5 @@
 import { Stack, router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -128,11 +128,16 @@ export default function NewSessionScreen() {
   // Snapshot pris juste avant de naviguer vers la création d'exercice
   const exerciseSnapshotRef = useRef<Set<string> | null>(null);
 
+  // Chargement garanti au montage
+  useEffect(() => {
+    getExercises().then(setAllExercises);
+  }, []);
+
+  // Rechargement au retour de focus + détection du nouvel exercice créé
   useFocusEffect(
     useCallback(() => {
       getExercises().then((exs) => {
         setAllExercises(exs);
-        // Si on revient de la création d'un exercice, on détecte le nouvel ID
         if (exerciseSnapshotRef.current !== null) {
           const snapshot = exerciseSnapshotRef.current;
           exerciseSnapshotRef.current = null;
@@ -366,6 +371,10 @@ export default function NewSessionScreen() {
                   pathname: "/exercise/new",
                   params: { fromWizard: "true" },
                 });
+              }}
+              onOpenLibrary={async () => {
+                const exs = await getExercises();
+                setAllExercises(exs);
               }}
             />
           ) : null}

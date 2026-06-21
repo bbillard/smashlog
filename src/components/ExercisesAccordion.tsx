@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +27,8 @@ interface ExercisesAccordionProps {
   onRemove: (id: string) => void;
   /** Naviguer vers la création d'un nouvel exercice */
   onCreateNew: () => void;
+  /** Appelé juste avant l'ouverture de la modale — permet au parent de recharger les exercices */
+  onOpenLibrary?: () => Promise<void>;
 }
 
 export function ExercisesAccordion({
@@ -33,6 +37,7 @@ export function ExercisesAccordion({
   onAdd,
   onRemove,
   onCreateNew,
+  onOpenLibrary,
 }: ExercisesAccordionProps) {
   const { theme } = useAppTheme();
   const [open, setOpen] = useState(false);
@@ -142,7 +147,10 @@ export function ExercisesAccordion({
           {/* Boutons d'action */}
           <View style={styles.actions}>
             <Pressable
-              onPress={() => setLibraryVisible(true)}
+              onPress={async () => {
+                await onOpenLibrary?.();
+                setLibraryVisible(true);
+              }}
               style={[
                 styles.actionBtn,
                 {
@@ -184,10 +192,14 @@ export function ExercisesAccordion({
         animationType="slide"
         onRequestClose={() => setLibraryVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setLibraryVisible(false)}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalKAV}
         >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setLibraryVisible(false)}
+          >
           <Pressable
             style={[
               styles.modalCard,
@@ -219,7 +231,6 @@ export function ExercisesAccordion({
                 placeholderTextColor={theme.secondaryText}
                 value={search}
                 onChangeText={setSearch}
-                autoFocus
               />
             </View>
 
@@ -280,7 +291,8 @@ export function ExercisesAccordion({
               <View style={styles.modalListBottom} />
             </ScrollView>
           </Pressable>
-        </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -379,6 +391,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
   },
   // Modal
+  modalKAV: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -419,7 +434,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   modalList: {
-    flexGrow: 0,
+    maxHeight: 380,
   },
   modalEmpty: {
     textAlign: "center",
