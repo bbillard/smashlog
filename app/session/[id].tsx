@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
+import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -253,6 +254,7 @@ export default function SessionDetailScreen() {
   const [linkedExercises, setLinkedExercises] = useState<Exercise[]>([]);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [editingExerciseIds, setEditingExerciseIds] = useState<string[]>([]);
+  const [editingMatches, setEditingMatches] = useState<Match[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const exerciseSnapshotRef = useRef<Set<string> | null>(null);
 
@@ -397,6 +399,7 @@ export default function SessionDetailScreen() {
         nextIntention: draft.nextIntention.trim(),
         freeNotes: draft.freeNotes.trim() || undefined,
         exerciseIds: editingExerciseIds.length > 0 ? editingExerciseIds : undefined,
+        matches: editingMatches,
       });
 
       const sessions = await getSessions();
@@ -437,6 +440,7 @@ export default function SessionDetailScreen() {
       <PrimaryButton label="Annuler" onPress={() => {
         setIsEditing(false);
         setEditingExerciseIds(session.exerciseIds ?? []);
+        setEditingMatches(session.matches ?? []);
         setDraft({
           createdAt: new Date(session.createdAt),
           title: session.title ?? "",
@@ -455,6 +459,7 @@ export default function SessionDetailScreen() {
       <PrimaryButton label="Modifier la séance" onPress={() => {
         setIsEditing(true);
         setEditingExerciseIds(session.exerciseIds ?? []);
+        setEditingMatches(session.matches ?? []);
       }} />
       <PrimaryButton label="Supprimer la séance" onPress={handleDelete} tone="danger" />
     </View>
@@ -472,6 +477,7 @@ export default function SessionDetailScreen() {
             <Pressable onPress={() => {
               setIsEditing(true);
               setEditingExerciseIds(session.exerciseIds ?? []);
+              setEditingMatches(session.matches ?? []);
             }}>
               <Text style={[styles.editLink, { color: theme.primary }]}>Modifier</Text>
             </Pressable>
@@ -549,6 +555,13 @@ export default function SessionDetailScreen() {
                 const exs = await getExercises();
                 setAllExercises(exs);
               }}
+            />
+          ) : null}
+          {draft.type === "match" || draft.type === "jeu_libre" ? (
+            <MatchesAccordion
+              matches={editingMatches}
+              onChange={setEditingMatches}
+              singleMatch={draft.type === "match"}
             />
           ) : null}
         </>
