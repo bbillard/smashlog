@@ -48,6 +48,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons color={color} name="bar-chart-outline" size={size} />,
         }}
       />
+      <Tabs.Screen
+        name="exercises"
+        options={{
+          title: "Exercices",
+          tabBarIcon: ({ color, size }) => <Ionicons color={color} name="newspaper-outline" size={size} />,
+        }}
+      />
     </Tabs>
   );
 }

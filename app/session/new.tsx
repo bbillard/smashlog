@@ -1,8 +1,9 @@
-import { Stack, router } from "expo-router";
-import { useState } from "react";
+import { Stack, router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
 import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
@@ -16,7 +17,8 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { rescheduleNotifications } from "@/src/services/notifications";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
-import { addSession, getSessions, updateSession } from "@/src/services/storage";
+import { addSession, getExercises, getSessions, updateSession } from "@/src/services/storage";
+import { Exercise } from "@/src/types/index";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
 import { createId } from "@/src/utils/id";
@@ -31,6 +33,7 @@ interface DraftSession {
   nextIntention: string;
   freeNotes: string;
   matches: Match[];
+  exerciseIds: string[];
 }
 
 const INITIAL_DRAFT: DraftSession = {
@@ -43,6 +46,7 @@ const INITIAL_DRAFT: DraftSession = {
   nextIntention: "",
   freeNotes: "",
   matches: [],
+  exerciseIds: [],
 };
 
 const HEADER_BUTTON_COLOR = "#F0F0F2";
@@ -120,6 +124,29 @@ export default function NewSessionScreen() {
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<DraftSession>(INITIAL_DRAFT);
   const [isSaving, setIsSaving] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  // Snapshot pris juste avant de naviguer vers la création d'exercice
+  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      getExercises().then((exs) => {
+        setAllExercises(exs);
+        // Si on revient de la création d'un exercice, on détecte le nouvel ID
+        if (exerciseSnapshotRef.current !== null) {
+          const snapshot = exerciseSnapshotRef.current;
+          exerciseSnapshotRef.current = null;
+          const newIds = exs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
+          if (newIds.length > 0) {
+            setDraft((prev) => ({
+              ...prev,
+              exerciseIds: [...prev.exerciseIds, ...newIds],
+            }));
+          }
+        }
+      });
+    }, []),
+  );
 
   const hasUnsavedDraft =
     step > 1 ||
@@ -158,6 +185,7 @@ export default function NewSessionScreen() {
       nextIntention: draft.nextIntention.trim(),
       freeNotes: draft.freeNotes.trim() || undefined,
       matches: draft.matches,
+      exerciseIds: draft.exerciseIds.length > 0 ? draft.exerciseIds : undefined,
     };
 
     try {
@@ -313,6 +341,32 @@ export default function NewSessionScreen() {
               matches={draft.matches}
               onChange={(matches) => setDraft((current) => ({ ...current, matches }))}
               singleMatch={draft.type === "match"}
+            />
+          ) : null}
+
+          {draft.type === "entrainement" ? (
+            <ExercisesAccordion
+              exerciseIds={draft.exerciseIds}
+              allExercises={allExercises}
+              onAdd={(id) =>
+                setDraft((current) => ({
+                  ...current,
+                  exerciseIds: [...current.exerciseIds, id],
+                }))
+              }
+              onRemove={(id) =>
+                setDraft((current) => ({
+                  ...current,
+                  exerciseIds: current.exerciseIds.filter((eid) => eid !== id),
+                }))
+              }
+              onCreateNew={() => {
+                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
+                router.push({
+                  pathname: "/exercise/new",
+                  params: { fromWizard: "true" },
+                });
+              }}
             />
           ) : null}
         </View>

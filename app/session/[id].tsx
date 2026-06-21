@@ -16,8 +16,9 @@ import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getNotificationSettings } from "@/src/services/settings";
 import { rescheduleNotifications } from "@/src/services/notifications";
-import { deleteSession, getSessionById, getSessions, updateSession } from "@/src/services/storage";
+import { deleteSession, getExerciseById, getSessionById, getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
+import { Exercise } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
 import { formatDate } from "@/src/utils/format";
 
@@ -150,6 +151,79 @@ function MatchesSection({ matches }: { matches: Match[] }) {
   );
 }
 
+// ── Section exercices liés ────────────────────────────────────────────────────
+
+function LinkedExercisesSection({ exercises }: { exercises: Exercise[] }) {
+  const { theme } = useAppTheme();
+  const router = useRouter();
+
+  return (
+    <SectionCard>
+      <Text style={[styles.matchesSectionTitle, { color: theme.secondaryText }]}>
+        Exercices travaillés · {exercises.length}
+      </Text>
+      {exercises.map((ex, idx) => (
+        <Pressable
+          key={ex.id}
+          onPress={() =>
+            router.push({ pathname: "/exercise/[id]", params: { id: ex.id } })
+          }
+          style={[
+            linkedStyles.row,
+            { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+          ]}
+        >
+          <View style={[linkedStyles.badge, { backgroundColor: "rgba(0,229,255,0.1)" }]}>
+            <Text style={[linkedStyles.badgeText, { color: theme.accent3 }]}>{idx + 1}</Text>
+          </View>
+          <Text style={[linkedStyles.name, { color: theme.text }]} numberOfLines={1}>
+            {ex.name}
+          </Text>
+          {ex.durationMinutes ? (
+            <Text style={[linkedStyles.dur, { color: theme.secondaryText }]}>
+              {ex.durationMinutes}′
+            </Text>
+          ) : null}
+          <Ionicons name="chevron-forward" size={14} color={theme.secondaryText} />
+        </Pressable>
+      ))}
+    </SectionCard>
+  );
+}
+
+const linkedStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+  },
+  badge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontFamily: fonts.displayBold,
+  },
+  name: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+  },
+  dur: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    flexShrink: 0,
+  },
+});
+
 // ── Composant Field ───────────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -172,6 +246,7 @@ export default function SessionDetailScreen() {
   const [draft, setDraft] = useState<EditableSession | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [linkedExercises, setLinkedExercises] = useState<Exercise[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Surcharge du bouton retour quand on vient de "Mes intentions"
@@ -215,6 +290,14 @@ export default function SessionDetailScreen() {
           }
         : null,
     );
+    if (nextSession?.exerciseIds?.length) {
+      const exs = await Promise.all(
+        nextSession.exerciseIds.map((eid) => getExerciseById(eid)),
+      );
+      setLinkedExercises(exs.filter((e): e is Exercise => e !== null));
+    } else {
+      setLinkedExercises([]);
+    }
     setIsLoading(false);
   }, [id]);
 
@@ -435,6 +518,9 @@ export default function SessionDetailScreen() {
           {session.freeNotes ? <Field label="Notes libres" value={session.freeNotes} /> : null}
           {session.matches && session.matches.length > 0 ? (
             <MatchesSection matches={session.matches} />
+          ) : null}
+          {linkedExercises.length > 0 ? (
+            <LinkedExercisesSection exercises={linkedExercises} />
           ) : null}
           {session.notificationScheduledAt ? (
             <Field label="Prochain rappel prévu" value={formatDate(session.notificationScheduledAt)} />

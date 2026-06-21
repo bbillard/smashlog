@@ -28,6 +28,7 @@ export interface Session {
   matches?: Match[];
   notificationScheduledAt?: string;
   notificationIds?: string[];
+  exerciseIds?: string[];
 }
 
 export interface NotificationSettings {
