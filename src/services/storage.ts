@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { randomUUID } from "expo-crypto";
 
 import { Session } from "@/src/types/session";
-import { Exercise } from "@/src/types/index";
+import { Exercise, Player } from "@/src/types/index";
 
 export const SESSIONS_KEY = "badminton_journal_sessions";
 
@@ -138,4 +139,116 @@ export async function importSessions(incoming: Session[]): Promise<{ imported: n
   }
 
   return { imported: toAdd.length, skipped };
+}
+
+// ─── Players ─────────────────────────────────────────────────────────────────
+
+export const PLAYERS_KEY = "smashlog_players";
+export const PLAYERS_MIGRATION_FLAG = "smashlog_players_migration_done";
+
+async function persistPlayers(players: Player[]): Promise<void> {
+  await AsyncStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+}
+
+export async function getPlayers(): Promise<Player[]> {
+  const raw = await AsyncStorage.getItem(PLAYERS_KEY);
+  if (!raw) return [];
+  return JSON.parse(raw) as Player[];
+}
+
+export async function addPlayer(player: Player): Promise<void> {
+  const players = await getPlayers();
+  await persistPlayers([...players, player]);
+}
+
+export async function updatePlayer(id: string, updates: Partial<Player>): Promise<void> {
+  const players = await getPlayers();
+  const updated = players.map((p) => (p.id === id ? { ...p, ...updates } : p));
+  await persistPlayers(updated);
+}
+
+export async function deletePlayer(id: string): Promise<void> {
+  const players = await getPlayers();
+  await persistPlayers(players.filter((p) => p.id !== id));
+}
+
+export async function getPlayerById(id: string): Promise<Player | null> {
+  const players = await getPlayers();
+  return players.find((p) => p.id === id) ?? null;
+}
+
+export async function migratePlayersFromMatches(): Promise<void> {
+  const alreadyDone = await AsyncStorage.getItem(PLAYERS_MIGRATION_FLAG);
+  if (alreadyDone) return;
+
+  const sessions = await getSessions();
+  const players = await getPlayers();
+
+  // Index des joueurs existants par nom normalisé
+  const playersByNorm = new Map<string, Player>(
+    players.map((p) => [p.name.trim().toLowerCase(), p]),
+  );
+
+  function findOrCreatePlayer(name: string): Player {
+    const norm = name.trim().toLowerCase();
+    if (playersByNorm.has(norm)) {
+      return playersByNorm.get(norm)!;
+    }
+    const newPlayer: Player = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      name: name.trim(),
+    };
+    playersByNorm.set(norm, newPlayer);
+    return newPlayer;
+  }
+
+  let sessionsChanged = false;
+
+  const updatedSessions = sessions.map((session) => {
+    if (!session.matches || session.matches.length === 0) return session;
+
+    let matchesChanged = false;
+    const updatedMatches = session.matches.map((match) => {
+      let updated = { ...match };
+      let changed = false;
+
+      if (match.adversaire?.trim() && !match.adversaireId) {
+        const player = findOrCreatePlayer(match.adversaire);
+        updated.adversaireId = player.id;
+        changed = true;
+      }
+
+      if (match.partenaire?.trim() && !match.partenaireId) {
+        const player = findOrCreatePlayer(match.partenaire);
+        updated.partenaireId = player.id;
+        changed = true;
+      }
+
+      if (changed) matchesChanged = true;
+      return updated;
+    });
+
+    if (matchesChanged) {
+      sessionsChanged = true;
+      return { ...session, matches: updatedMatches };
+    }
+    return session;
+  });
+
+  // Persiste les nouveaux joueurs créés pendant la migration
+  const allPlayers = Array.from(playersByNorm.values());
+  await persistPlayers(allPlayers);
+
+  // Persiste les sessions mises à jour uniquement si nécessaire
+  if (sessionsChanged) {
+    for (const session of updatedSessions) {
+      const original = sessions.find((s) => s.id === session.id);
+      if (original !== session) {
+        await updateSession(session.id, { matches: session.matches });
+      }
+    }
+  }
+
+  await AsyncStorage.setItem(PLAYERS_MIGRATION_FLAG, "true");
 }

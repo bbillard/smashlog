@@ -1,6 +1,13 @@
 export interface Match {
+  // Champs existants conservés (migration douce)
   adversaire: string;
-  partenaire?: string; // uniquement si mode double ou mixte
+  partenaire?: string;         // uniquement si mode double ou mixte
+  // Champs Player (nouveaux)
+  adversaireId?: string;       // référence Player.id — adversaire principal (simple) ou 1er (double/mixte)
+  adversaireIds?: string[];    // références Player.id — tous les adversaires (double/mixte)
+  partenaireId?: string;       // référence Player.id — partenaire (double/mixte)
+  partenaireIds?: string[];    // conservé pour rétrocompatibilité
+  // Reste des champs existants
   resultat: "victoire" | "defaite";
   mode: "simple" | "double" | "mixte";
   sets: { scoreNous: number; scoreEux: number }[];

@@ -56,10 +56,14 @@ const MATCH_RESULT_LABELS: Record<Match["resultat"], string> = {
 // ── Carte match (vue lecture) ─────────────────────────────────────────────────
 
 function MatchDetailCard({ match }: { match: Match }) {
+  const router = useRouter();
   const { theme } = useAppTheme();
   const isWin = match.resultat === "victoire";
   const barColor = isWin ? "#CEFF00" : "#FF4D6D";
   const score = formatMatchScore(match.sets);
+
+  const navigateToPlayer = (playerId: string) =>
+    router.push({ pathname: "/players/[id]", params: { id: playerId } });
 
   return (
     <View
@@ -90,13 +94,35 @@ function MatchDetailCard({ match }: { match: Match }) {
             <Text style={[matchStyles.score, { color: theme.text }]}>{score}</Text>
           ) : null}
         </View>
-        <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}>
-          vs.{" "}
-          <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.adversaire}</Text>
+
+        {/* Adversaire — cliquable si adversaireId est renseigné */}
+        <View style={matchStyles.vsRow}>
+          <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}>vs. </Text>
+          {match.adversaireId ? (
+            <Pressable onPress={() => navigateToPlayer(match.adversaireId!)}>
+              <Text style={[matchStyles.vsName, matchStyles.vsNameLink, { color: theme.text }]}>
+                {match.adversaire}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.adversaire}</Text>
+          )}
           {match.partenaire ? (
-            <Text style={{ color: theme.tertiaryText }}> · avec {match.partenaire}</Text>
+            <>
+              <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}> · avec </Text>
+              {match.partenaireId ? (
+                <Pressable onPress={() => navigateToPlayer(match.partenaireId!)}>
+                  <Text style={[matchStyles.vsName, matchStyles.vsNameLink, { color: theme.text }]}>
+                    {match.partenaire}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.partenaire}</Text>
+              )}
+            </>
           ) : null}
-        </Text>
+        </View>
+
         {match.commentaire ? (
           <Text style={[matchStyles.comment, { color: theme.secondaryText, borderLeftColor: theme.border }]}>
             {match.commentaire}
@@ -633,11 +659,21 @@ const matchStyles = StyleSheet.create({
     fontSize: 12,
     marginLeft: "auto",
   },
+  vsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
   vs: {
     fontSize: 12,
   },
   vsName: {
     fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+  },
+  vsNameLink: {
+    textDecorationLine: "underline",
+    textDecorationStyle: "dotted",
   },
   comment: {
     fontSize: 11,

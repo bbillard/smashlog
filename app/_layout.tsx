@@ -22,7 +22,7 @@ import {
   setOnboardingCompleted,
   syncLegacyProfileIntoOnboarding,
 } from "@/src/services/onboarding";
-import { getSessions } from "@/src/services/storage";
+import { getSessions, migratePlayersFromMatches } from "@/src/services/storage";
 
 const HEADER_BUTTON_COLOR = "#F0F0F2";
 
@@ -57,6 +57,7 @@ export default function RootLayout() {
       ]);
 
       await syncLegacyProfileIntoOnboarding();
+      await migratePlayersFromMatches();
 
       const hasLegacyPseudo =
         profile.username.trim().length > 0 && profile.username.trim() !== DEFAULT_PROFILE.username;
@@ -208,6 +209,15 @@ export default function RootLayout() {
             <Stack.Screen
               name="intentions"
               options={{ title: "Mes intentions", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="players"
+              options={{ title: "Mes joueurs", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            {/* players/[id] : pas de headerLeft override → back natif affiche le titre de l'écran précédent */}
+            <Stack.Screen
+              name="players/[id]"
+              options={{ title: "Joueur" }}
             />
           </Stack>
         </View>

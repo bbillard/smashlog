@@ -1,3 +1,10 @@
+export interface Player {
+  id: string;         // uuid v4
+  createdAt: string;  // ISO 8601, auto à la création
+  name: string;       // nom tel que saisi
+  notes?: string;     // champ libre optionnel
+}
+
 export interface Exercise {
   id: string;
   createdAt: string;

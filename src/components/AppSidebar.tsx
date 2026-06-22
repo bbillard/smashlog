@@ -33,7 +33,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
     [onClose],
   );
 
-  function navigate(pathname: "/profile" | "/sessions" | "/planning" | "/settings" | "/intentions") {
+  function navigate(pathname: "/profile" | "/sessions" | "/planning" | "/settings" | "/intentions" | "/players") {
     onClose();
     router.push(pathname);
   }
@@ -84,6 +84,14 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
             >
               <Ionicons color={theme.text} name="calendar-outline" size={20} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Planning</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigate("/players")}
+              style={[styles.menuItem, { borderColor: theme.border }]}
+            >
+              <Ionicons color={theme.text} name="people-outline" size={20} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Mes joueurs</Text>
             </Pressable>
 
             <Pressable
