@@ -18,7 +18,6 @@ import {
   normalizeStr,
   PlayerStats,
   relativeDate,
-  winRateColor,
 } from "@/src/utils/playerStats";
 
 // ── Types internes ────────────────────────────────────────────────────────────
@@ -28,6 +27,21 @@ interface PlayerWithStats extends Player {
 }
 
 // ── Carte joueur (grille 2 colonnes) ─────────────────────────────────────────
+
+// Win rate et couleur propres à un rôle
+function roleWRStats(
+  records: PlayerStats["records"],
+  role: "adversaire" | "partenaire",
+): { total: number; wins: number; winRate: number; color: string } {
+  const filtered = records.filter((r) => (role === "adversaire" ? r.isAdversaire : r.isPartenaire));
+  const wins = filtered.filter((r) => r.resultat === "victoire").length;
+  const total = filtered.length;
+  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+  const color = winRate >= 50
+    ? (role === "adversaire" ? "#CEFF00" : "#00E5FF")
+    : "#FF4D6D";
+  return { total, wins, winRate, color };
+}
 
 function PlayerCard({
   player,
@@ -41,8 +55,12 @@ function PlayerCard({
   const { theme } = useAppTheme();
   const av = avatarColors(player.name);
   const { stats } = player;
-  const accentColor = role === "adversaire" ? "#FF4D6D" : "#00E5FF";
-  const wrColor = winRateColor(stats.winRate);
+  // Trait du haut : lime pour adversaires, cyan pour partenaires
+  const accentColor = role === "adversaire" ? "#CEFF00" : "#00E5FF";
+  // Win rate spécifique au rôle affiché
+  const wr = roleWRStats(stats.records, role);
+  // Icône : trophée pour adversaire (victoires), people pour partenaire (ensemble)
+  const wrIcon = role === "adversaire" ? "trophy-outline" : "people-outline";
 
   return (
     <Pressable
@@ -54,7 +72,7 @@ function PlayerCard({
       ]}
     >
       {/* Filet de couleur en haut */}
-      <View style={[styles.cardAccent, { backgroundColor: accentColor + "99" }]} />
+      <View style={[styles.cardAccent, { backgroundColor: accentColor + "55" }]} />
 
       <View style={[styles.cardAvatar, { backgroundColor: av.bg }]}>
         <Text style={[styles.cardAvatarText, { color: av.text }]}>
@@ -66,14 +84,17 @@ function PlayerCard({
         {player.name}
       </Text>
 
+      {/* Nombre de matchs dans ce rôle précis */}
       <Text style={[styles.cardStats, { color: theme.secondaryText }]}>
-        {stats.total} match{stats.total > 1 ? "s" : ""}
+        {wr.total} match{wr.total > 1 ? "s" : ""}
       </Text>
 
-      {stats.total > 0 ? (
-        <Text style={[styles.cardWR, { color: wrColor }]}>
-          {stats.winRate}%
-        </Text>
+      {/* Win rate + icône sur une ligne */}
+      {wr.total > 0 ? (
+        <View style={styles.cardWRRow}>
+          <Text style={[styles.cardWR, { color: wr.color }]}>{wr.winRate}%</Text>
+          <Ionicons name={wrIcon as any} size={11} color={wr.color} />
+        </View>
       ) : null}
 
       {stats.lastMatchDate ? (
@@ -99,7 +120,10 @@ function PlayerRow({
   const { theme } = useAppTheme();
   const av = avatarColors(player.name);
   const { stats } = player;
-  const wrColor = winRateColor(stats.winRate);
+  // En vue liste : rôle dominant pour le calcul
+  const dominantRole = stats.isAdversaire ? "adversaire" : "partenaire";
+  const wr = roleWRStats(stats.records, dominantRole);
+  const wrIcon = dominantRole === "adversaire" ? "trophy-outline" : "people-outline";
 
   // Surlignage de la portion tapée
   const renderName = () => {
@@ -146,8 +170,11 @@ function PlayerRow({
           {sub}
         </Text>
       </View>
-      {stats.total > 0 ? (
-        <Text style={[styles.rowWR, { color: wrColor }]}>{stats.winRate}%</Text>
+      {wr.total > 0 ? (
+        <View style={styles.rowWRRow}>
+          <Text style={[styles.rowWR, { color: wr.color }]}>{wr.winRate}%</Text>
+          <Ionicons name={wrIcon as any} size={11} color={wr.color} />
+        </View>
       ) : null}
     </Pressable>
   );
@@ -529,6 +556,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.bodyRegular,
   },
+  cardWRRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   cardWR: {
     fontFamily: fonts.displayExtraBold,
     fontSize: 11,
@@ -577,10 +609,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.bodyRegular,
   },
+  rowWRRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+  },
   rowWR: {
     fontFamily: fonts.displayExtraBold,
     fontSize: 13,
-    flexShrink: 0,
   },
 
   // ── Créer joueur ─────────────────────────────────────────────────────────────

@@ -18,7 +18,6 @@ import {
   formatMatchScore,
   MatchRecord,
   PlayerStats,
-  winRateColor,
 } from "@/src/utils/playerStats";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -261,7 +260,18 @@ export default function PlayerDetailScreen() {
   }
 
   const av = avatarColors(player.name);
-  const wrColor = winRateColor(stats.winRate);
+
+  // Win rates séparés par rôle (calculés à partir des records, sans toucher playerStats.ts)
+  const advRecords = stats.records.filter((r) => r.isAdversaire);
+  const partRecords = stats.records.filter((r) => r.isPartenaire);
+
+  const advWins = advRecords.filter((r) => r.resultat === "victoire").length;
+  const advWinRate = advRecords.length > 0 ? Math.round((advWins / advRecords.length) * 100) : 0;
+  const advWrColor = advWinRate >= 50 ? "#CEFF00" : "#FF4D6D";
+
+  const partWins = partRecords.filter((r) => r.resultat === "victoire").length;
+  const partWinRate = partRecords.length > 0 ? Math.round((partWins / partRecords.length) * 100) : 0;
+  const partWrColor = partWinRate >= 50 ? "#00E5FF" : "#FF4D6D";
 
   return (
     <>
@@ -326,13 +336,54 @@ export default function PlayerDetailScreen() {
           </View>
         </View>
 
-        {/* ── Stats ─────────────────────────────────────────────────────── */}
-        {stats.total > 0 ? (
-          <View style={styles.statsRow}>
-            <StatBox value={String(stats.total)} label="Matchs" color={theme.text} />
-            <StatBox value={String(stats.wins)} label="Victoires" color="#CEFF00" />
-            <StatBox value={String(stats.losses)} label="Défaites" color="#FF4D6D" />
-            <StatBox value={`${stats.winRate}%`} label="Win rate" color={wrColor} />
+        {/* ── Stats — un bloc par rôle ──────────────────────────────────── */}
+        {stats.isAdversaire ? (
+          <View style={[styles.roleBlock, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+            <View style={styles.roleBlockHeader}>
+              <Ionicons name="trophy-outline" size={12} color={theme.secondaryText} />
+              <Text style={[styles.roleBlockLabel, { color: theme.secondaryText }]}>Adversaire</Text>
+              <Text style={[styles.roleBlockCount, { color: theme.secondaryText }]}>
+                {advRecords.length} match{advRecords.length > 1 ? "s" : ""}
+              </Text>
+            </View>
+            <View style={styles.statsRow}>
+              <StatBox value={String(advWins)} label="Victoires" color="#CEFF00" />
+              <StatBox value={String(advRecords.length - advWins)} label="Défaites" color="#FF4D6D" />
+              <View style={[statStyles.box, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.wrValueRow}>
+                  <Text style={[statStyles.value, styles.wrValueText, { color: advWrColor }]}>
+                    {advWinRate}%
+                  </Text>
+                  <Ionicons name="trophy-outline" size={12} color={advWrColor} />
+                </View>
+                <Text style={[statStyles.label, { color: theme.secondaryText }]}>Win rate</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {stats.isPartenaire ? (
+          <View style={[styles.roleBlock, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+            <View style={styles.roleBlockHeader}>
+              <Ionicons name="people-outline" size={12} color={theme.secondaryText} />
+              <Text style={[styles.roleBlockLabel, { color: theme.secondaryText }]}>Partenaire</Text>
+              <Text style={[styles.roleBlockCount, { color: theme.secondaryText }]}>
+                {partRecords.length} match{partRecords.length > 1 ? "s" : ""}
+              </Text>
+            </View>
+            <View style={styles.statsRow}>
+              <StatBox value={String(partWins)} label="Victoires" color="#CEFF00" />
+              <StatBox value={String(partRecords.length - partWins)} label="Défaites" color="#FF4D6D" />
+              <View style={[statStyles.box, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.wrValueRow}>
+                  <Text style={[statStyles.value, styles.wrValueText, { color: partWrColor }]}>
+                    {partWinRate}%
+                  </Text>
+                  <Ionicons name="people-outline" size={12} color={partWrColor} />
+                </View>
+                <Text style={[statStyles.label, { color: theme.secondaryText }]}>Win rate</Text>
+              </View>
+            </View>
           </View>
         ) : null}
 
@@ -503,9 +554,40 @@ const styles = StyleSheet.create({
   },
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
+  roleBlock: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+  roleBlockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  roleBlockLabel: {
+    fontFamily: fonts.displayBold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    flex: 1,
+  },
+  roleBlockCount: {
+    fontSize: 10,
+    fontFamily: fonts.bodyRegular,
+  },
   statsRow: {
     flexDirection: "row",
     gap: 7,
+  },
+  wrValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  wrValueText: {
+    fontSize: 15,
+    lineHeight: 19,
   },
 
   // ── Section title ────────────────────────────────────────────────────────────
