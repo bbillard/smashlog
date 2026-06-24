@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { randomUUID } from 'expo-crypto';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
@@ -12,6 +11,7 @@ import {
 
 import { addPlayer, getPlayerById, getPlayers, getSessions } from '@/src/services/storage';
 import { Player } from '@/src/types/index';
+import { createId } from '@/src/utils/id';
 
 // ─── Couleurs avatar ─────────────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ export default function PlayerAutocomplete({
     if (!name) return;
 
     const newPlayer: Player = {
-      id: randomUUID(),
+      id: createId(),
       createdAt: new Date().toISOString(),
       name,
     };

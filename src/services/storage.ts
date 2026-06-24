@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { randomUUID } from "expo-crypto";
 
 import { Session } from "@/src/types/session";
 import { Exercise, Player } from "@/src/types/index";
+import { createId } from "@/src/utils/id";
 
 export const SESSIONS_KEY = "badminton_journal_sessions";
 
@@ -177,6 +177,57 @@ export async function getPlayerById(id: string): Promise<Player | null> {
   return players.find((p) => p.id === id) ?? null;
 }
 
+/**
+ * Propage le nouveau nom d'un joueur dans toutes les sessions qui le référencent.
+ * À appeler APRÈS updatePlayer(), afin que getPlayers() retourne déjà le nom à jour.
+ */
+export async function renamePlayerInSessions(playerId: string, newName: string): Promise<void> {
+  const [sessions, allPlayers] = await Promise.all([getSessions(), getPlayers()]);
+
+  // Carte id → nom (le nouveau nom est déjà présent car updatePlayer() a été appelé avant)
+  const nameMap = new Map(allPlayers.map((p) => [p.id, p.name]));
+  // Sécurité : on s'assure que le nouveau nom est bien présent même si le cache est légèrement en retard
+  nameMap.set(playerId, newName);
+
+  for (const session of sessions) {
+    if (!session.matches?.length) continue;
+
+    let sessionChanged = false;
+    const updatedMatches = session.matches.map((match) => {
+      let updated = { ...match };
+      let changed = false;
+
+      // Adversaire(s) ─ double/mixte : on reconstruit la chaîne à partir de tous les ids
+      if (match.adversaireIds?.includes(playerId)) {
+        const names = match.adversaireIds
+          .map((id) => nameMap.get(id))
+          .filter((n): n is string => Boolean(n));
+        if (names.length > 0) {
+          updated.adversaire = names.join(" / ");
+          changed = true;
+        }
+      } else if (match.adversaireId === playerId) {
+        // Simple : un seul adversaire
+        updated.adversaire = newName;
+        changed = true;
+      }
+
+      // Partenaire
+      if (match.partenaireId === playerId) {
+        updated.partenaire = newName;
+        changed = true;
+      }
+
+      if (changed) sessionChanged = true;
+      return updated;
+    });
+
+    if (sessionChanged) {
+      await updateSession(session.id, { matches: updatedMatches });
+    }
+  }
+}
+
 export async function migratePlayersFromMatches(): Promise<void> {
   const alreadyDone = await AsyncStorage.getItem(PLAYERS_MIGRATION_FLAG);
   if (alreadyDone) return;
@@ -195,7 +246,7 @@ export async function migratePlayersFromMatches(): Promise<void> {
       return playersByNorm.get(norm)!;
     }
     const newPlayer: Player = {
-      id: randomUUID(),
+      id: createId(),
       createdAt: new Date().toISOString(),
       name: name.trim(),
     };

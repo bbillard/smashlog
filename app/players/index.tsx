@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { randomUUID } from "expo-crypto";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -9,6 +8,7 @@ import { LoadingView } from "@/src/components/LoadingView";
 import { Screen } from "@/src/components/Screen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { addPlayer, getPlayers, getSessions } from "@/src/services/storage";
+import { createId } from "@/src/utils/id";
 import { fonts } from "@/src/theme/typography";
 import { Player } from "@/src/types/index";
 import { Session } from "@/src/types/session";
@@ -238,7 +238,7 @@ export default function PlayersScreen() {
     const name = searchQuery.trim();
     if (!name) return;
     const newPlayer: Player = {
-      id: randomUUID(),
+      id: createId(),
       createdAt: new Date().toISOString(),
       name,
     };
@@ -274,7 +274,18 @@ export default function PlayersScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Mes joueurs" }} />
+      <Stack.Screen
+        options={{
+          title: "Mes joueurs",
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={() => router.replace("/(tabs)")} style={styles.headerBack}>
+              <Ionicons color="#F0F0F2" name="chevron-back" size={18} />
+              <Text style={styles.headerBackText}>Accueil</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <Screen scrollable nativeHeader>
         {/* Titre */}
         <View style={styles.titleRow}>
@@ -401,6 +412,17 @@ export default function PlayersScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  headerBack: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingRight: 6,
+  },
+  headerBackText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    color: "#F0F0F2",
+  },
   titleRow: {
     gap: 4,
   },

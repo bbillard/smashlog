@@ -7,7 +7,7 @@ import { LoadingView } from "@/src/components/LoadingView";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
-import { deletePlayer, getPlayerById, getSessions, updatePlayer } from "@/src/services/storage";
+import { deletePlayer, getPlayerById, getSessions, renamePlayerInSessions, updatePlayer } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Player } from "@/src/types/index";
 import { Session } from "@/src/types/session";
@@ -149,6 +149,9 @@ export default function PlayerDetailScreen() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -178,6 +181,26 @@ export default function PlayerDetailScreen() {
       };
     }, [id]),
   );
+
+  async function handleSaveName() {
+    if (!player || isSavingName) return;
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === player.name) {
+      setIsEditingName(false);
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      // 1. Met à jour le joueur
+      await updatePlayer(player.id, { name: trimmed });
+      // 2. Propage le nouveau nom dans tous les matchs qui le référencent
+      await renamePlayerInSessions(player.id, trimmed);
+      setPlayer((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      setIsEditingName(false);
+    } finally {
+      setIsSavingName(false);
+    }
+  }
 
   async function handleSaveNotes() {
     if (!player || isSavingNotes) return;
@@ -252,7 +275,45 @@ export default function PlayerDetailScreen() {
             </Text>
           </View>
           <View style={styles.heroInfo}>
-            <Text style={[styles.heroName, { color: theme.text }]}>{player.name}</Text>
+            {/* Nom — affichage ou édition inline */}
+            {isEditingName ? (
+              <View style={styles.nameEditRow}>
+                <TextInput
+                  style={[styles.nameInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
+                  value={nameDraft}
+                  onChangeText={setNameDraft}
+                  autoFocus
+                  autoCapitalize="words"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveName}
+                />
+                <Pressable
+                  onPress={handleSaveName}
+                  disabled={isSavingName || !nameDraft.trim()}
+                  hitSlop={8}
+                  style={[styles.nameActionBtn, styles.nameActionBtnConfirm, { opacity: !nameDraft.trim() ? 0.4 : 1 }]}
+                >
+                  <Ionicons name="checkmark" size={16} color="#000" />
+                </Pressable>
+                <Pressable
+                  onPress={() => setIsEditingName(false)}
+                  hitSlop={8}
+                  style={[styles.nameActionBtn, { borderColor: theme.border }]}
+                >
+                  <Ionicons name="close" size={14} color={theme.secondaryText} />
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.nameRow}>
+                <Text style={[styles.heroName, { color: theme.text }]}>{player.name}</Text>
+                <Pressable
+                  onPress={() => { setNameDraft(player.name); setIsEditingName(true); }}
+                  hitSlop={10}
+                >
+                  <Ionicons name="pencil-outline" size={14} color={theme.secondaryText} />
+                </Pressable>
+              </View>
+            )}
             {stats.firstMatchDate ? (
               <Text style={[styles.heroMeta, { color: theme.secondaryText }]}>
                 Depuis {formatShortDate(stats.firstMatchDate)}
@@ -398,10 +459,43 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   heroName: {
     fontFamily: fonts.displayExtraBold,
     fontSize: 22,
     letterSpacing: -0.4,
+  },
+  nameEditRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  nameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 18,
+    fontFamily: fonts.displayExtraBold,
+  },
+  nameActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  nameActionBtnConfirm: {
+    backgroundColor: "#CEFF00",
+    borderColor: "#CEFF00",
   },
   heroMeta: {
     fontSize: 12,
