@@ -390,11 +390,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
   },
   title: {
+    flex: 1,
     fontSize: 24,
     fontFamily: fonts.displayExtraBold,
     letterSpacing: -0.4,
