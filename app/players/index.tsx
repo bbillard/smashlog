@@ -1,199 +1,27 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { EmptyState } from "@/src/components/EmptyState";
 import { LoadingView } from "@/src/components/LoadingView";
+import {
+  PlayerGrid,
+  PlayerRow,
+  PlayerWithStats,
+  SectionHeader,
+  sortByLastMatch,
+} from "@/src/components/players/PlayerListShared";
 import { Screen } from "@/src/components/Screen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { addPlayer, getPlayers, getSessions } from "@/src/services/storage";
-import { createId } from "@/src/utils/id";
 import { fonts } from "@/src/theme/typography";
 import { Player } from "@/src/types/index";
 import { Session } from "@/src/types/session";
-import {
-  avatarColors,
-  computePlayerStats,
-  normalizeStr,
-  PlayerStats,
-  relativeDate,
-} from "@/src/utils/playerStats";
+import { createId } from "@/src/utils/id";
+import { computePlayerStats, normalizeStr } from "@/src/utils/playerStats";
 
-// ── Types internes ────────────────────────────────────────────────────────────
-
-interface PlayerWithStats extends Player {
-  stats: PlayerStats;
-}
-
-// ── Carte joueur (grille 2 colonnes) ─────────────────────────────────────────
-
-// Win rate et couleur propres à un rôle
-function roleWRStats(
-  records: PlayerStats["records"],
-  role: "adversaire" | "partenaire",
-): { total: number; wins: number; winRate: number; color: string } {
-  const filtered = records.filter((r) => (role === "adversaire" ? r.isAdversaire : r.isPartenaire));
-  const wins = filtered.filter((r) => r.resultat === "victoire").length;
-  const total = filtered.length;
-  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
-  const color = winRate >= 50
-    ? (role === "adversaire" ? "#CEFF00" : "#00E5FF")
-    : "#FF4D6D";
-  return { total, wins, winRate, color };
-}
-
-function PlayerCard({
-  player,
-  role,
-  onPress,
-}: {
-  player: PlayerWithStats;
-  role: "adversaire" | "partenaire";
-  onPress: () => void;
-}) {
-  const { theme } = useAppTheme();
-  const av = avatarColors(player.name);
-  const { stats } = player;
-  // Trait du haut : lime pour adversaires, cyan pour partenaires
-  const accentColor = role === "adversaire" ? "#CEFF00" : "#00E5FF";
-  // Win rate spécifique au rôle affiché
-  const wr = roleWRStats(stats.records, role);
-  // Icône : trophée pour adversaire (victoires), people pour partenaire (ensemble)
-  const wrIcon = role === "adversaire" ? "trophy-outline" : "people-outline";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      {/* Filet de couleur en haut */}
-      <View style={[styles.cardAccent, { backgroundColor: accentColor + "55" }]} />
-
-      <View style={[styles.cardAvatar, { backgroundColor: av.bg }]}>
-        <Text style={[styles.cardAvatarText, { color: av.text }]}>
-          {player.name[0].toUpperCase()}
-        </Text>
-      </View>
-
-      <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>
-        {player.name}
-      </Text>
-
-      {/* Nombre de matchs dans ce rôle précis */}
-      <Text style={[styles.cardStats, { color: theme.secondaryText }]}>
-        {wr.total} match{wr.total > 1 ? "s" : ""}
-      </Text>
-
-      {/* Win rate + icône sur une ligne */}
-      {wr.total > 0 ? (
-        <View style={styles.cardWRRow}>
-          <Text style={[styles.cardWR, { color: wr.color }]}>{wr.winRate}%</Text>
-          <Ionicons name={wrIcon as any} size={11} color={wr.color} />
-        </View>
-      ) : null}
-
-      {stats.lastMatchDate ? (
-        <Text style={[styles.cardLast, { color: theme.secondaryText }]}>
-          {relativeDate(stats.lastMatchDate)}
-        </Text>
-      ) : null}
-    </Pressable>
-  );
-}
-
-// ── Ligne joueur (vue liste / recherche) ──────────────────────────────────────
-
-function PlayerRow({
-  player,
-  query,
-  onPress,
-}: {
-  player: PlayerWithStats;
-  query: string;
-  onPress: () => void;
-}) {
-  const { theme } = useAppTheme();
-  const av = avatarColors(player.name);
-  const { stats } = player;
-  // En vue liste : rôle dominant pour le calcul
-  const dominantRole = stats.isAdversaire ? "adversaire" : "partenaire";
-  const wr = roleWRStats(stats.records, dominantRole);
-  const wrIcon = dominantRole === "adversaire" ? "trophy-outline" : "people-outline";
-
-  // Surlignage de la portion tapée
-  const renderName = () => {
-    const normName = normalizeStr(player.name);
-    const normQ = normalizeStr(query);
-    const idx = normName.indexOf(normQ);
-    if (idx === -1 || !query)
-      return <Text style={[styles.rowName, { color: theme.text }]}>{player.name}</Text>;
-    return (
-      <Text style={[styles.rowName, { color: theme.text }]}>
-        {player.name.slice(0, idx)}
-        <Text style={styles.rowNameHL}>{player.name.slice(idx, idx + query.length)}</Text>
-        {player.name.slice(idx + query.length)}
-      </Text>
-    );
-  };
-
-  const ctx = [
-    stats.isAdversaire ? "Adversaire" : null,
-    stats.isPartenaire ? "Partenaire" : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  const sub = [ctx, stats.total > 0 ? `${stats.total} match${stats.total > 1 ? "s" : ""}` : "Aucun match"].filter(Boolean).join(" · ");
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      <View style={[styles.rowAvatar, { backgroundColor: av.bg }]}>
-        <Text style={[styles.rowAvatarText, { color: av.text }]}>
-          {player.name[0].toUpperCase()}
-        </Text>
-      </View>
-      <View style={styles.rowContent}>
-        {renderName()}
-        <Text style={[styles.rowSub, { color: theme.secondaryText }]} numberOfLines={1}>
-          {sub}
-        </Text>
-      </View>
-      {wr.total > 0 ? (
-        <View style={styles.rowWRRow}>
-          <Text style={[styles.rowWR, { color: wr.color }]}>{wr.winRate}%</Text>
-          <Ionicons name={wrIcon as any} size={11} color={wr.color} />
-        </View>
-      ) : null}
-    </Pressable>
-  );
-}
-
-// ── En-tête de section ────────────────────────────────────────────────────────
-
-function SectionHeader({ label, count }: { label: string; count: number }) {
-  const { theme } = useAppTheme();
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>{label}</Text>
-      <View style={[styles.sectionLine, { backgroundColor: theme.border }]} />
-      <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>{count}</Text>
-    </View>
-  );
-}
-
-// ── Écran ─────────────────────────────────────────────────────────────────────
+const MAX_VISIBLE = 4;
 
 export default function PlayersScreen() {
   const router = useRouter();
@@ -216,45 +44,24 @@ export default function PlayersScreen() {
         }
       }
       load();
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, []),
   );
 
-  // Calcul des stats pour tous les joueurs
   const playersWithStats = useMemo<PlayerWithStats[]>(
     () => players.map((p) => ({ ...p, stats: computePlayerStats(p, sessions) })),
     [players, sessions],
   );
 
-  // Section Adversaires : joueurs ayant au moins 1 match en tant qu'adversaire
   const adversaires = useMemo(
-    () =>
-      playersWithStats
-        .filter((p) => p.stats.isAdversaire)
-        .sort((a, b) => {
-          if (!a.stats.lastMatchDate) return 1;
-          if (!b.stats.lastMatchDate) return -1;
-          return new Date(b.stats.lastMatchDate).getTime() - new Date(a.stats.lastMatchDate).getTime();
-        }),
+    () => playersWithStats.filter((p) => p.stats.isAdversaire).sort(sortByLastMatch),
     [playersWithStats],
   );
-
-  // Section Partenaires
   const partenaires = useMemo(
-    () =>
-      playersWithStats
-        .filter((p) => p.stats.isPartenaire)
-        .sort((a, b) => {
-          if (!a.stats.lastMatchDate) return 1;
-          if (!b.stats.lastMatchDate) return -1;
-          return new Date(b.stats.lastMatchDate).getTime() - new Date(a.stats.lastMatchDate).getTime();
-        }),
+    () => playersWithStats.filter((p) => p.stats.isPartenaire).sort(sortByLastMatch),
     [playersWithStats],
   );
 
-  // Résultats de recherche
   const searchResults = useMemo<PlayerWithStats[]>(() => {
     if (!searchQuery.trim()) return [];
     const q = normalizeStr(searchQuery);
@@ -278,26 +85,8 @@ export default function PlayersScreen() {
   const isSearchActive = searchQuery.trim().length > 0;
   const noPlayers = !isLoading && players.length === 0;
 
-  const renderGridPairs = (items: PlayerWithStats[], role: "adversaire" | "partenaire") => {
-    const pairs: PlayerWithStats[][] = [];
-    for (let i = 0; i < items.length; i += 2) {
-      pairs.push(items.slice(i, i + 2));
-    }
-    return pairs.map((pair, rowIdx) => (
-      <View key={rowIdx} style={styles.gridRow}>
-        {pair.map((p) => (
-          <PlayerCard
-            key={p.id}
-            player={p}
-            role={role}
-            onPress={() => router.push({ pathname: "/players/[id]", params: { id: p.id } })}
-          />
-        ))}
-        {/* Placeholder pour la dernière carte seule */}
-        {pair.length === 1 ? <View style={styles.gridCardPlaceholder} /> : null}
-      </View>
-    ));
-  };
+  const navigateToPlayer = (id: string) =>
+    router.push({ pathname: "/players/[id]", params: { id } });
 
   return (
     <>
@@ -314,18 +103,13 @@ export default function PlayersScreen() {
         }}
       />
       <Screen scrollable nativeHeader>
-        {/* Titre */}
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: theme.text }]}>Mes joueurs</Text>
         </View>
 
         {/* Barre de recherche */}
         <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: isSearchActive ? "rgba(206,255,0,0.3)" : theme.border }]}>
-          <Ionicons
-            name="search"
-            size={14}
-            color={isSearchActive ? "#CEFF00" : theme.secondaryText}
-          />
+          <Ionicons name="search" size={14} color={isSearchActive ? "#CEFF00" : theme.secondaryText} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Rechercher un joueur..."
@@ -345,69 +129,87 @@ export default function PlayersScreen() {
           ) : null}
         </View>
 
-        {/* Chargement */}
         {isLoading ? <LoadingView /> : null}
 
-        {/* Aucun joueur */}
-        {noPlayers && !isLoading ? (
+        {noPlayers ? (
           <EmptyState
             title="Aucun joueur enregistré"
             description="Les joueurs apparaissent ici lorsque tu renseignes des adversaires ou partenaires dans tes matchs."
           />
         ) : null}
 
-        {/* ── Vue recherche active ── */}
+        {/* Vue recherche */}
         {!isLoading && isSearchActive ? (
           <>
             {searchResults.length > 0 ? (
               <>
                 <SectionHeader label="Résultats" count={searchResults.length} />
                 {searchResults.map((p) => (
-                  <PlayerRow
-                    key={p.id}
-                    player={p}
-                    query={searchQuery}
-                    onPress={() =>
-                      router.push({ pathname: "/players/[id]", params: { id: p.id } })
-                    }
-                  />
+                  <PlayerRow key={p.id} player={p} query={searchQuery} onPress={() => navigateToPlayer(p.id)} />
                 ))}
               </>
             ) : null}
-
-            {/* Option créer */}
             <View style={[styles.createWrap, { borderColor: theme.border }]}>
-              <Text style={[styles.createPrompt, { color: theme.secondaryText }]}>
-                Pas de joueur trouvé ?
-              </Text>
+              <Text style={[styles.createPrompt, { color: theme.secondaryText }]}>Pas de joueur trouvé ?</Text>
               <Pressable onPress={handleCreateFromSearch} style={styles.createBtn}>
                 <Ionicons name="add" size={11} color="#FF4D6D" />
-                <Text style={styles.createBtnText}>
-                  Créer "{searchQuery.trim()}" comme nouveau joueur
-                </Text>
+                <Text style={styles.createBtnText}>Créer "{searchQuery.trim()}" comme nouveau joueur</Text>
               </Pressable>
             </View>
           </>
         ) : null}
 
-        {/* ── Vue principale (sans recherche) ── */}
+        {/* Vue principale */}
         {!isLoading && !isSearchActive && players.length > 0 ? (
           <>
+            {/* ── Adversaires ── */}
             {adversaires.length > 0 ? (
               <View style={styles.section}>
+                {/* Compteur = total réel */}
                 <SectionHeader label="Adversaires" count={adversaires.length} />
-                {renderGridPairs(adversaires, "adversaire")}
+                <PlayerGrid
+                  items={adversaires.slice(0, MAX_VISIBLE)}
+                  role="adversaire"
+                  onNavigate={navigateToPlayer}
+                />
+                {adversaires.length > MAX_VISIBLE ? (
+                  <Pressable
+                    onPress={() => router.push("/players/adversaires")}
+                    style={[styles.voirTousBtn, { borderColor: theme.border }]}
+                  >
+                    <Text style={[styles.voirTousText, { color: theme.secondaryText }]}>
+                      Voir tous les adversaires
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color={theme.secondaryText} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
+            {/* ── Partenaires ── */}
             {partenaires.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader label="Partenaires" count={partenaires.length} />
-                {renderGridPairs(partenaires, "partenaire")}
+                <PlayerGrid
+                  items={partenaires.slice(0, MAX_VISIBLE)}
+                  role="partenaire"
+                  onNavigate={navigateToPlayer}
+                />
+                {partenaires.length > MAX_VISIBLE ? (
+                  <Pressable
+                    onPress={() => router.push("/players/partenaires")}
+                    style={[styles.voirTousBtn, { borderColor: theme.border }]}
+                  >
+                    <Text style={[styles.voirTousText, { color: theme.secondaryText }]}>
+                      Voir tous les partenaires
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color={theme.secondaryText} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
-            {/* Joueurs sans match (créés manuellement) */}
+            {/* Joueurs sans match */}
             {(() => {
               const orphans = playersWithStats.filter(
                 (p) => !p.stats.isAdversaire && !p.stats.isPartenaire,
@@ -417,14 +219,7 @@ export default function PlayersScreen() {
                 <View style={styles.section}>
                   <SectionHeader label="Autres joueurs" count={orphans.length} />
                   {orphans.map((p) => (
-                    <PlayerRow
-                      key={p.id}
-                      player={p}
-                      query=""
-                      onPress={() =>
-                        router.push({ pathname: "/players/[id]", params: { id: p.id } })
-                      }
-                    />
+                    <PlayerRow key={p.id} player={p} query="" onPress={() => navigateToPlayer(p.id)} />
                   ))}
                 </View>
               );
@@ -436,217 +231,40 @@ export default function PlayersScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  headerBack: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingRight: 6,
-  },
-  headerBackText: {
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    color: "#F0F0F2",
-  },
-  titleRow: {
-    gap: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: fonts.displayExtraBold,
-  },
+  headerBack: { flexDirection: "row", alignItems: "center", gap: 3, paddingRight: 6 },
+  headerBackText: { fontSize: 13, fontFamily: fonts.bodyRegular, color: "#F0F0F2" },
+  titleRow: { gap: 4 },
+  title: { fontSize: 28, fontFamily: fonts.displayExtraBold },
 
-  // ── Recherche ────────────────────────────────────────────────────────────────
   searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    padding: 0,
-  },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: fonts.bodyRegular, padding: 0 },
   searchClear: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center",
   },
 
-  // ── Section ──────────────────────────────────────────────────────────────────
-  section: {
-    gap: 8,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectionLabel: {
-    fontFamily: fonts.displayBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  sectionLine: {
-    flex: 1,
-    height: 1,
-  },
-  sectionCount: {
-    fontSize: 9,
-    fontFamily: fonts.bodyRegular,
-    opacity: 0.6,
-  },
+  section: { gap: 8 },
 
-  // ── Grille ───────────────────────────────────────────────────────────────────
-  gridRow: {
-    flexDirection: "row",
-    gap: 7,
+  voirTousBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 4, borderWidth: 1, borderRadius: 10, paddingVertical: 10,
   },
-  gridCardPlaceholder: {
-    flex: 1,
-  },
+  voirTousText: { fontSize: 13, fontFamily: fonts.bodyMedium },
 
-  // ── Carte joueur ─────────────────────────────────────────────────────────────
-  card: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-    gap: 5,
-    overflow: "hidden",
-    position: "relative",
-  },
-  cardAccent: {
-    position: "absolute",
-    top: 0,
-    left: 24,
-    right: 24,
-    height: 2,
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
-  },
-  cardAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardAvatarText: {
-    fontFamily: fonts.displayExtraBold,
-    fontSize: 13,
-  },
-  cardName: {
-    fontFamily: fonts.displayBold,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  cardStats: {
-    fontSize: 10,
-    fontFamily: fonts.bodyRegular,
-  },
-  cardWRRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  cardWR: {
-    fontFamily: fonts.displayExtraBold,
-    fontSize: 11,
-  },
-  cardLast: {
-    fontSize: 9,
-    fontFamily: fonts.bodyRegular,
-    opacity: 0.6,
-  },
-
-  // ── Ligne liste ──────────────────────────────────────────────────────────────
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-  },
-  rowAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  rowAvatarText: {
-    fontFamily: fonts.displayExtraBold,
-    fontSize: 14,
-  },
-  rowContent: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  rowName: {
-    fontFamily: fonts.displayBold,
-    fontSize: 13,
-  },
-  rowNameHL: {
-    color: "#CEFF00",
-    fontFamily: fonts.displayExtraBold,
-  },
-  rowSub: {
-    fontSize: 10,
-    fontFamily: fonts.bodyRegular,
-  },
-  rowWRRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexShrink: 0,
-  },
-  rowWR: {
-    fontFamily: fonts.displayExtraBold,
-    fontSize: 13,
-  },
-
-  // ── Créer joueur ─────────────────────────────────────────────────────────────
   createWrap: {
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    gap: 8,
+    borderWidth: 1, borderStyle: "dashed", borderRadius: 12,
+    padding: 16, alignItems: "center", gap: 8,
   },
-  createPrompt: {
-    fontSize: 12,
-    fontFamily: fonts.bodyRegular,
-  },
+  createPrompt: { fontSize: 12, fontFamily: fonts.bodyRegular },
   createBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "rgba(255,77,109,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,77,109,0.2)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderWidth: 1, borderColor: "rgba(255,77,109,0.2)",
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
-  createBtnText: {
-    fontFamily: fonts.displayBold,
-    fontSize: 11,
-    color: "#FF4D6D",
-  },
+  createBtnText: { fontFamily: fonts.displayBold, fontSize: 11, color: "#FF4D6D" },
 });

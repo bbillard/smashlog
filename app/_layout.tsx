@@ -214,11 +214,10 @@ export default function RootLayout() {
               name="players"
               options={{ title: "Mes joueurs", headerBackVisible: false, headerLeft: headerBackToHome }}
             />
-            {/* players/[id] : pas de headerLeft override → back natif affiche le titre de l'écran précédent */}
-            <Stack.Screen
-              name="players/[id]"
-              options={{ title: "Joueur" }}
-            />
+            {/* players/* : pas de headerLeft override → back natif affiche "Mes joueurs" */}
+            <Stack.Screen name="players/[id]" options={{ title: "Joueur" }} />
+            <Stack.Screen name="players/adversaires" options={{ title: "Adversaires" }} />
+            <Stack.Screen name="players/partenaires" options={{ title: "Partenaires" }} />
           </Stack>
         </View>
       </ThemeProvider>
