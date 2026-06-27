@@ -101,16 +101,27 @@ export default function StatsScreen() {
     sessions.length === 0 ? 0 : sessions.reduce((sum, session) => sum + session.rating, 0) / sessions.length;
   const latestIntention = sessions[0]?.nextIntention;
   const calendarDays = buildMonthGrid(calendarDate);
-  const sessionDatesThisMonth = new Set(
-    sessions
-      .map((session) => new Date(session.createdAt))
-      .filter(
-        (date) =>
-          date.getMonth() === calendarDate.getMonth() &&
-          date.getFullYear() === calendarDate.getFullYear(),
-      )
-      .map((date) => toDayKey(date)),
+
+  // Map dayKey → unique session types for that day (this month only)
+  const sessionTypesByDay = new Map<string, string[]>();
+  sessions
+    .map((session) => ({ date: new Date(session.createdAt), type: session.type }))
+    .filter(
+      ({ date }) =>
+        date.getMonth() === calendarDate.getMonth() &&
+        date.getFullYear() === calendarDate.getFullYear(),
+    )
+    .forEach(({ date, type }) => {
+      const key = toDayKey(date);
+      if (!sessionTypesByDay.has(key)) sessionTypesByDay.set(key, []);
+      const types = sessionTypesByDay.get(key)!;
+      if (!types.includes(type)) types.push(type);
+    });
+
+  const SESSION_TYPE_ACCENT_MAP: Record<string, string> = Object.fromEntries(
+    SESSION_TYPE_OPTIONS.map((o) => [o.value, o.accent]),
   );
+
   const todayKey = toDayKey(new Date());
 
   return (
@@ -189,7 +200,9 @@ export default function StatsScreen() {
               <View style={styles.calendarGrid}>
                 {calendarDays.map(({ date, isCurrentMonth }) => {
                   const dayKey = toDayKey(date);
-                  const hasSession = sessionDatesThisMonth.has(dayKey);
+                  const dayTypes = sessionTypesByDay.get(dayKey) ?? [];
+                  const hasSession = dayTypes.length > 0;
+                  const primaryAccent = hasSession ? SESSION_TYPE_ACCENT_MAP[dayTypes[0]] : theme.primary;
                   const isToday = dayKey === todayKey;
 
                   return (
@@ -198,7 +211,7 @@ export default function StatsScreen() {
                         style={[
                           styles.dayCellInner,
                           {
-                            backgroundColor: hasSession ? theme.primaryMuted : "transparent",
+                            backgroundColor: hasSession ? primaryAccent + "26" : "transparent",
                             borderColor: isToday ? theme.primary : theme.border,
                           },
                         ]}
@@ -210,7 +223,7 @@ export default function StatsScreen() {
                               color: !isCurrentMonth
                                 ? theme.secondaryText
                                 : hasSession
-                                  ? theme.primary
+                                  ? primaryAccent
                                   : theme.text,
                               opacity: isCurrentMonth ? 1 : 0.35,
                             },
@@ -218,14 +231,23 @@ export default function StatsScreen() {
                         >
                           {date.getDate()}
                         </Text>
-                        {hasSession ? <View style={[styles.sessionDot, { backgroundColor: theme.primary }]} /> : null}
+                        {hasSession ? (
+                          <View style={styles.dotsRow}>
+                            {dayTypes.map((type) => (
+                              <View
+                                key={type}
+                                style={[styles.sessionDot, { backgroundColor: SESSION_TYPE_ACCENT_MAP[type] }]}
+                              />
+                            ))}
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                   );
                 })}
               </View>
               <Text style={[styles.calendarLegend, { color: theme.tertiaryText }]}>
-                Les jours surlignés correspondent aux séances enregistrées ce mois-ci.
+                La couleur de chaque jour correspond au type de séance enregistrée.
               </Text>
             </SectionCard>
           </>
@@ -341,6 +363,12 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: 13,
     fontFamily: fonts.bodyMedium,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 2,
+    flexWrap: "wrap",
+    justifyContent: "center",
   },
   sessionDot: {
     width: 6,

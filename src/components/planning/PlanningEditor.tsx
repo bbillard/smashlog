@@ -82,7 +82,11 @@ export function PlanningEditor({
     return date;
   });
 
-  const slotsByDay = useMemo(() => new Map(slots.map((slot) => [slot.dayOfWeek, slot])), [slots]);
+  // Key: `${dayOfWeek}:${family}` — allows one slot per family per day
+  const slotsByFamilyDay = useMemo(
+    () => new Map(slots.map((slot) => [`${slot.dayOfWeek}:${slot.family}`, slot])),
+    [slots],
+  );
 
   function openPicker(dayOfWeek: number, slot?: ScheduledSlot) {
     const nextDate = new Date();
@@ -99,7 +103,8 @@ export function PlanningEditor({
   function upsertSlot(dayOfWeek: number, date: Date) {
     const minute = date.getMinutes() >= 30 ? 30 : 0;
     const hour = date.getHours();
-    const existing = slots.find((slot) => slot.dayOfWeek === dayOfWeek);
+    // Match by both dayOfWeek AND family to avoid overwriting slots of other families
+    const existing = slots.find((slot) => slot.dayOfWeek === dayOfWeek && slot.family === family);
     const nextSlot: ScheduledSlot = {
       id: existing?.id ?? editingSlotId ?? createScheduledSlotId(),
       dayOfWeek: dayOfWeek as ScheduledSlot["dayOfWeek"],
@@ -109,14 +114,16 @@ export function PlanningEditor({
     };
 
     onSlotsChange(
-      [...slots.filter((slot) => slot.dayOfWeek !== dayOfWeek), nextSlot].sort(
-        (left, right) => left.dayOfWeek - right.dayOfWeek,
-      ),
+      [
+        ...slots.filter((slot) => !(slot.dayOfWeek === dayOfWeek && slot.family === family)),
+        nextSlot,
+      ].sort((left, right) => left.dayOfWeek - right.dayOfWeek),
     );
   }
 
   function handlePickerChange(event: DateTimePickerEvent, selectedDate?: Date) {
     if (Platform.OS === "android") {
+      // Android shows a dialog — dismiss after any interaction
       setPickerVisible(false);
     }
 
@@ -158,8 +165,9 @@ export function PlanningEditor({
       <View style={styles.daysGrid}>
         {DAY_SHORT_LABELS.map((label, index) => {
           const dayOfWeek = index as ScheduledSlot["dayOfWeek"];
-          const slot = slotsByDay.get(dayOfWeek);
-          const tokens = getFamilyTokens(slot?.family ?? family);
+          // Look up slot for the currently selected family only
+          const slot = slotsByFamilyDay.get(`${dayOfWeek}:${family}`);
+          const tokens = getFamilyTokens(family);
 
           return (
             <View key={`${label}-${index}`} style={styles.dayCol}>
@@ -167,7 +175,10 @@ export function PlanningEditor({
               <Pressable
                 onPress={() => {
                   if (slot) {
-                    onSlotsChange(slots.filter((entry) => entry.dayOfWeek !== dayOfWeek));
+                    // Remove only the slot matching this day AND current family
+                    onSlotsChange(
+                      slots.filter((entry) => !(entry.dayOfWeek === dayOfWeek && entry.family === family)),
+                    );
                     return;
                   }
 
@@ -202,15 +213,22 @@ export function PlanningEditor({
       </View>
 
       {pickerVisible ? (
-        <DateTimePicker
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          mode="time"
-          minuteInterval={30}
-          onChange={handlePickerChange}
-          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
-          value={pickerDate}
-        />
+        <View>
+          <DateTimePicker
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            mode="time"
+            minuteInterval={30}
+            onChange={handlePickerChange}
+            themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+            {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
+            value={pickerDate}
+          />
+          {Platform.OS === "ios" ? (
+            <Pressable onPress={() => setPickerVisible(false)} style={styles.pickerDoneButton}>
+              <Text style={styles.pickerDoneText}>Valider</Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -327,5 +345,16 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: "#6b6b7a",
     fontFamily: fonts.bodyRegular,
+  },
+  pickerDoneButton: {
+    alignSelf: "flex-end",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  pickerDoneText: {
+    fontSize: 14,
+    color: "#00E5C8",
+    fontFamily: fonts.displayBold,
   },
 });
