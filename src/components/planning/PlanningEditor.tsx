@@ -2,10 +2,8 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import { useMemo, useState } from "react";
 import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ScheduledSlot, createScheduledSlotId } from "@/src/services/onboarding";
+import { ScheduledSlot, SlotType, createScheduledSlotId } from "@/src/services/onboarding";
 import { fonts } from "@/src/theme/typography";
-
-type SlotFamily = ScheduledSlot["family"];
 
 const DAY_SHORT_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 const DAY_FULL_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -14,19 +12,35 @@ function formatTime(hour: number, minute: number) {
   return `${String(hour).padStart(2, "0")}h${String(minute).padStart(2, "0")}`;
 }
 
-export function getFamilyTokens(family: SlotFamily) {
-  return family === "badminton"
-    ? {
-        accent: "#00E5C8",
-        background: "rgba(0,229,200,0.1)",
-        pillBackground: "rgba(0,229,200,0.12)",
-      }
-    : {
-        accent: "#FF8C00",
-        background: "rgba(255,140,0,0.1)",
-        pillBackground: "rgba(255,140,0,0.12)",
-      };
-}
+export const SLOT_TYPE_CONFIG: Record<
+  SlotType,
+  { label: string; accent: string; background: string; pillBackground: string }
+> = {
+  badminton: {
+    label: "Badminton",
+    accent: "#CEFF00",
+    background: "rgba(206,255,0,0.1)",
+    pillBackground: "rgba(206,255,0,0.12)",
+  },
+  renforcement: {
+    label: "Renforcement",
+    accent: "#FF4D6D",
+    background: "rgba(255,77,109,0.1)",
+    pillBackground: "rgba(255,77,109,0.12)",
+  },
+  cardio: {
+    label: "Cardio",
+    accent: "#00E5FF",
+    background: "rgba(0,229,255,0.1)",
+    pillBackground: "rgba(0,229,255,0.12)",
+  },
+  autre: {
+    label: "Autre",
+    accent: "#6b6b7a",
+    background: "rgba(107,107,122,0.1)",
+    pillBackground: "rgba(107,107,122,0.12)",
+  },
+};
 
 function SlotRow({
   slot,
@@ -50,16 +64,14 @@ function SlotRow({
       }),
     [onDelete],
   );
-  const tokens = getFamilyTokens(slot.family);
+  const config = SLOT_TYPE_CONFIG[slot.type];
 
   return (
     <Pressable onPress={onEdit} {...swipe.panHandlers} style={styles.slotRow}>
-      <Text style={[styles.slotDay, { color: tokens.accent }]}>{DAY_FULL_LABELS[slot.dayOfWeek]}</Text>
+      <Text style={[styles.slotDay, { color: config.accent }]}>{DAY_FULL_LABELS[slot.dayOfWeek]}</Text>
       <Text style={styles.slotTime}>{formatTime(slot.hour, slot.minute)}</Text>
-      <View style={[styles.slotType, { backgroundColor: tokens.pillBackground }]}>
-        <Text style={[styles.slotTypeText, { color: tokens.accent }]}>
-          {slot.family === "badminton" ? "Badminton" : "Physique"}
-        </Text>
+      <View style={[styles.slotType, { backgroundColor: config.pillBackground }]}>
+        <Text style={[styles.slotTypeText, { color: config.accent }]}>{config.label.toUpperCase()}</Text>
       </View>
     </Pressable>
   );
@@ -72,7 +84,7 @@ export function PlanningEditor({
   slots: ScheduledSlot[];
   onSlotsChange: (slots: ScheduledSlot[]) => void;
 }) {
-  const [family, setFamily] = useState<SlotFamily>("badminton");
+  const [type, setType] = useState<SlotType>("badminton");
   const [pickerVisible, setPickerVisible] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
@@ -82,9 +94,9 @@ export function PlanningEditor({
     return date;
   });
 
-  // Key: `${dayOfWeek}:${family}` — allows one slot per family per day
-  const slotsByFamilyDay = useMemo(
-    () => new Map(slots.map((slot) => [`${slot.dayOfWeek}:${slot.family}`, slot])),
+  // Key: `${dayOfWeek}:${type}` — one slot per type per day
+  const slotsByTypeDay = useMemo(
+    () => new Map(slots.map((slot) => [`${slot.dayOfWeek}:${slot.type}`, slot])),
     [slots],
   );
 
@@ -95,27 +107,26 @@ export function PlanningEditor({
     setEditingDay(dayOfWeek);
     setEditingSlotId(slot?.id ?? null);
     setPickerVisible(true);
-    if (slot?.family) {
-      setFamily(slot.family);
+    if (slot?.type) {
+      setType(slot.type);
     }
   }
 
   function upsertSlot(dayOfWeek: number, date: Date) {
     const minute = date.getMinutes() >= 30 ? 30 : 0;
     const hour = date.getHours();
-    // Match by both dayOfWeek AND family to avoid overwriting slots of other families
-    const existing = slots.find((slot) => slot.dayOfWeek === dayOfWeek && slot.family === family);
+    const existing = slots.find((slot) => slot.dayOfWeek === dayOfWeek && slot.type === type);
     const nextSlot: ScheduledSlot = {
       id: existing?.id ?? editingSlotId ?? createScheduledSlotId(),
       dayOfWeek: dayOfWeek as ScheduledSlot["dayOfWeek"],
       hour,
       minute,
-      family,
+      type,
     };
 
     onSlotsChange(
       [
-        ...slots.filter((slot) => !(slot.dayOfWeek === dayOfWeek && slot.family === family)),
+        ...slots.filter((slot) => !(slot.dayOfWeek === dayOfWeek && slot.type === type)),
         nextSlot,
       ].sort((left, right) => left.dayOfWeek - right.dayOfWeek),
     );
@@ -123,7 +134,6 @@ export function PlanningEditor({
 
   function handlePickerChange(event: DateTimePickerEvent, selectedDate?: Date) {
     if (Platform.OS === "android") {
-      // Android shows a dialog — dismiss after any interaction
       setPickerVisible(false);
     }
 
@@ -135,27 +145,27 @@ export function PlanningEditor({
     setPickerDate(selectedDate);
   }
 
+  const config = SLOT_TYPE_CONFIG[type];
+
   return (
     <View style={styles.root}>
       <Text style={styles.sectionLabel}>Type de séance</Text>
-      <View style={styles.familyRow}>
-        {(["badminton", "physique"] as const).map((value) => {
-          const selected = family === value;
-          const tokens = getFamilyTokens(value);
+      <View style={styles.typeRow}>
+        {(Object.keys(SLOT_TYPE_CONFIG) as SlotType[]).map((value) => {
+          const selected = type === value;
+          const cfg = SLOT_TYPE_CONFIG[value];
 
           return (
             <Pressable
               key={value}
-              onPress={() => setFamily(value)}
+              onPress={() => setType(value)}
               style={[
-                styles.familyButton,
-                selected ? { backgroundColor: tokens.background, borderColor: tokens.accent } : null,
+                styles.typeButton,
+                selected ? { backgroundColor: cfg.background, borderColor: cfg.accent } : null,
               ]}
             >
-              <View style={[styles.familyDot, { backgroundColor: selected ? tokens.accent : "#6b6b7a" }]} />
-              <Text style={[styles.familyText, { color: selected ? tokens.accent : "#6b6b7a" }]}>
-                {value === "badminton" ? "Badminton" : "Physique"}
-              </Text>
+              <View style={[styles.typeDot, { backgroundColor: selected ? cfg.accent : "#6b6b7a" }]} />
+              <Text style={[styles.typeText, { color: selected ? cfg.accent : "#6b6b7a" }]}>{cfg.label}</Text>
             </Pressable>
           );
         })}
@@ -165,9 +175,7 @@ export function PlanningEditor({
       <View style={styles.daysGrid}>
         {DAY_SHORT_LABELS.map((label, index) => {
           const dayOfWeek = index as ScheduledSlot["dayOfWeek"];
-          // Look up slot for the currently selected family only
-          const slot = slotsByFamilyDay.get(`${dayOfWeek}:${family}`);
-          const tokens = getFamilyTokens(family);
+          const slot = slotsByTypeDay.get(`${dayOfWeek}:${type}`);
 
           return (
             <View key={`${label}-${index}`} style={styles.dayCol}>
@@ -175,21 +183,19 @@ export function PlanningEditor({
               <Pressable
                 onPress={() => {
                   if (slot) {
-                    // Remove only the slot matching this day AND current family
                     onSlotsChange(
-                      slots.filter((entry) => !(entry.dayOfWeek === dayOfWeek && entry.family === family)),
+                      slots.filter((entry) => !(entry.dayOfWeek === dayOfWeek && entry.type === type)),
                     );
                     return;
                   }
-
                   openPicker(dayOfWeek);
                 }}
                 style={[
                   styles.dayButton,
-                  slot ? { backgroundColor: tokens.background, borderColor: tokens.accent } : null,
+                  slot ? { backgroundColor: config.background, borderColor: config.accent } : null,
                 ]}
               >
-                {slot ? <View style={[styles.dayInner, { backgroundColor: tokens.accent }]} /> : null}
+                {slot ? <View style={[styles.dayInner, { backgroundColor: config.accent }]} /> : null}
               </Pressable>
             </View>
           );
@@ -199,7 +205,7 @@ export function PlanningEditor({
       <Text style={styles.sectionLabel}>Créneaux</Text>
       <View style={styles.slotList}>
         {slots.length === 0 ? (
-          <Text style={styles.emptyText}>Ajoute un jour, choisis une heure, puis on créera le créneau.</Text>
+          <Text style={styles.emptyText}>Sélectionne un type, appuie sur un jour pour ajouter un créneau.</Text>
         ) : (
           slots.map((slot) => (
             <SlotRow
@@ -245,34 +251,33 @@ const styles = StyleSheet.create({
     color: "#6b6b7a",
     fontFamily: fonts.bodySemiBold,
     marginBottom: 6,
+    marginTop: 12,
   },
-  familyRow: {
+  typeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  familyButton: {
-    flex: 1,
+  typeButton: {
     height: 32,
+    paddingHorizontal: 10,
     borderRadius: 8,
     backgroundColor: "#1e1e24",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.07)",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 5,
   },
-  familyDot: {
+  typeDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
   },
-  familyText: {
-    fontSize: 10,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    fontFamily: fonts.displayBold,
+  typeText: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
   },
   daysGrid: {
     flexDirection: "row",
@@ -354,7 +359,7 @@ const styles = StyleSheet.create({
   },
   pickerDoneText: {
     fontSize: 14,
-    color: "#00E5C8",
+    color: "#CEFF00",
     fontFamily: fonts.displayBold,
   },
 });

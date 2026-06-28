@@ -7,10 +7,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type NotificationContext =
-  | 'daily_no_badminton_session'   // rappel quotidien, aucune séance badminton enregistrée
-  | 'planning_badminton_no_intent' // créneau badminton, aucune intention badminton trouvée
-  | 'planning_renforcement_no_intent' // créneau renforcement, aucune intention trouvée
-  | 'planning_cardio_no_intent';   // créneau cardio, aucune intention trouvée
+  | 'daily_no_badminton_session'       // rappel quotidien, aucune séance badminton enregistrée
+  | 'planning_badminton_no_intent'     // créneau badminton, aucune intention badminton trouvée
+  | 'planning_renforcement_no_intent'  // créneau renforcement, aucune intention trouvée
+  | 'planning_cardio_no_intent'        // créneau cardio, aucune intention trouvée
+  | 'planning_autre_no_intent';        // créneau autre, aucune intention trouvée
 
 export const MOTIVATION_MESSAGES: Record<NotificationContext, string[]> = {
 
@@ -41,6 +42,13 @@ export const MOTIVATION_MESSAGES: Record<NotificationContext, string[]> = {
     "C'est l'heure du cardio. Ton endurance sur le terrain se construit maintenant.",
     "Séance cardio dans quelques minutes. Lance-toi, le plus dur c'est de commencer.",
     "En route pour devenir infatigable sur le terrain.",
+  ],
+
+  // Planning autre (mobilité, récupération…) — aucune intention trouvée
+  planning_autre_no_intent: [
+    "C'est l'heure de ta séance. Prends soin de ton corps, ça paiera sur le terrain.",
+    "Séance dans quelques minutes. La régularité, c'est ce qui fait la différence.",
+    "C'est parti. Chaque effort compte, même les plus discrets.",
   ],
 
 };

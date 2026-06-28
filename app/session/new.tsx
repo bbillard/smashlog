@@ -14,7 +14,8 @@ import { SectionCard } from "@/src/components/SectionCard";
 import { SessionTypePicker } from "@/src/components/SessionTypePicker";
 import { WizardProgress } from "@/src/components/WizardProgress";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
-import { rescheduleNotifications } from "@/src/services/notifications";
+import { rescheduleNotifications, rescheduleSlotsForSessionType } from "@/src/services/notifications";
+import { getScheduledSlots, saveScheduledSlots } from "@/src/services/onboarding";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
 import { addSession, getExercises, getSessions, updateSession } from "@/src/services/storage";
@@ -202,6 +203,23 @@ export default function NewSessionScreen() {
       if (latestSession) {
         await updateSession(latestSession.id, notificationState);
       }
+
+      // Reschedule planning slot notifications for the type matching this session
+      // so the notification body reflects the new intention. Wrapped in try/catch
+      // to never block the save flow.
+      try {
+        const slots = await getScheduledSlots();
+        const updatedSlots = await rescheduleSlotsForSessionType(
+          slots,
+          session.type,
+          settings.nextSessionLeadMinutes,
+          sessions,
+        );
+        await saveScheduledSlots(updatedSlots);
+      } catch {
+        // Non-blocking: notification rescheduling failure should not prevent saving
+      }
+
       const sharingPayload = await computeSharingPayload(sessions);
       router.push({
         pathname: "/session/share",

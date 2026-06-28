@@ -33,7 +33,14 @@ function parseBoundedInteger(value: string, fallback: number, min: number, max: 
   return Math.min(Math.max(parsed, min), max);
 }
 
-function formatNextSlotSummary(dateIso: string | null, family?: "badminton" | "physique") {
+const SLOT_TYPE_LABELS: Record<string, string> = {
+  badminton: "Badminton",
+  renforcement: "Renforcement",
+  cardio: "Cardio",
+  autre: "Séance",
+};
+
+function formatNextSlotSummary(dateIso: string | null, type?: string) {
   if (!dateIso) {
     return "Aucune séance planifiée";
   }
@@ -43,7 +50,7 @@ function formatNextSlotSummary(dateIso: string | null, family?: "badminton" | "p
     return "Aucune séance planifiée";
   }
 
-  const familyLabel = family === "physique" ? "Physique" : "Badminton";
+  const typeLabel = type ? (SLOT_TYPE_LABELS[type] ?? "Séance") : "Séance";
   const formatted = new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
     day: "numeric",
@@ -52,7 +59,7 @@ function formatNextSlotSummary(dateIso: string | null, family?: "badminton" | "p
     minute: "2-digit",
   }).format(date);
 
-  return `${familyLabel} · ${formatted}`;
+  return `${typeLabel} · ${formatted}`;
 }
 
 export default function SettingsScreen() {
@@ -74,7 +81,7 @@ export default function SettingsScreen() {
       const syncedSettings = await applyPlanningToNotificationSettings(slots);
       setSettings(syncedSettings);
       const nextSlot = getNextScheduledSlotDate(slots);
-      setNextSlotSummary(formatNextSlotSummary(nextSlot?.date.toISOString() ?? null, nextSlot?.slot.family));
+      setNextSlotSummary(formatNextSlotSummary(nextSlot?.date.toISOString() ?? null, nextSlot?.slot.type));
     }
 
     load();
