@@ -8,7 +8,6 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
 import { GenericShareCard } from "@/src/components/share/GenericShareCard";
-import { IntentionShareCard } from "@/src/components/share/IntentionShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
 import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
 import { SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
@@ -169,16 +168,6 @@ export default function DebugScreen() {
         key: "generic",
         render: () => (
           <GenericShareCard
-            session={generatedSession}
-            sessionNumber={sessionNumber}
-            username={profile.username}
-          />
-        ),
-      },
-      {
-        key: "intention",
-        render: () => (
-          <IntentionShareCard
             session={generatedSession}
             sessionNumber={sessionNumber}
             username={profile.username}

@@ -15,7 +15,6 @@ import ViewShot from "react-native-view-shot";
 
 import { FallbackShareCard } from "@/src/components/share/FallbackShareCard";
 import { GenericShareCard } from "@/src/components/share/GenericShareCard";
-import { IntentionShareCard } from "@/src/components/share/IntentionShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
 import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
 import { LoadingView } from "@/src/components/LoadingView";
@@ -85,26 +84,12 @@ export default function ShareSessionScreen() {
   const genericTemplates: ShareTemplate[] =
     session && sessionNumber > 0
       ? [
-          ...(session.nextIntention.trim().length > 0
-            ? [
-                {
-                  key: "generic",
-                  render: () => (
-                    <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.nextIntention.trim().length > 0
-            ? [
-                {
-                  key: "intention",
-                  render: () => (
-                    <IntentionShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-                  ),
-                },
-              ]
-            : []),
+          {
+            key: "generic",
+            render: () => (
+              <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+            ),
+          },
           ...(sessionNumber >= 3
             ? [
                 {
