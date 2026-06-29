@@ -13,17 +13,21 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ViewShot from "react-native-view-shot";
 
+import { ExercisesShareCard } from "@/src/components/share/ExercisesShareCard";
 import { FallbackShareCard } from "@/src/components/share/FallbackShareCard";
 import { GenericShareCard } from "@/src/components/share/GenericShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
+import { SessionSummaryShareCard } from "@/src/components/share/SessionSummaryShareCard";
 import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
+import { WinRateShareCard } from "@/src/components/share/WinRateShareCard";
 import { LoadingView } from "@/src/components/LoadingView";
 import { Screen } from "@/src/components/Screen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getProfile } from "@/src/services/profile";
 import { downloadImageAsync, shareImageAsync } from "@/src/services/sharing";
 import { SharingPayload } from "@/src/services/sharingOrchestrator";
-import { getSessions } from "@/src/services/storage";
+import { getExercises, getSessions } from "@/src/services/storage";
+import { Exercise } from "@/src/types/index";
 import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
@@ -47,6 +51,7 @@ export default function ShareSessionScreen() {
   const [activeTemplate, setActiveTemplate] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
 
   const payload = useMemo(() => {
@@ -63,9 +68,14 @@ export default function ShareSessionScreen() {
 
   useEffect(() => {
     async function load() {
-      const [allSessions, nextProfile] = await Promise.all([getSessions(), getProfile()]);
+      const [allSessions, nextExercises, nextProfile] = await Promise.all([
+        getSessions(),
+        getExercises(),
+        getProfile(),
+      ]);
       const nextSession = allSessions.find((entry) => entry.id === sessionId) ?? null;
       setSessions(allSessions);
+      setAllExercises(nextExercises);
       setSession(nextSession);
       setProfile(nextProfile);
       setIsLoading(false);
@@ -73,6 +83,11 @@ export default function ShareSessionScreen() {
 
     load();
   }, [sessionId]);
+
+  // Exercices résolus pour la séance courante
+  const sessionExercises = session
+    ? allExercises.filter((ex) => session.exerciseIds?.includes(ex.id) ?? false)
+    : [];
 
   const contentWidth = Math.max(windowWidth - 40, 0);
   const shareCardSize =
@@ -90,6 +105,44 @@ export default function ShareSessionScreen() {
               <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
             ),
           },
+          ...(payload.winRateSnapshot != null
+            ? [
+                {
+                  key: "winrate-snapshot",
+                  render: () => (
+                    <WinRateShareCard
+                      snapshot={payload.winRateSnapshot!}
+                      username={profile.username}
+                    />
+                  ),
+                },
+              ]
+            : []),
+          ...((session.type === "match" || session.type === "jeu_libre") &&
+          (session.matches ?? []).length >= 1
+            ? [
+                {
+                  key: "session-summary",
+                  render: () => (
+                    <SessionSummaryShareCard session={session} username={profile.username} />
+                  ),
+                },
+              ]
+            : []),
+          ...(session.type !== "match" && sessionExercises.length >= 2
+            ? [
+                {
+                  key: "exercises",
+                  render: () => (
+                    <ExercisesShareCard
+                      session={session}
+                      exercises={sessionExercises}
+                      username={profile.username}
+                    />
+                  ),
+                },
+              ]
+            : []),
           ...(sessionNumber >= 3
             ? [
                 {
