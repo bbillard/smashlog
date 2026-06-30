@@ -155,37 +155,34 @@ export async function computeSharingPayload(
     isLowSessionRate,
   });
 
-  if (cards.length === 0) {
-    return { specialCards: [] };
+  // 3. Générer les messages pour les cartes spéciales (si paliers atteints)
+  let specialCards: SpecialCard[] = [];
+
+  if (cards.length > 0) {
+    let recentIds: number[] = [];
+    try {
+      const stored = await AsyncStorage.getItem(RECENT_MESSAGE_IDS_KEY);
+      if (stored) recentIds = JSON.parse(stored);
+    } catch {
+      // AsyncStorage indisponible → on continue sans historique
+    }
+
+    let updatedIds = [...recentIds];
+    for (const card of cards) {
+      const message = generateMessage(card, updatedIds);
+      specialCards.push({ ...card, message });
+      updatedIds = updateRecentMessageIds(updatedIds, message.messageId);
+    }
+
+    try {
+      await AsyncStorage.setItem(RECENT_MESSAGE_IDS_KEY, JSON.stringify(updatedIds));
+    } catch {
+      // silencieux
+    }
   }
 
-  // 3. Récupérer l'historique anti-répétition
-  let recentIds: number[] = [];
-  try {
-    const stored = await AsyncStorage.getItem(RECENT_MESSAGE_IDS_KEY);
-    if (stored) recentIds = JSON.parse(stored);
-  } catch {
-    // AsyncStorage indisponible → on continue sans historique
-  }
-
-  // 4. Générer un message pour chaque carte déclenchée
-  const specialCards: SpecialCard[] = [];
-  let updatedIds = [...recentIds];
-
-  for (const card of cards) {
-    const message = generateMessage(card, updatedIds);
-    specialCards.push({ ...card, message });
-    updatedIds = updateRecentMessageIds(updatedIds, message.messageId);
-  }
-
-  // 5. Persister le nouvel historique
-  try {
-    await AsyncStorage.setItem(RECENT_MESSAGE_IDS_KEY, JSON.stringify(updatedIds));
-  } catch {
-    // silencieux
-  }
-
-  // 6. Win Rate Snapshot — vérifie condition + throttle hebdomadaire
+  // 4. Win Rate Snapshot — vérifie condition + throttle hebdomadaire
+  // Calculé indépendamment des paliers streak/milestone
   const winRateSnapshot = await computeWinRateSnapshotIfEligible(allSessions);
 
   return { specialCards, ...(winRateSnapshot ? { winRateSnapshot } : {}) };

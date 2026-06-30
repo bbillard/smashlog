@@ -5,6 +5,34 @@ import type { TrendDirection, WinRateSnapshot } from "@/src/services/sharingOrch
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+interface AccentColors {
+  main: string;       // couleur pleine
+  dim: string;        // version atténuée pour le "%"
+  bg: string;         // fond du badge
+}
+
+function getAccentColors(winRatePercent: number): AccentColors {
+  if (winRatePercent > 70) {
+    return {
+      main: '#00E5FF',
+      dim: 'rgba(0,229,255,0.5)',
+      bg: 'rgba(0,229,255,0.1)',
+    };
+  }
+  if (winRatePercent < 30) {
+    return {
+      main: '#FF4D6D',
+      dim: 'rgba(255,77,109,0.5)',
+      bg: 'rgba(255,77,109,0.1)',
+    };
+  }
+  return {
+    main: '#CEFF00',
+    dim: 'rgba(206,255,0,0.5)',
+    bg: 'rgba(206,255,0,0.1)',
+  };
+}
+
 interface TrendDisplay {
   label: string;
   color: string;
@@ -51,6 +79,7 @@ export function WinRateShareCard({
   username: string;
 }) {
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
+  const accent = getAccentColors(snapshot.winRatePercent);
   const hasTrend = snapshot.trendPercent !== null && snapshot.trendDirection !== null;
   const trend =
     hasTrend && snapshot.trendPercent !== null && snapshot.trendDirection !== null
@@ -62,23 +91,23 @@ export function WinRateShareCard({
     <View style={styles.card}>
       {/* En-tête */}
       <View style={styles.header}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Win rate</Text>
+        <View style={[styles.badge, { backgroundColor: accent.bg }]}>
+          <Text style={[styles.badgeText, { color: accent.main }]}>Win rate</Text>
         </View>
         <Text style={styles.period}>30 derniers jours</Text>
       </View>
 
       {/* Chiffre principal */}
       <View style={styles.mainBlock}>
-        <Text style={styles.winRate} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        <Text style={[styles.winRate, { color: accent.main }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {snapshot.winRatePercent}
-          <Text style={styles.winRateUnit}>%</Text>
+          <Text style={[styles.winRateUnit, { color: accent.dim }]}>%</Text>
         </Text>
-        <Text style={styles.matchCount}>
+        <Text style={[styles.matchCount, { color: accent.dim }]}>
           sur {snapshot.matchCount} {matchWord}
         </Text>
 
-        {/* Tendance */}
+        {/* Tendance — affichée uniquement si données suffisantes */}
         {trend !== null ? (
           <View style={[styles.trendBadge, { backgroundColor: trend.backgroundColor }]}>
             <Text style={[styles.trendText, { color: trend.color }]}>{trend.label}</Text>
@@ -86,11 +115,7 @@ export function WinRateShareCard({
               {" vs 30j précédents"}
             </Text>
           </View>
-        ) : (
-          <View style={styles.trendPlaceholder}>
-            <Text style={styles.trendNA}>Pas assez de données sur la période précédente</Text>
-          </View>
-        )}
+        ) : null}
       </View>
 
       {/* Footer */}
@@ -183,15 +208,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
     opacity: 0.8,
-  },
-  trendPlaceholder: {
-    marginTop: 4,
-  },
-  trendNA: {
-    fontFamily: fonts.bodyRegular,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.2)",
-    fontStyle: "italic",
   },
 
   // ── Footer ─────────────────────────────────────────────────────────────────

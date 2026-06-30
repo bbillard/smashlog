@@ -129,11 +129,22 @@ export function SessionSummaryShareCard({
 
       {/* Win rate — élément principal */}
       <View style={styles.winRateBlock}>
-        <Text style={styles.winRateRow} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-          <Text style={styles.victories}>{winRate.victories}V</Text>
-          <Text style={styles.separator}> · </Text>
-          <Text style={styles.defeats}>{winRate.defeats}D</Text>
-        </Text>
+        <View style={styles.winRateRow}>
+          <Text style={styles.winRateNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {winRate.victories}
+          </Text>
+          <Text style={styles.victories}>
+            {winRate.victories > 1 ? "victoires" : "victoire"}
+          </Text>
+        </View>
+        <View style={styles.winRateRow}>
+          <Text style={styles.winRateNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {winRate.defeats}
+          </Text>
+          <Text style={styles.defeats}>
+            {winRate.defeats > 1 ? "défaites" : "défaite"}
+          </Text>
+        </View>
         <Text style={styles.matchCount}>
           {winRate.total} {matchWord}
         </Text>
@@ -223,21 +234,30 @@ const styles = StyleSheet.create({
   // ── Win rate ────────────────────────────────────────────────────────────────
   winRateBlock: {
     marginTop: 8,
+    gap: 4,
   },
   winRateRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  winRateNumber: {
     fontFamily: fonts.displayExtraBold,
-    fontSize: 58,
-    lineHeight: 60,
+    fontSize: 52,
+    lineHeight: 54,
     letterSpacing: -2,
+    color: "#F0F0F2",
   },
   victories: {
+    fontFamily: fonts.displayExtraBold,
+    fontSize: 20,
+    lineHeight: 22,
     color: "#CEFF00",
   },
-  separator: {
-    color: "rgba(255,255,255,0.2)",
-    fontSize: 40,
-  },
   defeats: {
+    fontFamily: fonts.displayExtraBold,
+    fontSize: 20,
+    lineHeight: 22,
     color: "#FF4D6D",
   },
   matchCount: {
