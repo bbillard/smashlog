@@ -3,9 +3,21 @@ import { StyleSheet, Text, View } from "react-native";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
-import { Session } from "@/src/types/session";
+import { Session, SessionType } from "@/src/types/session";
 
-const MAX_DISPLAYED = 5;
+const MAX_DISPLAYED = 4;
+
+// ── Couleur d'accent selon le type de séance ──────────────────────────────────
+
+const ACCENT_BY_TYPE: Partial<Record<SessionType, string>> = {
+  entrainement: '#CEFF00',
+  renforcement: '#FF4D6D',
+  cardio:       '#00E5FF',
+};
+
+function getAccent(type: SessionType): string {
+  return ACCENT_BY_TYPE[type] ?? '#CEFF00';
+}
 
 function formatSessionDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -16,19 +28,27 @@ function formatSessionDate(isoDate: string): string {
   }).format(date);
 }
 
-function ExerciseRow({ exercise, isLast }: { exercise: Exercise; isLast: boolean }) {
+function ExerciseRow({
+  exercise,
+  isLast,
+  accent,
+}: {
+  exercise: Exercise;
+  isLast: boolean;
+  accent: string;
+}) {
   const durationLabel = exercise.durationMinutes != null
     ? `${exercise.durationMinutes} min`
     : null;
 
   return (
     <View style={[styles.exerciseRow, isLast ? styles.exerciseRowLast : null]}>
-      <View style={styles.exerciseDot} />
+      <View style={[styles.exerciseDot, { backgroundColor: accent }]} />
       <Text style={styles.exerciseName} numberOfLines={1}>
         {exercise.name}
       </Text>
       {durationLabel != null ? (
-        <Text style={styles.exerciseDuration}>{durationLabel}</Text>
+        <Text style={[styles.exerciseDuration, { color: `${accent}80` }]}>{durationLabel}</Text>
       ) : null}
     </View>
   );
@@ -51,17 +71,18 @@ export function ExercisesShareCard({
   const overflow = exercises.length - displayed.length;
   const date = formatSessionDate(session.createdAt);
   const typeLabel = SESSION_TYPE_LABELS[session.type];
+  const accent = getAccent(session.type);
 
   return (
     <View style={styles.card}>
-      {/* En-tête */}
+      {/* En-tête : titre à gauche sur 2 lignes, badge à droite */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Ma séance</Text>
+          <Text style={[styles.title, { color: accent }]}>{"Ma\nséance"}</Text>
           <Text style={styles.date}>{date}</Text>
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{typeLabel}</Text>
+        <View style={[styles.badge, { backgroundColor: `${accent}1a` }]}>
+          <Text style={[styles.badgeText, { color: accent }]}>{typeLabel}</Text>
         </View>
       </View>
 
@@ -75,10 +96,13 @@ export function ExercisesShareCard({
             key={ex.id}
             exercise={ex}
             isLast={index === displayed.length - 1 && overflow === 0}
+            accent={accent}
           />
         ))}
         {overflow > 0 ? (
-          <Text style={styles.overflow}>+{overflow} autre{overflow > 1 ? "s" : ""}</Text>
+          <Text style={styles.overflow}>
+            …et {overflow} autre{overflow > 1 ? "s" : ""}
+          </Text>
         ) : null}
       </View>
 
@@ -105,19 +129,19 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
+    justifyContent: "space-between",
   },
   headerLeft: {
-    flexShrink: 1,
+    flex: 1,
     paddingRight: 10,
   },
   title: {
     fontFamily: fonts.displayExtraBold,
-    fontSize: 26,
-    lineHeight: 28,
+    fontSize: 20,
+    lineHeight: 22,
     letterSpacing: -0.5,
-    color: "#F0F0F2",
+    // couleur appliquée dynamiquement via accent
   },
   date: {
     fontFamily: fonts.bodyRegular,
@@ -126,10 +150,10 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   badge: {
-    backgroundColor: "rgba(206,255,0,0.12)",
     borderRadius: 20,
     paddingHorizontal: 9,
     paddingVertical: 4,
+    alignSelf: "flex-start",
     flexShrink: 0,
   },
   badgeText: {
@@ -137,34 +161,32 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "#CEFF00",
   },
   divider: {
     height: 1,
     backgroundColor: "rgba(255,255,255,0.07)",
-    marginVertical: 14,
+    marginVertical: 10,
   },
   exerciseList: {
     flex: 1,
-    gap: 10,
+    overflow: "hidden",
   },
   exerciseRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingBottom: 10,
+    paddingVertical: 7,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.05)",
   },
   exerciseRowLast: {
     borderBottomWidth: 0,
-    paddingBottom: 0,
   },
   exerciseDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#CEFF00",
+    // backgroundColor appliqué dynamiquement via accent
     flexShrink: 0,
   },
   exerciseName: {
@@ -176,7 +198,7 @@ const styles = StyleSheet.create({
   exerciseDuration: {
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
-    color: "rgba(206,255,0,0.5)",
+    // color appliqué dynamiquement via accent
     flexShrink: 0,
   },
   overflow: {
@@ -189,7 +211,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 14,
+    marginTop: 10,
   },
   logo: {
     fontFamily: fonts.displayExtraBold,
