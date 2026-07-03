@@ -19,6 +19,8 @@ import {
 } from "@/src/services/onboarding";
 import {
   computeSharingPayload,
+  getWinRateLastShown,
+  resetWinRateThrottle,
   type SharingPayload,
 } from "@/src/services/sharingOrchestrator";
 import { DEFAULT_PROFILE, getProfile, saveProfile } from "@/src/services/profile";
@@ -117,6 +119,8 @@ export default function DebugScreen() {
   const [generatedPayload, setGeneratedPayload] = useState<SharingPayload | null>(null);
   const [generatedSession, setGeneratedSession] = useState<Session | null>(null);
   const [generatedSessions, setGeneratedSessions] = useState<Session[]>([]);
+  const [winRateLastShown, setWinRateLastShown] = useState<Date | null | undefined>(undefined);
+  const [isResettingWinRate, setIsResettingWinRate] = useState(false);
 
   async function refreshCount() {
     const sessions = await getSessions();
@@ -143,6 +147,7 @@ export default function DebugScreen() {
       }
 
       await refreshCount();
+      setWinRateLastShown(await getWinRateLastShown());
     }
 
     bootstrap();
@@ -353,6 +358,19 @@ export default function DebugScreen() {
     }
   }
 
+  async function handleResetWinRateThrottle() {
+    setIsResettingWinRate(true);
+    try {
+      await resetWinRateThrottle();
+      setWinRateLastShown(null);
+      Alert.alert("Throttle réinitialisé", "La carte Win Rate peut être déclenchée dès la prochaine génération.");
+    } catch {
+      Alert.alert("Erreur", "Impossible de réinitialiser le throttle.");
+    } finally {
+      setIsResettingWinRate(false);
+    }
+  }
+
   async function handleLaunchOnboarding() {
     const nextUsername = onboardingUsernameInput.trim() || DEFAULT_PROFILE.username;
 
@@ -514,6 +532,23 @@ export default function DebugScreen() {
         <PrimaryButton
           label={isInjecting ? "Ouverture..." : "Lancer l'onboarding"}
           onPress={handleLaunchOnboarding}
+        />
+      </SectionCard>
+
+      <SectionCard>
+        <Text style={[styles.blockTitle, { color: theme.text }]}>Win Rate — throttle</Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          {winRateLastShown === undefined
+            ? "Chargement…"
+            : winRateLastShown === null
+              ? "Jamais affiché — carte éligible immédiatement."
+              : `Dernier affichage : ${winRateLastShown.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} à ${winRateLastShown.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — délai restant : ${Math.max(0, 7 - Math.floor((Date.now() - winRateLastShown.getTime()) / (1000 * 60 * 60 * 24)))} j`}
+        </Text>
+        <PrimaryButton
+          disabled={isResettingWinRate || winRateLastShown === null}
+          label={isResettingWinRate ? "Réinitialisation…" : "Reset throttle (forcer affichage)"}
+          onPress={handleResetWinRateThrottle}
+          tone="secondary"
         />
       </SectionCard>
 

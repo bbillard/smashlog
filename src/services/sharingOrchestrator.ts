@@ -189,6 +189,29 @@ export async function computeSharingPayload(
 }
 
 /**
+ * Retourne la date du dernier affichage de la carte Win Rate,
+ * ou null si elle n'a jamais été affichée.
+ * Utile pour l'écran de debug.
+ */
+export async function getWinRateLastShown(): Promise<Date | null> {
+  try {
+    const raw = await AsyncStorage.getItem(WINRATE_LAST_SHOWN_KEY);
+    return raw ? new Date(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Efface le throttle de la carte Win Rate.
+ * La prochaine génération de payload pourra déclencher la carte immédiatement.
+ * Réservé au debug.
+ */
+export async function resetWinRateThrottle(): Promise<void> {
+  await AsyncStorage.removeItem(WINRATE_LAST_SHOWN_KEY);
+}
+
+/**
  * Retourne un WinRateSnapshot si toutes les conditions sont remplies :
  *   - 5+ matchs dans les 30 derniers jours
  *   - La carte n'a pas été affichée depuis au moins 7 jours
