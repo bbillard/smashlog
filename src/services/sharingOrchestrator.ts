@@ -11,7 +11,7 @@ import { detectTriggeredCards, computeWeeksStreak, computeSessionsThisWeek } fro
 import { generateMessage, updateRecentMessageIds } from './sharingMessage';
 import type { TriggeredCard } from './sharingTrigger';
 import type { GeneratedMessage } from './sharingMessage';
-import type { Match } from '../types/session';
+import type { Match, SessionType } from '../types/session';
 
 // ── Clés AsyncStorage ─────────────────────────────────────────────────────────
 
@@ -44,7 +44,10 @@ export interface SharingPayload {
 export interface SharingDebugOverrides {
   weeksStreak?: number;
   sessionsThisWeek?: number;
+  currentSessionType?: SessionType;
 }
+
+const WINRATE_ELIGIBLE_SESSION_TYPES: SessionType[] = ['match', 'jeu_libre'];
 
 // ── Win Rate Snapshot ─────────────────────────────────────────────────────────
 
@@ -181,9 +184,13 @@ export async function computeSharingPayload(
     }
   }
 
-  // 4. Win Rate Snapshot — vérifie condition + throttle hebdomadaire
-  // Calculé indépendamment des paliers streak/milestone
-  const winRateSnapshot = await computeWinRateSnapshotIfEligible(allSessions);
+  // 4. Win Rate Snapshot — uniquement pour les séances de type match / jeu_libre
+  const sessionTypeEligible =
+    overrides.currentSessionType === undefined ||
+    WINRATE_ELIGIBLE_SESSION_TYPES.includes(overrides.currentSessionType);
+  const winRateSnapshot = sessionTypeEligible
+    ? await computeWinRateSnapshotIfEligible(allSessions)
+    : null;
 
   return { specialCards, ...(winRateSnapshot ? { winRateSnapshot } : {}) };
 }

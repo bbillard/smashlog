@@ -220,7 +220,7 @@ export default function NewSessionScreen() {
         // Non-blocking: notification rescheduling failure should not prevent saving
       }
 
-      const sharingPayload = await computeSharingPayload(sessions);
+      const sharingPayload = await computeSharingPayload(sessions, { currentSessionType: session.type });
       router.push({
         pathname: "/session/share",
         params: {
