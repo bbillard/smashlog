@@ -30,6 +30,7 @@ import {
 import { getNotificationSettings } from "@/src/services/settings";
 import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
+import { pickDominantType } from "@/src/utils/dominantType";
 
 // ─── constants ─────────────────────────────────────────────────────────────
 
@@ -100,9 +101,10 @@ function DayGrid({
         const isEmpty = types.length === 0;
 
         // Tinted bg + colored border only when all slots share the same type
-        const uniqueTypes = [...new Set(types)];
-        const isMono = !isEmpty && uniqueTypes.length === 1;
-        const monoCfg = isMono ? SLOT_TYPE_CONFIG[uniqueTypes[0]!] : null;
+        // Dominant type drives the square's color: the type with the most
+        // slots wins; on a tie, the first slot of the day keeps its color.
+        const dominantType = pickDominantType(types);
+        const dominantCfg = dominantType ? SLOT_TYPE_CONFIG[dominantType] : null;
 
         return (
           <View key={`${label}-${index}`} style={styles.dayCol}>
@@ -113,9 +115,7 @@ function DayGrid({
                 styles.dayBtn,
                 isEmpty
                   ? styles.dayBtnEmpty
-                  : isMono
-                    ? { backgroundColor: monoCfg!.background, borderColor: `${monoCfg!.accent}4D` }
-                    : styles.dayBtnMulti,
+                  : { backgroundColor: dominantCfg!.background, borderColor: `${dominantCfg!.accent}4D` },
               ]}
             >
               {isEmpty ? (
@@ -548,9 +548,6 @@ const styles = StyleSheet.create({
   },
   dayBtnEmpty: {
     borderColor: "#1e1e24",
-  },
-  dayBtnMulti: {
-    borderColor: "#2a2a2e",
   },
   dayPlus: {
     fontSize: 18,

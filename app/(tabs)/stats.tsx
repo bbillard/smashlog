@@ -17,6 +17,7 @@ import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
+import { pickDominantType } from "@/src/utils/dominantType";
 import { truncate } from "@/src/utils/format";
 
 function StatBar({ label, value, total }: { label: string; value: number; total: number }) {
@@ -102,7 +103,9 @@ export default function StatsScreen() {
   const latestIntention = sessions[0]?.nextIntention;
   const calendarDays = buildMonthGrid(calendarDate);
 
-  // Map dayKey → unique session types for that day (this month only)
+  // Map dayKey → session types for that day (this month only), one entry per
+  // session (duplicates preserved), ordered chronologically so the first
+  // session of the day is first.
   const sessionTypesByDay = new Map<string, string[]>();
   sessions
     .map((session) => ({ date: new Date(session.createdAt), type: session.type }))
@@ -111,11 +114,11 @@ export default function StatsScreen() {
         date.getMonth() === calendarDate.getMonth() &&
         date.getFullYear() === calendarDate.getFullYear(),
     )
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
     .forEach(({ date, type }) => {
       const key = toDayKey(date);
       if (!sessionTypesByDay.has(key)) sessionTypesByDay.set(key, []);
-      const types = sessionTypesByDay.get(key)!;
-      if (!types.includes(type)) types.push(type);
+      sessionTypesByDay.get(key)!.push(type);
     });
 
   const SESSION_TYPE_ACCENT_MAP: Record<string, string> = Object.fromEntries(
@@ -202,7 +205,8 @@ export default function StatsScreen() {
                   const dayKey = toDayKey(date);
                   const dayTypes = sessionTypesByDay.get(dayKey) ?? [];
                   const hasSession = dayTypes.length > 0;
-                  const primaryAccent = hasSession ? SESSION_TYPE_ACCENT_MAP[dayTypes[0]] : theme.primary;
+                  const dominantType = pickDominantType(dayTypes);
+                  const primaryAccent = dominantType ? SESSION_TYPE_ACCENT_MAP[dominantType] : theme.primary;
                   const isToday = dayKey === todayKey;
 
                   return (
@@ -233,9 +237,9 @@ export default function StatsScreen() {
                         </Text>
                         {hasSession ? (
                           <View style={styles.dotsRow}>
-                            {dayTypes.map((type) => (
+                            {dayTypes.map((type, index) => (
                               <View
-                                key={type}
+                                key={`${type}-${index}`}
                                 style={[styles.sessionDot, { backgroundColor: SESSION_TYPE_ACCENT_MAP[type] }]}
                               />
                             ))}
