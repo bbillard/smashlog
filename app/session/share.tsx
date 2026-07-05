@@ -16,6 +16,7 @@ import ViewShot from "react-native-view-shot";
 import { ExercisesShareCard } from "@/src/components/share/ExercisesShareCard";
 import { FallbackShareCard } from "@/src/components/share/FallbackShareCard";
 import { GenericShareCard } from "@/src/components/share/GenericShareCard";
+import { MatchResultShareCard } from "@/src/components/share/MatchResultShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
 import { SessionSummaryShareCard } from "@/src/components/share/SessionSummaryShareCard";
 import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
@@ -118,8 +119,21 @@ export default function ShareSessionScreen() {
                 },
               ]
             : []),
-          ...((session.type === "match" || session.type === "jeu_libre") &&
-          (session.matches ?? []).length >= 1
+          ...(session.type === "match" && (session.matches ?? []).length === 1
+            ? [
+                {
+                  key: "match-result",
+                  render: () => (
+                    <MatchResultShareCard
+                      session={session}
+                      match={session.matches![0]}
+                      username={profile.username}
+                    />
+                  ),
+                },
+              ]
+            : []),
+          ...(session.type === "jeu_libre" && (session.matches ?? []).length >= 1
             ? [
                 {
                   key: "session-summary",

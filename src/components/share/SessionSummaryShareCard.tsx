@@ -18,12 +18,6 @@ interface ModeDistribution {
   mixte: number;
 }
 
-interface TightestSet {
-  high: number;
-  low: number;
-  margin: number;
-}
-
 // ── Helpers de calcul ──────────────────────────────────────────────────────────
 
 function computeWinRate(matches: Match[]): WinRate {
@@ -52,36 +46,6 @@ function formatModeDistribution(dist: ModeDistribution): string {
   return parts.join(" · ");
 }
 
-/**
- * Trouve le set avec la marge la plus serrée parmi tous les matches.
- * En cas d'égalité de marge, préfère le total de points le plus élevé.
- * Ignore les sets non renseignés (0-0).
- */
-function findTightestSet(matches: Match[]): TightestSet | null {
-  let best: TightestSet | null = null;
-
-  for (const match of matches) {
-    for (const set of match.sets) {
-      if (set.scoreNous === 0 && set.scoreEux === 0) continue;
-
-      const margin = Math.abs(set.scoreNous - set.scoreEux);
-      const total = set.scoreNous + set.scoreEux;
-      const high = Math.max(set.scoreNous, set.scoreEux);
-      const low = Math.min(set.scoreNous, set.scoreEux);
-
-      if (
-        best === null ||
-        margin < best.margin ||
-        (margin === best.margin && total > best.high + best.low)
-      ) {
-        best = { high, low, margin };
-      }
-    }
-  }
-
-  return best;
-}
-
 function formatSessionDate(isoDate: string): string {
   const date = new Date(isoDate);
   return new Intl.DateTimeFormat("fr-FR", {
@@ -108,9 +72,7 @@ export function SessionSummaryShareCard({
   const winRate = computeWinRate(matches);
   const modeDist = computeModeDistribution(matches);
   const showModes = hasMultipleModes(modeDist);
-  const tightestSet = findTightestSet(matches);
-  const showSet = tightestSet !== null;
-  const showDetails = showModes || showSet;
+  const showDetails = showModes;
 
   const matchWord = winRate.total > 1 ? "matchs joués" : "match joué";
 
@@ -158,14 +120,6 @@ export function SessionSummaryShareCard({
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Modes</Text>
               <Text style={styles.detailValue}>{formatModeDistribution(modeDist)}</Text>
-            </View>
-          ) : null}
-          {showSet ? (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Set serré</Text>
-              <Text style={styles.detailValue}>
-                {tightestSet.high}–{tightestSet.low}
-              </Text>
             </View>
           ) : null}
         </View>
