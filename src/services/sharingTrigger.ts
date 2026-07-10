@@ -47,14 +47,6 @@ function matchThreshold(value: number, thresholds: Threshold[]): Threshold | nul
   return thresholds.find((t) => t.value === value) ?? null;
 }
 
-// ── Niveau minimum pour afficher un message motivationnel ─────────────────────
-
-/**
- * Seuls les jalons de niveau 3 et supérieurs déclenchent une carte de partage.
- * En dessous, la séance est enregistrée silencieusement.
- */
-const MIN_MOTIVATIONAL_LEVEL: MessageLevel = 3;
-
 // ── Fonction principale ───────────────────────────────────────────────────────
 
 /**
@@ -68,15 +60,13 @@ const MIN_MOTIVATIONAL_LEVEL: MessageLevel = 3;
  *
  * On retourne TOUTES les cartes déclenchées : l'UI décidera laquelle
  * afficher en premier (ou les proposer en swipe).
- *
- * Seuls les jalons de niveau ≥ MIN_MOTIVATIONAL_LEVEL sont inclus.
  */
 export function detectTriggeredCards(stats: SessionStats): TriggerResult {
   const cards: TriggeredCard[] = [];
 
   // 1. Milestone
   const milestoneHit = matchThreshold(stats.totalSessions, MILESTONE_THRESHOLDS);
-  if (milestoneHit && milestoneHit.level >= MIN_MOTIVATIONAL_LEVEL) {
+  if (milestoneHit) {
     cards.push({
       cardType: 'milestone',
       value: stats.totalSessions,
@@ -86,7 +76,7 @@ export function detectTriggeredCards(stats: SessionStats): TriggerResult {
 
   // 2. Weeks streak
   const weeksHit = matchThreshold(stats.currentWeeksStreak, WEEKS_STREAK_THRESHOLDS);
-  if (weeksHit && weeksHit.level >= MIN_MOTIVATIONAL_LEVEL) {
+  if (weeksHit) {
     cards.push({
       cardType: 'weeksStreak',
       value: stats.currentWeeksStreak,
@@ -96,7 +86,7 @@ export function detectTriggeredCards(stats: SessionStats): TriggerResult {
 
   // 3. Sessions per week
   const sessionsHit = matchThreshold(stats.sessionsThisWeek, SESSIONS_PER_WEEK_THRESHOLDS);
-  if (sessionsHit && sessionsHit.level >= MIN_MOTIVATIONAL_LEVEL) {
+  if (sessionsHit) {
     cards.push({
       cardType: 'sessionsPerWeek',
       value: stats.sessionsThisWeek,

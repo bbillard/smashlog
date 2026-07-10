@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import { router } from "expo-router";
-import * as Sharing from "expo-sharing";
+import { router, useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import { LabeledInput, ToggleRow } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -16,11 +15,11 @@ import { getProfile } from "@/src/services/profile";
 import {
   applyPlanningToNotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
-  getNextScheduledSlotDate,
+  getNextScheduledReminder,
   getNotificationSettings,
   saveNotificationSettings,
 } from "@/src/services/settings";
-import { getSessions, importSessions, updateSession } from "@/src/services/storage";
+import { getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { NotificationSettings } from "@/src/types/session";
 
@@ -33,24 +32,27 @@ function parseBoundedInteger(value: string, fallback: number, min: number, max: 
   return Math.min(Math.max(parsed, min), max);
 }
 
-const SLOT_TYPE_LABELS: Record<string, string> = {
-  badminton: "Badminton",
-  renforcement: "Renforcement",
-  cardio: "Cardio",
-  autre: "Séance",
-};
-
-function formatNextSlotSummary(dateIso: string | null, type?: string) {
+function formatNextNotificationSummary(
+  dateIso: string | null,
+  family?: "badminton" | "renforcement" | "cardio",
+) {
   if (!dateIso) {
-    return "Aucune séance planifiée";
+    return "Aucune notification planifiée";
   }
 
   const date = new Date(dateIso);
   if (Number.isNaN(date.getTime())) {
-    return "Aucune séance planifiée";
+    return "Aucune notification planifiée";
   }
 
-  const typeLabel = type ? (SLOT_TYPE_LABELS[type] ?? "Séance") : "Séance";
+  const familyLabel =
+    family === "renforcement"
+      ? "Renforcement"
+      : family === "cardio"
+        ? "Cardio"
+        : family === "badminton"
+          ? "Badminton"
+          : "Quotidien";
   const formatted = new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
     day: "numeric",
@@ -59,155 +61,180 @@ function formatNextSlotSummary(dateIso: string | null, type?: string) {
     minute: "2-digit",
   }).format(date);
 
-  return `${typeLabel} · ${formatted}`;
+  return `${familyLabel} · ${formatted}`;
+}
+
+function getNextFixedNotificationDate(hour: number, minute: number, reference = new Date()) {
+  const nextDate = new Date(reference);
+  nextDate.setSeconds(0, 0);
+  nextDate.setHours(hour, minute, 0, 0);
+
+  if (nextDate.getTime() <= reference.getTime()) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+
+  return nextDate;
 }
 
 export default function SettingsScreen() {
   const { theme } = useAppTheme();
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
-  const [isSaving, setIsSaving] = useState(false);
   const [canOpenDebug, setCanOpenDebug] = useState(false);
   const [hasPlanning, setHasPlanning] = useState(false);
-  const [nextSlotSummary, setNextSlotSummary] = useState("Aucune prochaine séance planifiée");
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const exportFileRef = useRef<string | null>(null);
+  const [slots, setSlots] = useState<Awaited<ReturnType<typeof getScheduledSlots>>>([]);
+  const [nextNotificationSummary, setNextNotificationSummary] = useState("Aucune notification planifiée");
+  const [leadMinutesInput, setLeadMinutesInput] = useState(String(DEFAULT_NOTIFICATION_SETTINGS.nextSessionLeadMinutes));
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [showFixedTimePicker, setShowFixedTimePicker] = useState(false);
+  const lastSavedSettingsRef = useRef(JSON.stringify(DEFAULT_NOTIFICATION_SETTINGS));
+  const permissionAlertShownRef = useRef(false);
 
-  useEffect(() => {
+  const loadSettingsState = useCallback(async () => {
     async function load() {
-      const [profile, slots] = await Promise.all([getProfile(), getScheduledSlots()]);
+      const [profile, nextSlots] = await Promise.all([getProfile(), getScheduledSlots()]);
       setCanOpenDebug(__DEV__ && profile.username.trim().toLowerCase() === "admin");
-      setHasPlanning(slots.length > 0);
-      const syncedSettings = await applyPlanningToNotificationSettings(slots);
+      setSlots(nextSlots);
+      setHasPlanning(nextSlots.length > 0);
+      const syncedSettings = await applyPlanningToNotificationSettings(nextSlots);
       setSettings(syncedSettings);
-      const nextSlot = getNextScheduledSlotDate(slots);
-      setNextSlotSummary(formatNextSlotSummary(nextSlot?.date.toISOString() ?? null, nextSlot?.slot.type));
+      setLeadMinutesInput(String(syncedSettings.nextSessionLeadMinutes));
+      lastSavedSettingsRef.current = JSON.stringify(syncedSettings);
+      setHasLoaded(true);
     }
 
-    load();
+    await load();
   }, []);
 
-  async function handleExport() {
-    setIsExporting(true);
-    try {
-      const sessions = await getSessions();
-      const json = JSON.stringify({ version: 1, sessions }, null, 2);
-      const fileName = `badlog-export-${new Date().toISOString().split("T")[0]}.json`;
+  useFocusEffect(
+    useCallback(() => {
+      loadSettingsState();
+    }, [loadSettingsState]),
+  );
 
-      // Write to a temp file then share it
-      const path = FileSystem.cacheDirectory + fileName;
-      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
-      exportFileRef.current = path;
+  useEffect(() => {
+    const nextReminder = settings.nextSessionReminderEnabled
+      ? getNextScheduledReminder(slots, settings.nextSessionLeadMinutes)
+      : null;
+    const nextFixedDate = settings.fixedTimeEnabled
+      ? getNextFixedNotificationDate(settings.fixedHour, settings.fixedMinute)
+      : null;
 
-      const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) {
-        Alert.alert("Partage indisponible", "Le partage de fichiers n'est pas disponible sur cet appareil.");
-        return;
+    if (nextReminder && nextFixedDate) {
+      if (nextFixedDate.getTime() <= nextReminder.reminderDate.getTime()) {
+        setNextNotificationSummary(formatNextNotificationSummary(nextFixedDate.toISOString()));
+      } else {
+        setNextNotificationSummary(
+          formatNextNotificationSummary(nextReminder.reminderDate.toISOString(), nextReminder.slot.family),
+        );
       }
-
-      await Sharing.shareAsync(path, { mimeType: "application/json", dialogTitle: "Exporter mes données" });
-    } catch (error) {
-      Alert.alert("Erreur", "Impossible d'exporter les données.");
-    } finally {
-      setIsExporting(false);
+      return;
     }
-  }
 
-  async function handleImport() {
-    setIsImporting(true);
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: Platform.OS === "ios" ? "public.json" : "application/json",
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        Alert.alert("Format invalide", "Le fichier sélectionné n'est pas un JSON valide.");
-        return;
-      }
-
-      // Validate shape
-      if (
-        typeof parsed !== "object" ||
-        parsed === null ||
-        !("sessions" in parsed) ||
-        !Array.isArray((parsed as { sessions: unknown }).sessions)
-      ) {
-        Alert.alert("Format invalide", "Le fichier ne contient pas de données Badlog valides.");
-        return;
-      }
-
-      const incoming = (parsed as { sessions: unknown[] }).sessions;
-      const validSessions = incoming.filter(
-        (s) =>
-          typeof s === "object" &&
-          s !== null &&
-          typeof (s as Record<string, unknown>).id === "string" &&
-          typeof (s as Record<string, unknown>).createdAt === "string" &&
-          typeof (s as Record<string, unknown>).type === "string",
+    if (nextReminder) {
+      setNextNotificationSummary(
+        formatNextNotificationSummary(nextReminder.reminderDate.toISOString(), nextReminder.slot.family),
       );
-
-      if (validSessions.length === 0) {
-        Alert.alert("Aucune séance", "Le fichier ne contient aucune séance valide.");
-        return;
-      }
-
-      const { imported, skipped } = await importSessions(validSessions as Parameters<typeof importSessions>[0]);
-
-      const message =
-        imported === 0
-          ? "Toutes les séances étaient déjà présentes."
-          : `${imported} séance${imported > 1 ? "s" : ""} importée${imported > 1 ? "s" : ""}${skipped > 0 ? ` · ${skipped} ignorée${skipped > 1 ? "s" : ""} (doublons)` : ""}.`;
-
-      Alert.alert("Import terminé", message);
-    } catch (error) {
-      Alert.alert("Erreur", "Impossible d'importer les données.");
-    } finally {
-      setIsImporting(false);
+      return;
     }
+
+    if (nextFixedDate) {
+      setNextNotificationSummary(formatNextNotificationSummary(nextFixedDate.toISOString()));
+      return;
+    }
+
+    setNextNotificationSummary("Aucune notification planifiée");
+  }, [
+    settings.fixedHour,
+    settings.fixedMinute,
+    settings.fixedTimeEnabled,
+    settings.nextSessionLeadMinutes,
+    settings.nextSessionReminderEnabled,
+    slots,
+  ]);
+
+  function handleFixedTimeChange(event: DateTimePickerEvent, selectedDate?: Date) {
+    setShowFixedTimePicker(false);
+    if (event.type !== "set" || !selectedDate) {
+      return;
+    }
+
+    setSettings((current) => ({
+      ...current,
+      fixedHour: selectedDate.getHours(),
+      fixedMinute: selectedDate.getMinutes(),
+    }));
   }
 
-  async function handleSave() {
-    setIsSaving(true);
-
-    try {
-      const permissionGranted = await requestNotificationPermissions();
-      if (!permissionGranted) {
-        Alert.alert("Notifications désactivées", "Autorise les notifications pour recevoir tes rappels.");
-      }
-
-      await saveNotificationSettings(settings);
-      const sessions = await getSessions();
-      const latestSession = sessions[0];
-      const notificationState = await rescheduleNotifications(sessions, settings);
-      if (latestSession) {
-        await updateSession(latestSession.id, notificationState);
-      }
-      Alert.alert("Réglages enregistrés", "Tes rappels ont été mis à jour.");
-    } catch (error) {
-      Alert.alert("Erreur", "Impossible d'enregistrer les réglages.");
-    } finally {
-      setIsSaving(false);
+  useEffect(() => {
+    if (!hasLoaded) {
+      return;
     }
-  }
+
+    const normalizedLeadMinutes = parseBoundedInteger(
+      leadMinutesInput,
+      settings.nextSessionLeadMinutes,
+      0,
+      1440,
+    );
+    const nextSettings =
+      normalizedLeadMinutes === settings.nextSessionLeadMinutes
+        ? settings
+        : {
+            ...settings,
+            nextSessionLeadMinutes: normalizedLeadMinutes,
+          };
+    const nextSignature = JSON.stringify(nextSettings);
+
+    if (nextSignature === lastSavedSettingsRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function persistSettings() {
+      try {
+        if (nextSettings.fixedTimeEnabled || nextSettings.nextSessionReminderEnabled) {
+          const permissionGranted = await requestNotificationPermissions();
+          if (!permissionGranted) {
+            if (!permissionAlertShownRef.current && !cancelled) {
+              permissionAlertShownRef.current = true;
+              Alert.alert("Notifications désactivées", "Autorise les notifications pour recevoir tes rappels.");
+            }
+          } else {
+            permissionAlertShownRef.current = false;
+          }
+        }
+
+        await saveNotificationSettings(nextSettings);
+        const sessions = await getSessions();
+        const latestSession = sessions[0];
+        const notificationState = await rescheduleNotifications(nextSettings);
+        if (latestSession) {
+          await updateSession(latestSession.id, notificationState);
+        }
+
+        if (!cancelled) {
+          lastSavedSettingsRef.current = nextSignature;
+          if (nextSettings !== settings) {
+            setSettings(nextSettings);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          Alert.alert("Erreur", "Impossible d'enregistrer les réglages.");
+        }
+      }
+    }
+
+    persistSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLoaded, leadMinutesInput, settings]);
 
   return (
-    <Screen
-      nativeHeader
-      scrollable
-      footer={<PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />}
-    >
+    <Screen scrollable>
       <Text style={[styles.title, { color: theme.text }]}>Réglages notifications</Text>
       <Text style={[styles.description, { color: theme.secondaryText }]}>
         Configure les rappels selon ton planning de jeu et tes habitudes.
@@ -221,32 +248,24 @@ export default function SettingsScreen() {
           }
           value={settings.fixedTimeEnabled}
         />
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <LabeledInput
-              label="Heure"
-              onChangeText={(value) =>
-                setSettings((current) => ({
-                  ...current,
-                  fixedHour: parseBoundedInteger(value, current.fixedHour, 0, 23),
-                }))
-              }
-              value={String(settings.fixedHour)}
-            />
-          </View>
-          <View style={styles.half}>
-            <LabeledInput
-              label="Minute"
-              onChangeText={(value) =>
-                setSettings((current) => ({
-                  ...current,
-                  fixedMinute: parseBoundedInteger(value, current.fixedMinute, 0, 59),
-                }))
-              }
-              value={String(settings.fixedMinute)}
-            />
-          </View>
-        </View>
+        <Pressable
+          onPress={() => setShowFixedTimePicker(true)}
+          style={[styles.timeTrigger, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        >
+          <Ionicons color={theme.primary} name="time-outline" size={18} />
+          <Text style={[styles.timeTriggerLabel, { color: theme.secondaryText }]}>Heure du rappel</Text>
+          <Text style={[styles.timeTriggerValue, { color: theme.text }]}>
+            {String(settings.fixedHour).padStart(2, "0")}h{String(settings.fixedMinute).padStart(2, "0")}
+          </Text>
+        </Pressable>
+        {showFixedTimePicker ? (
+          <DateTimePicker
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            mode="time"
+            onChange={handleFixedTimeChange}
+            value={new Date(2025, 0, 1, settings.fixedHour, settings.fixedMinute)}
+          />
+        ) : null}
       </SectionCard>
 
       <SectionCard>
@@ -281,9 +300,9 @@ export default function SettingsScreen() {
           />
         </Pressable>
         <View style={[styles.nextSessionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.nextSessionLabel, { color: theme.secondaryText }]}>Prochaine séance</Text>
+          <Text style={[styles.nextSessionLabel, { color: theme.secondaryText }]}>Prochaine notification</Text>
           <Text style={[styles.nextSessionValue, { color: hasPlanning ? theme.text : theme.secondaryText }]}>
-            {nextSlotSummary}
+            {nextNotificationSummary}
           </Text>
           <Pressable onPress={() => router.push("/planning")}>
             <Text style={[styles.nextSessionLink, { color: theme.primary }]}>
@@ -293,33 +312,20 @@ export default function SettingsScreen() {
         </View>
         <LabeledInput
           label="Temps avant le début (minutes)"
-          onChangeText={(value) =>
+          onChangeText={(value) => {
+            setLeadMinutesInput(value);
+            const trimmed = value.trim();
+            if (trimmed.length === 0) {
+              return;
+            }
+
             setSettings((current) => ({
               ...current,
-              nextSessionLeadMinutes: parseBoundedInteger(value, current.nextSessionLeadMinutes, 0, 1440),
-            }))
-          }
-          value={String(settings.nextSessionLeadMinutes)}
+              nextSessionLeadMinutes: parseBoundedInteger(trimmed, current.nextSessionLeadMinutes, 0, 1440),
+            }));
+          }}
+          value={leadMinutesInput}
         />
-      </SectionCard>
-
-      <SectionCard>
-        <Text style={[styles.dataTitle, { color: theme.text }]}>Mes données</Text>
-        <Text style={[styles.dataDescription, { color: theme.secondaryText }]}>
-          Exporte tes séances en JSON pour les sauvegarder ou les transférer. L'import fusionne sans écraser.
-        </Text>
-        <PrimaryButton
-          label={isExporting ? "Export en cours…" : "Exporter mes données"}
-          onPress={handleExport}
-          tone="secondary"
-        />
-        <View style={styles.importButton}>
-          <PrimaryButton
-            label={isImporting ? "Import en cours…" : "Importer mes données"}
-            onPress={handleImport}
-            tone="secondary"
-          />
-        </View>
       </SectionCard>
 
       {canOpenDebug ? (
@@ -351,6 +357,25 @@ const styles = StyleSheet.create({
   half: {
     flex: 1,
   },
+  timeTrigger: {
+    marginTop: 12,
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  timeTriggerLabel: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    flex: 1,
+  },
+  timeTriggerValue: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
   disabledBlock: {
     opacity: 0.45,
   },
@@ -376,20 +401,6 @@ const styles = StyleSheet.create({
   nextSessionLink: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
-  },
-  dataTitle: {
-    fontSize: 18,
-    fontFamily: fonts.displayBold,
-    marginBottom: 8,
-  },
-  dataDescription: {
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: fonts.bodyRegular,
-    marginBottom: 12,
-  },
-  importButton: {
-    marginTop: 8,
   },
   debugTitle: {
     fontSize: 18,

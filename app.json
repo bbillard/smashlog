@@ -3,13 +3,12 @@
     "name": "Smashlog",
     "slug": "smashlog",
     "scheme": "smashlog",
-    "version": "1.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./img/smashlog-logo.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
-      "./app.plugin",
       "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
@@ -23,6 +22,14 @@
           "photosPermission": "Autorise Smashlog à accéder à ta photothèque.",
           "savePhotosPermission": "Autorise Smashlog à enregistrer tes cartes de partage dans ta photothèque."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true
+          }
+        }
       ]
     ],
     "experiments": {
@@ -31,14 +38,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smashlog.app",
-      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.smashlog.app",
-      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./img/smashlog-logo-android.png",
         "backgroundColor": "#0d0d0f"

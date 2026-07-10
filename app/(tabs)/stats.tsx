@@ -1,6 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 
 import { AppSidebar } from "@/src/components/AppSidebar";
@@ -9,6 +10,7 @@ import { LoadingView } from "@/src/components/LoadingView";
 import { ProfileAvatar } from "@/src/components/ProfileAvatar";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { SESSION_COLORS } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS, SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useSidebarSwipe } from "@/src/hooks/useSidebarSwipe";
@@ -16,7 +18,7 @@ import { getProfile } from "@/src/services/profile";
 import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Profile } from "@/src/types/profile";
-import { Session } from "@/src/types/session";
+import { Session, SessionType } from "@/src/types/session";
 import { pickDominantType } from "@/src/utils/dominantType";
 import { truncate } from "@/src/utils/format";
 
@@ -106,7 +108,7 @@ export default function StatsScreen() {
   // Map dayKey → session types for that day (this month only), one entry per
   // session (duplicates preserved), ordered chronologically so the first
   // session of the day is first.
-  const sessionTypesByDay = new Map<string, string[]>();
+  const sessionTypesByDay = new Map<string, SessionType[]>();
   sessions
     .map((session) => ({ date: new Date(session.createdAt), type: session.type }))
     .filter(
@@ -120,10 +122,6 @@ export default function StatsScreen() {
       if (!sessionTypesByDay.has(key)) sessionTypesByDay.set(key, []);
       sessionTypesByDay.get(key)!.push(type);
     });
-
-  const SESSION_TYPE_ACCENT_MAP: Record<string, string> = Object.fromEntries(
-    SESSION_TYPE_OPTIONS.map((o) => [o.value, o.accent]),
-  );
 
   const todayKey = toDayKey(new Date());
 
@@ -183,13 +181,18 @@ export default function StatsScreen() {
             <SectionCard>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendrier</Text>
               <View style={styles.calendarNav}>
-                <Pressable onPress={goToPrevMonth} hitSlop={8}>
+                <Pressable onPress={goToPrevMonth} style={styles.calendarNavBtn} hitSlop={8}>
                   <Ionicons name="chevron-back" size={18} color={theme.text} />
                 </Pressable>
                 <Text style={[styles.calendarMonth, { color: theme.secondaryText }]}>
                   {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(calendarDate)}
                 </Text>
-                <Pressable onPress={goToNextMonth} hitSlop={8} disabled={isCurrentMonth}>
+                <Pressable
+                  onPress={goToNextMonth}
+                  style={[styles.calendarNavBtn, isCurrentMonth && styles.calendarNavBtnDisabled]}
+                  hitSlop={8}
+                  disabled={isCurrentMonth}
+                >
                   <Ionicons name="chevron-forward" size={18} color={isCurrentMonth ? theme.tertiaryText : theme.text} />
                 </Pressable>
               </View>
@@ -206,7 +209,7 @@ export default function StatsScreen() {
                   const dayTypes = sessionTypesByDay.get(dayKey) ?? [];
                   const hasSession = dayTypes.length > 0;
                   const dominantType = pickDominantType(dayTypes);
-                  const primaryAccent = dominantType ? SESSION_TYPE_ACCENT_MAP[dominantType] : theme.primary;
+                  const accentColor = dominantType ? SESSION_COLORS[dominantType] : theme.primary;
                   const isToday = dayKey === todayKey;
 
                   return (
@@ -215,7 +218,7 @@ export default function StatsScreen() {
                         style={[
                           styles.dayCellInner,
                           {
-                            backgroundColor: hasSession ? primaryAccent + "26" : "transparent",
+                            backgroundColor: hasSession ? `${accentColor}1A` : "transparent",
                             borderColor: isToday ? theme.primary : theme.border,
                           },
                         ]}
@@ -227,7 +230,7 @@ export default function StatsScreen() {
                               color: !isCurrentMonth
                                 ? theme.secondaryText
                                 : hasSession
-                                  ? primaryAccent
+                                  ? accentColor
                                   : theme.text,
                               opacity: isCurrentMonth ? 1 : 0.35,
                             },
@@ -240,7 +243,7 @@ export default function StatsScreen() {
                             {dayTypes.map((type, index) => (
                               <View
                                 key={`${type}-${index}`}
-                                style={[styles.sessionDot, { backgroundColor: SESSION_TYPE_ACCENT_MAP[type] }]}
+                                style={[styles.sessionDot, { backgroundColor: SESSION_COLORS[type] }]}
                               />
                             ))}
                           </View>
@@ -251,7 +254,7 @@ export default function StatsScreen() {
                 })}
               </View>
               <Text style={[styles.calendarLegend, { color: theme.tertiaryText }]}>
-                La couleur de chaque jour correspond au type de séance enregistrée.
+                Les jours surlignés correspondent aux séances enregistrées ce mois-ci.
               </Text>
             </SectionCard>
           </>
@@ -329,6 +332,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
+  calendarNavBtn: {
+    padding: 4,
+  },
+  calendarNavBtnDisabled: {
+    opacity: 0.35,
+  },
   calendarMonth: {
     fontSize: 13,
     fontFamily: fonts.bodyRegular,
@@ -373,6 +382,7 @@ const styles = StyleSheet.create({
     gap: 2,
     flexWrap: "wrap",
     justifyContent: "center",
+    maxWidth: "90%",
   },
   sessionDot: {
     width: 6,

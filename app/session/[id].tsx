@@ -1,11 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
-import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -18,10 +14,9 @@ import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getNotificationSettings } from "@/src/services/settings";
 import { rescheduleNotifications } from "@/src/services/notifications";
-import { deleteSession, getExerciseById, getExercises, getSessionById, getSessions, updateSession } from "@/src/services/storage";
+import { deleteSession, getSessionById, getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
-import { Exercise } from "@/src/types/index";
-import { Match, Session } from "@/src/types/session";
+import { Session } from "@/src/types/session";
 import { formatDate } from "@/src/utils/format";
 
 interface EditableSession {
@@ -34,228 +29,6 @@ interface EditableSession {
   nextIntention: string;
   freeNotes: string;
 }
-
-// ── Helpers matchs ────────────────────────────────────────────────────────────
-
-function formatMatchScore(sets: Match["sets"]): string {
-  if (sets.length === 0) return "";
-  return sets.map((s) => `${s.scoreNous}-${s.scoreEux}`).join(", ");
-}
-
-const MATCH_MODE_LABELS: Record<Match["mode"], string> = {
-  simple: "Simple",
-  double: "Double",
-  mixte: "Mixte",
-};
-
-const MATCH_RESULT_LABELS: Record<Match["resultat"], string> = {
-  victoire: "Victoire",
-  defaite: "Défaite",
-};
-
-// ── Carte match (vue lecture) ─────────────────────────────────────────────────
-
-function MatchDetailCard({ match }: { match: Match }) {
-  const router = useRouter();
-  const { theme } = useAppTheme();
-  const isWin = match.resultat === "victoire";
-  const barColor = isWin ? "#CEFF00" : "#FF4D6D";
-  const score = formatMatchScore(match.sets);
-
-  const navigateToPlayer = (playerId: string) =>
-    router.push({ pathname: "/players/[id]", params: { id: playerId } });
-
-  return (
-    <View
-      style={[
-        matchStyles.card,
-        { borderColor: theme.border },
-      ]}
-    >
-      <View style={[matchStyles.bar, { backgroundColor: barColor }]} />
-      <View style={matchStyles.content}>
-        <View style={matchStyles.topRow}>
-          <View
-            style={[
-              matchStyles.resultBadge,
-              { backgroundColor: isWin ? "rgba(206,255,0,0.1)" : "rgba(255,77,109,0.1)" },
-            ]}
-          >
-            <Text style={[matchStyles.resultBadgeText, { color: isWin ? "#CEFF00" : "#FF4D6D" }]}>
-              {MATCH_RESULT_LABELS[match.resultat]}
-            </Text>
-          </View>
-          <View style={[matchStyles.modeBadge, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
-            <Text style={[matchStyles.modeBadgeText, { color: theme.secondaryText }]}>
-              {MATCH_MODE_LABELS[match.mode]}
-            </Text>
-          </View>
-          {score ? (
-            <Text style={[matchStyles.score, { color: theme.text }]}>{score}</Text>
-          ) : null}
-        </View>
-
-        {/* Adversaire — cliquable si adversaireId est renseigné */}
-        <View style={matchStyles.vsRow}>
-          <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}>vs. </Text>
-          {match.adversaireId ? (
-            <Pressable onPress={() => navigateToPlayer(match.adversaireId!)}>
-              <Text style={[matchStyles.vsName, matchStyles.vsNameLink, { color: theme.text }]}>
-                {match.adversaire}
-              </Text>
-            </Pressable>
-          ) : (
-            <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.adversaire}</Text>
-          )}
-          {match.partenaire ? (
-            <>
-              <Text style={[matchStyles.vs, { color: theme.tertiaryText }]}> · avec </Text>
-              {match.partenaireId ? (
-                <Pressable onPress={() => navigateToPlayer(match.partenaireId!)}>
-                  <Text style={[matchStyles.vsName, matchStyles.vsNameLink, { color: theme.text }]}>
-                    {match.partenaire}
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={[matchStyles.vsName, { color: theme.text }]}>{match.partenaire}</Text>
-              )}
-            </>
-          ) : null}
-        </View>
-
-        {match.commentaire ? (
-          <Text style={[matchStyles.comment, { color: theme.secondaryText, borderLeftColor: theme.border }]}>
-            {match.commentaire}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-// ── Section matchs ────────────────────────────────────────────────────────────
-
-function MatchesSection({ matches }: { matches: Match[] }) {
-  const { theme } = useAppTheme();
-  if (matches.length === 0) return null;
-
-  const wins = matches.filter((m) => m.resultat === "victoire").length;
-  const losses = matches.filter((m) => m.resultat === "defaite").length;
-  const winRate = Math.round((wins / matches.length) * 100);
-
-  return (
-    <SectionCard>
-      <Text style={[styles.matchesSectionTitle, { color: theme.secondaryText }]}>
-        Matchs · {matches.length} joué{matches.length > 1 ? "s" : ""}
-      </Text>
-
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[styles.statValue, { color: "#CEFF00" }]}>{wins}</Text>
-          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
-            Victoire{wins > 1 ? "s" : ""}
-          </Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[styles.statValue, { color: "#FF4D6D" }]}>{losses}</Text>
-          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
-            Défaite{losses > 1 ? "s" : ""}
-          </Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[styles.statValue, { color: theme.tertiaryText }]}>{winRate}%</Text>
-          <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Win rate</Text>
-        </View>
-      </View>
-
-      {/* Cartes match */}
-      <View style={styles.matchList}>
-        {matches.map((match, index) => (
-          <MatchDetailCard key={index} match={match} />
-        ))}
-      </View>
-    </SectionCard>
-  );
-}
-
-// ── Section exercices liés ────────────────────────────────────────────────────
-
-function LinkedExercisesSection({ exercises }: { exercises: Exercise[] }) {
-  const { theme } = useAppTheme();
-  const router = useRouter();
-
-  return (
-    <SectionCard>
-      <Text style={[styles.matchesSectionTitle, { color: theme.secondaryText }]}>
-        Exercices travaillés · {exercises.length}
-      </Text>
-      {exercises.map((ex, idx) => (
-        <Pressable
-          key={ex.id}
-          onPress={() =>
-            router.push({
-              pathname: "/exercise/[id]",
-              params: { id: ex.id, from: "session" },
-            })
-          }
-          style={[
-            linkedStyles.row,
-            { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
-          ]}
-        >
-          <View style={[linkedStyles.badge, { backgroundColor: "rgba(0,229,255,0.1)" }]}>
-            <Text style={[linkedStyles.badgeText, { color: theme.accent3 }]}>{idx + 1}</Text>
-          </View>
-          <Text style={[linkedStyles.name, { color: theme.text }]} numberOfLines={1}>
-            {ex.name}
-          </Text>
-          {ex.durationMinutes ? (
-            <Text style={[linkedStyles.dur, { color: theme.secondaryText }]}>
-              {ex.durationMinutes}′
-            </Text>
-          ) : null}
-          <Ionicons name="chevron-forward" size={14} color={theme.secondaryText} />
-        </Pressable>
-      ))}
-    </SectionCard>
-  );
-}
-
-const linkedStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-  },
-  badge: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontFamily: fonts.displayBold,
-  },
-  name: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: fonts.bodyMedium,
-  },
-  dur: {
-    fontSize: 11,
-    fontFamily: fonts.bodyRegular,
-    flexShrink: 0,
-  },
-});
-
-// ── Composant Field ───────────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string }) {
   const { theme } = useAppTheme();
@@ -270,38 +43,13 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export default function SessionDetailScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
-  const { id, from, filter } = useLocalSearchParams<{ id: string; from?: string; filter?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { theme } = useAppTheme();
   const [session, setSession] = useState<Session | null>(null);
   const [draft, setDraft] = useState<EditableSession | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [linkedExercises, setLinkedExercises] = useState<Exercise[]>([]);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [editingExerciseIds, setEditingExerciseIds] = useState<string[]>([]);
-  const [editingMatches, setEditingMatches] = useState<Match[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
-
-  // Surcharge du bouton retour quand on vient de "Mes intentions"
-  useEffect(() => {
-    if (from !== "intentions") return;
-    navigation.setOptions({
-      headerLeft: () => (
-        <Pressable
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          onPress={() =>
-            router.replace({ pathname: "/intentions", params: { filter: filter ?? "tous" } })
-          }
-          style={styles.headerBack}
-        >
-          <Ionicons color="#9999AA" name="chevron-back" size={18} />
-          <Text style={[styles.headerBackText, { color: "#9999AA" }]}>Mes intentions</Text>
-        </Pressable>
-      ),
-    });
-  }, [from, filter, navigation, router]);
 
   const loadSession = useCallback(async () => {
     if (!id) {
@@ -325,26 +73,6 @@ export default function SessionDetailScreen() {
           }
         : null,
     );
-    if (nextSession?.exerciseIds?.length) {
-      const exs = await Promise.all(
-        nextSession.exerciseIds.map((eid) => getExerciseById(eid)),
-      );
-      setLinkedExercises(exs.filter((e): e is Exercise => e !== null));
-    } else {
-      setLinkedExercises([]);
-    }
-    // Charge tous les exercices pour l'accordéon d'édition
-    const allExs = await getExercises();
-    setAllExercises(allExs);
-    // Détecte un exercice créé depuis le mode édition (retour de /exercise/new)
-    if (exerciseSnapshotRef.current !== null) {
-      const snapshot = exerciseSnapshotRef.current;
-      exerciseSnapshotRef.current = null;
-      const newIds = allExs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
-      if (newIds.length > 0) {
-        setEditingExerciseIds((prev) => [...prev, ...newIds]);
-      }
-    }
     setIsLoading(false);
   }, [id]);
 
@@ -363,11 +91,11 @@ export default function SessionDetailScreen() {
     const sessions = await getSessions();
     const settings = await getNotificationSettings();
     const latestSession = sessions[0];
-    const notificationState = await rescheduleNotifications(sessions, settings);
+    const notificationState = await rescheduleNotifications(settings);
     if (latestSession) {
       await updateSession(latestSession.id, notificationState);
     }
-    router.replace("/(tabs)");
+    router.replace("/");
   }
 
   async function handleDelete() {
@@ -424,14 +152,12 @@ export default function SessionDetailScreen() {
         wentWrong: draft.wentWrong.trim(),
         nextIntention: draft.nextIntention.trim(),
         freeNotes: draft.freeNotes.trim() || undefined,
-        exerciseIds: editingExerciseIds.length > 0 ? editingExerciseIds : undefined,
-        matches: editingMatches,
       });
 
       const sessions = await getSessions();
       const settings = await getNotificationSettings();
       const latestSession = sessions[0];
-      const notificationState = await rescheduleNotifications(sessions, settings);
+      const notificationState = await rescheduleNotifications(settings);
       if (latestSession) {
         await updateSession(latestSession.id, notificationState);
       }
@@ -465,8 +191,6 @@ export default function SessionDetailScreen() {
     <View style={styles.footerButtons}>
       <PrimaryButton label="Annuler" onPress={() => {
         setIsEditing(false);
-        setEditingExerciseIds(session.exerciseIds ?? []);
-        setEditingMatches(session.matches ?? []);
         setDraft({
           createdAt: new Date(session.createdAt),
           title: session.title ?? "",
@@ -482,17 +206,13 @@ export default function SessionDetailScreen() {
     </View>
   ) : (
     <View style={styles.footerButtons}>
-      <PrimaryButton label="Modifier la séance" onPress={() => {
-        setIsEditing(true);
-        setEditingExerciseIds(session.exerciseIds ?? []);
-        setEditingMatches(session.matches ?? []);
-      }} />
+      <PrimaryButton label="Modifier la séance" onPress={() => setIsEditing(true)} />
       <PrimaryButton label="Supprimer la séance" onPress={handleDelete} tone="danger" />
     </View>
   );
 
   return (
-    <Screen scrollable footer={footer} nativeHeader>
+    <Screen scrollable footer={footer}>
       <SectionCard>
         <View style={styles.headerRow}>
           <View style={styles.headingBlock}>
@@ -500,11 +220,7 @@ export default function SessionDetailScreen() {
             <Text style={[styles.heading, { color: theme.text }]}>{SESSION_TYPE_LABELS[session.type]}</Text>
           </View>
           {!isEditing ? (
-            <Pressable onPress={() => {
-              setIsEditing(true);
-              setEditingExerciseIds(session.exerciseIds ?? []);
-              setEditingMatches(session.matches ?? []);
-            }}>
+            <Pressable onPress={() => setIsEditing(true)}>
               <Text style={[styles.editLink, { color: theme.primary }]}>Modifier</Text>
             </Pressable>
           ) : null}
@@ -566,30 +282,6 @@ export default function SessionDetailScreen() {
             onChangeText={(freeNotes) => setDraft((current) => (current ? { ...current, freeNotes } : current))}
             value={draft.freeNotes}
           />
-          {draft.type === "entrainement" ? (
-            <ExercisesAccordion
-              exerciseIds={editingExerciseIds}
-              allExercises={allExercises}
-              defaultOpen={editingExerciseIds.length > 0}
-              onAdd={(exId) => setEditingExerciseIds((prev) => [...prev, exId])}
-              onRemove={(exId) => setEditingExerciseIds((prev) => prev.filter((e) => e !== exId))}
-              onCreateNew={() => {
-                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
-                router.push({ pathname: "/exercise/new", params: { fromWizard: "true" } });
-              }}
-              onOpenLibrary={async () => {
-                const exs = await getExercises();
-                setAllExercises(exs);
-              }}
-            />
-          ) : null}
-          {draft.type === "match" || draft.type === "jeu_libre" ? (
-            <MatchesAccordion
-              matches={editingMatches}
-              onChange={setEditingMatches}
-              singleMatch={draft.type === "match"}
-            />
-          ) : null}
         </>
       ) : (
         <>
@@ -599,12 +291,6 @@ export default function SessionDetailScreen() {
           <Field label="Ce qui a posé problème" value={session.wentWrong} />
           <Field label="Intention pour la prochaine séance" value={session.nextIntention} />
           {session.freeNotes ? <Field label="Notes libres" value={session.freeNotes} /> : null}
-          {session.matches && session.matches.length > 0 ? (
-            <MatchesSection matches={session.matches} />
-          ) : null}
-          {linkedExercises.length > 0 ? (
-            <LinkedExercisesSection exercises={linkedExercises} />
-          ) : null}
           {session.notificationScheduledAt ? (
             <Field label="Prochain rappel prévu" value={formatDate(session.notificationScheduledAt)} />
           ) : null}
@@ -613,77 +299,6 @@ export default function SessionDetailScreen() {
     </Screen>
   );
 }
-
-// ── Styles matchs (locaux au module) ─────────────────────────────────────────
-
-const matchStyles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  bar: {
-    width: 3,
-  },
-  content: {
-    flex: 1,
-    padding: 11,
-    gap: 5,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  resultBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  resultBadgeText: {
-    fontFamily: fonts.displayBold,
-    fontSize: 9,
-  },
-  modeBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  modeBadgeText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 9,
-  },
-  score: {
-    fontFamily: fonts.displayBold,
-    fontSize: 12,
-    marginLeft: "auto",
-  },
-  vsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  vs: {
-    fontSize: 12,
-  },
-  vsName: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 12,
-  },
-  vsNameLink: {
-    textDecorationLine: "underline",
-    textDecorationStyle: "dotted",
-  },
-  comment: {
-    fontSize: 11,
-    fontStyle: "italic",
-    borderLeftWidth: 2,
-    paddingLeft: 8,
-  },
-});
-
-// ── Styles principaux ─────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   headerRow: {
@@ -734,46 +349,5 @@ const styles = StyleSheet.create({
   editLink: {
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
-  },
-  matchesSectionTitle: {
-    fontSize: 11,
-    fontFamily: fonts.displayBold,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 7,
-  },
-  statBox: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    gap: 2,
-  },
-  statValue: {
-    fontFamily: fonts.displayExtraBold,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontSize: 9,
-    fontFamily: fonts.bodyRegular,
-  },
-  matchList: {
-    gap: 7,
-  },
-  headerBack: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingRight: 8,
-  },
-  headerBackText: {
-    fontSize: 14,
-    fontFamily: fonts.bodyRegular,
   },
 });

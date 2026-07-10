@@ -1,9 +1,14 @@
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useMemo, useState } from "react";
-import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ScheduledSlot, SlotType, createScheduledSlotId } from "@/src/services/onboarding";
+import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
+import { ScheduledSlot, createScheduledSlotId } from "@/src/services/onboarding";
 import { fonts } from "@/src/theme/typography";
+
+type SlotFamily = ScheduledSlot["family"];
+type InlineEditor = { slotId: string; mode: "day" | "family" } | null;
 
 const DAY_SHORT_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 const DAY_FULL_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -12,44 +17,140 @@ function formatTime(hour: number, minute: number) {
   return `${String(hour).padStart(2, "0")}h${String(minute).padStart(2, "0")}`;
 }
 
-export const SLOT_TYPE_CONFIG: Record<
-  SlotType,
-  { label: string; accent: string; background: string; pillBackground: string }
-> = {
-  badminton: {
-    label: "Badminton",
-    accent: "#CEFF00",
-    background: "rgba(206,255,0,0.1)",
-    pillBackground: "rgba(206,255,0,0.12)",
-  },
-  renforcement: {
-    label: "Renforcement",
-    accent: "#FF4D6D",
-    background: "rgba(255,77,109,0.1)",
-    pillBackground: "rgba(255,77,109,0.12)",
-  },
-  cardio: {
-    label: "Cardio",
-    accent: "#00E5FF",
-    background: "rgba(0,229,255,0.1)",
-    pillBackground: "rgba(0,229,255,0.12)",
-  },
-  autre: {
-    label: "Autre",
-    accent: "#6b6b7a",
-    background: "rgba(107,107,122,0.1)",
-    pillBackground: "rgba(107,107,122,0.12)",
-  },
-};
+function sortSlots(slots: ScheduledSlot[]) {
+  return [...slots].sort((left, right) => {
+    if (left.dayOfWeek !== right.dayOfWeek) {
+      return left.dayOfWeek - right.dayOfWeek;
+    }
+
+    if (left.hour !== right.hour) {
+      return left.hour - right.hour;
+    }
+
+    return left.minute - right.minute;
+  });
+}
+
+function getDaySlots(slots: ScheduledSlot[], dayOfWeek: ScheduledSlot["dayOfWeek"]) {
+  return slots.filter((slot) => slot.dayOfWeek === dayOfWeek);
+}
+
+// Note : "badminton" regroupe les séances match / entraînement / jeu libre
+// dans la semaine type (pas de distinction dans le planning). Il reprend la
+// couleur "entrainement" (lime) de la source de vérité SESSION_COLORS.
+export function getFamilyTokens(family: SlotFamily) {
+  if (family === "badminton") {
+    return {
+      accent: SESSION_COLORS.entrainement,
+      background: SESSION_COLORS_BG.entrainement,
+      pillBackground: SESSION_COLORS_BG.entrainement,
+    };
+  }
+
+  if (family === "renforcement") {
+    return {
+      accent: SESSION_COLORS.renforcement,
+      background: SESSION_COLORS_BG.renforcement,
+      pillBackground: SESSION_COLORS_BG.renforcement,
+    };
+  }
+
+  return {
+    accent: SESSION_COLORS.cardio,
+    background: SESSION_COLORS_BG.cardio,
+    pillBackground: SESSION_COLORS_BG.cardio,
+  };
+}
+
+function getFamilyLabel(family: SlotFamily) {
+  if (family === "badminton") {
+    return "Badminton";
+  }
+
+  if (family === "renforcement") {
+    return "Renforcement";
+  }
+
+  return "Cardio";
+}
+
+function getDayVisuals(daySlots: ScheduledSlot[]) {
+  if (daySlots.length === 0) {
+    return {
+      borderColor: "rgba(255,255,255,0.07)",
+      backgroundColor: "#1e1e24",
+      dots: [] as string[],
+    };
+  }
+
+  const counts = daySlots.reduce(
+    (accumulator, slot) => {
+      accumulator[slot.family] += 1;
+      return accumulator;
+    },
+    { badminton: 0, renforcement: 0, cardio: 0 } as Record<SlotFamily, number>,
+  );
+  const maxCount = Math.max(counts.badminton, counts.renforcement, counts.cardio);
+  const leadingFamilies = (Object.keys(counts) as SlotFamily[]).filter(
+    (family) => counts[family] === maxCount,
+  );
+  const primaryFamily: SlotFamily =
+    leadingFamilies.length === 1
+      ? leadingFamilies[0]
+      : (daySlots[0]?.family ?? "badminton");
+  const tokens = getFamilyTokens(primaryFamily);
+
+  return {
+    borderColor: tokens.accent,
+    backgroundColor: tokens.background,
+    dots: daySlots.map((slot) => getFamilyTokens(slot.family).accent),
+  };
+}
+
+function DayDots({ colors }: { colors: string[] }) {
+  if (colors.length === 1) {
+    return <View style={[styles.dayInner, { backgroundColor: colors[0] }]} />;
+  }
+
+  const firstRow = colors.slice(0, 3);
+  const secondRow = colors.slice(3, 6);
+
+  return (
+    <View style={styles.dayDotsStack}>
+      <View style={styles.dayDotsRow}>
+        {firstRow.map((color, index) => (
+          <View key={`top-${color}-${index}`} style={[styles.dayDotSmall, { backgroundColor: color }]} />
+        ))}
+      </View>
+      {secondRow.length > 0 ? (
+        <View style={styles.dayDotsRow}>
+          {secondRow.map((color, index) => (
+            <View key={`bottom-${color}-${index}`} style={[styles.dayDotSmall, { backgroundColor: color }]} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 function SlotRow({
   slot,
+  inlineEditor,
   onDelete,
-  onEdit,
+  onOpenTime,
+  onToggleDayEditor,
+  onToggleFamilyEditor,
+  onSelectDay,
+  onSelectFamily,
 }: {
   slot: ScheduledSlot;
+  inlineEditor: InlineEditor;
   onDelete: () => void;
-  onEdit: () => void;
+  onOpenTime: () => void;
+  onToggleDayEditor: () => void;
+  onToggleFamilyEditor: () => void;
+  onSelectDay: (dayOfWeek: ScheduledSlot["dayOfWeek"]) => void;
+  onSelectFamily: (family: SlotFamily) => void;
 }) {
   const swipe = useMemo(
     () =>
@@ -64,16 +165,99 @@ function SlotRow({
       }),
     [onDelete],
   );
-  const config = SLOT_TYPE_CONFIG[slot.type];
+  const tokens = getFamilyTokens(slot.family);
+  const isDayEditorOpen = inlineEditor?.slotId === slot.id && inlineEditor.mode === "day";
+  const isFamilyEditorOpen = inlineEditor?.slotId === slot.id && inlineEditor.mode === "family";
 
   return (
-    <Pressable onPress={onEdit} {...swipe.panHandlers} style={styles.slotRow}>
-      <Text style={[styles.slotDay, { color: config.accent }]}>{DAY_FULL_LABELS[slot.dayOfWeek]}</Text>
-      <Text style={styles.slotTime}>{formatTime(slot.hour, slot.minute)}</Text>
-      <View style={[styles.slotType, { backgroundColor: config.pillBackground }]}>
-        <Text style={[styles.slotTypeText, { color: config.accent }]}>{config.label.toUpperCase()}</Text>
+    <View {...swipe.panHandlers} style={styles.slotCard}>
+      <View style={styles.slotRow}>
+        <Pressable onPress={onToggleDayEditor} style={styles.slotFieldButton}>
+          <Text style={[styles.slotDay, { color: tokens.accent }]}>{DAY_FULL_LABELS[slot.dayOfWeek]}</Text>
+        </Pressable>
+
+        <Pressable onPress={onOpenTime} style={[styles.slotFieldButton, styles.slotTimeButton]}>
+          <Text style={styles.slotTime}>{formatTime(slot.hour, slot.minute)}</Text>
+        </Pressable>
+
+        <View style={styles.slotActions}>
+          <Pressable
+            onPress={onToggleFamilyEditor}
+            style={[styles.slotType, { backgroundColor: tokens.pillBackground }]}
+          >
+            <Text style={[styles.slotTypeText, { color: tokens.accent }]}>
+              {getFamilyLabel(slot.family)}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={onDelete} style={styles.deleteButton}>
+            <Text style={styles.deleteButtonText}>×</Text>
+          </Pressable>
+        </View>
       </View>
-    </Pressable>
+
+      {isDayEditorOpen ? (
+        <View style={styles.inlineEditor}>
+          <Text style={styles.inlineEditorLabel}>Jour</Text>
+          <View style={styles.inlineEditorGrid}>
+            {DAY_FULL_LABELS.map((label, index) => {
+              const selected = slot.dayOfWeek === index;
+              return (
+                <Pressable
+                  key={`${slot.id}-day-${label}`}
+                  onPress={() => onSelectDay(index as ScheduledSlot["dayOfWeek"])}
+                  style={[
+                    styles.inlineOption,
+                    selected ? { backgroundColor: "rgba(206,255,0,0.12)", borderColor: "#CEFF00" } : null,
+                  ]}
+                >
+                  <Text style={[styles.inlineOptionText, selected ? styles.inlineOptionTextSelected : null]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {isFamilyEditorOpen ? (
+        <View style={styles.inlineEditor}>
+          <Text style={styles.inlineEditorLabel}>Type</Text>
+          <View style={styles.inlineEditorFamilyRow}>
+            {([
+              { value: "badminton" as const, label: "Badminton" },
+              { value: "renforcement" as const, label: "Renforcement" },
+              { value: "cardio" as const, label: "Cardio" },
+            ]).map(({ value, label }) => {
+              const familyTokens = getFamilyTokens(value);
+              const selected = slot.family === value;
+              return (
+                <Pressable
+                  key={`${slot.id}-family-${value}`}
+                  onPress={() => onSelectFamily(value)}
+                  style={[
+                    styles.inlineFamilyOption,
+                    selected
+                      ? { backgroundColor: familyTokens.background, borderColor: familyTokens.accent }
+                      : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.inlineFamilyOptionText,
+                      { color: selected ? familyTokens.accent : "#8b8b98" },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -84,88 +268,141 @@ export function PlanningEditor({
   slots: ScheduledSlot[];
   onSlotsChange: (slots: ScheduledSlot[]) => void;
 }) {
-  const [type, setType] = useState<SlotType>("badminton");
+  const insets = useSafeAreaInsets();
+  const [family, setFamily] = useState<SlotFamily>("badminton");
   const [pickerVisible, setPickerVisible] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [editingFamily, setEditingFamily] = useState<SlotFamily>("badminton");
+  const [inlineEditor, setInlineEditor] = useState<InlineEditor>(null);
   const [pickerDate, setPickerDate] = useState(() => {
     const date = new Date();
     date.setHours(19, 0, 0, 0);
     return date;
   });
+  const [webHourInput, setWebHourInput] = useState("19");
+  const [webMinuteInput, setWebMinuteInput] = useState("00");
 
-  // Key: `${dayOfWeek}:${type}` — one slot per type per day
-  const slotsByTypeDay = useMemo(
-    () => new Map(slots.map((slot) => [`${slot.dayOfWeek}:${slot.type}`, slot])),
-    [slots],
-  );
+  const slotCountsByDay = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const slot of slots) {
+      map.set(slot.dayOfWeek, (map.get(slot.dayOfWeek) ?? 0) + 1);
+    }
+    return map;
+  }, [slots]);
+
+  function updateSlot(slotId: string, updates: Partial<ScheduledSlot>) {
+    onSlotsChange(
+      sortSlots(slots.map((slot) => (slot.id === slotId ? { ...slot, ...updates } : slot))),
+    );
+  }
 
   function openPicker(dayOfWeek: number, slot?: ScheduledSlot) {
     const nextDate = new Date();
     nextDate.setHours(slot?.hour ?? 19, slot?.minute ?? 0, 0, 0);
     setPickerDate(nextDate);
+    setWebHourInput(String(nextDate.getHours()).padStart(2, "0"));
+    setWebMinuteInput(String(nextDate.getMinutes()).padStart(2, "0"));
     setEditingDay(dayOfWeek);
     setEditingSlotId(slot?.id ?? null);
+    setEditingFamily(slot?.family ?? family);
     setPickerVisible(true);
-    if (slot?.type) {
-      setType(slot.type);
-    }
+    setInlineEditor(null);
   }
 
-  function upsertSlot(dayOfWeek: number, date: Date) {
-    const minute = date.getMinutes() >= 30 ? 30 : 0;
+  function closePicker() {
+    setPickerVisible(false);
+    setEditingDay(null);
+    setEditingSlotId(null);
+    setEditingFamily(family);
+  }
+
+  function upsertSlot(dayOfWeek: number, date: Date, forcedId?: string, forcedFamily?: SlotFamily) {
+    const minute = date.getMinutes();
     const hour = date.getHours();
-    const existing = slots.find((slot) => slot.dayOfWeek === dayOfWeek && slot.type === type);
+    const nextId = forcedId ?? editingSlotId ?? createScheduledSlotId();
     const nextSlot: ScheduledSlot = {
-      id: existing?.id ?? editingSlotId ?? createScheduledSlotId(),
+      id: nextId,
       dayOfWeek: dayOfWeek as ScheduledSlot["dayOfWeek"],
       hour,
       minute,
-      type,
+      family: forcedFamily ?? editingFamily ?? family,
     };
 
-    onSlotsChange(
-      [
-        ...slots.filter((slot) => !(slot.dayOfWeek === dayOfWeek && slot.type === type)),
-        nextSlot,
-      ].sort((left, right) => left.dayOfWeek - right.dayOfWeek),
-    );
+    onSlotsChange(sortSlots([...slots.filter((slot) => slot.id !== nextId), nextSlot]));
   }
 
   function handlePickerChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    if (Platform.OS === "android") {
-      setPickerVisible(false);
-    }
-
     if (event.type === "dismissed" || editingDay === null || !selectedDate) {
+      if (Platform.OS === "android") {
+        closePicker();
+      }
       return;
     }
 
-    upsertSlot(editingDay, selectedDate);
     setPickerDate(selectedDate);
+    if (Platform.OS === "android") {
+      upsertSlot(editingDay, selectedDate);
+      closePicker();
+    }
   }
 
-  const config = SLOT_TYPE_CONFIG[type];
+  function handleConfirmPicker() {
+    if (editingDay === null) {
+      return;
+    }
+
+    upsertSlot(editingDay, pickerDate);
+    closePicker();
+  }
+
+  function handleConfirmWebTime() {
+    if (editingDay === null) {
+      return;
+    }
+
+    const nextDate = new Date(pickerDate);
+    const hour = Math.min(Math.max(Number.parseInt(webHourInput, 10) || 0, 0), 23);
+    const minute = Math.min(Math.max(Number.parseInt(webMinuteInput, 10) || 0, 0), 59);
+    nextDate.setHours(hour, minute, 0, 0);
+    upsertSlot(editingDay, nextDate);
+    closePicker();
+  }
+
+  function toggleInlineEditor(slotId: string, mode: InlineEditor extends null ? never : "day" | "family") {
+    setInlineEditor((current) => {
+      if (current?.slotId === slotId && current.mode === mode) {
+        return null;
+      }
+      return { slotId, mode };
+    });
+  }
 
   return (
     <View style={styles.root}>
       <Text style={styles.sectionLabel}>Type de séance</Text>
-      <View style={styles.typeRow}>
-        {(Object.keys(SLOT_TYPE_CONFIG) as SlotType[]).map((value) => {
-          const selected = type === value;
-          const cfg = SLOT_TYPE_CONFIG[value];
+      <View style={styles.familyRow}>
+        {([
+          { value: "badminton" as const, label: "Badminton" },
+          { value: "renforcement" as const, label: "Renforcement" },
+          { value: "cardio" as const, label: "Cardio" },
+        ]).map(({ value, label }) => {
+          const selected = family === value;
+          const tokens = getFamilyTokens(value);
 
           return (
             <Pressable
               key={value}
-              onPress={() => setType(value)}
+              onPress={() => setFamily(value)}
               style={[
-                styles.typeButton,
-                selected ? { backgroundColor: cfg.background, borderColor: cfg.accent } : null,
+                styles.familyButton,
+                selected ? { backgroundColor: tokens.background, borderColor: tokens.accent } : null,
               ]}
             >
-              <View style={[styles.typeDot, { backgroundColor: selected ? cfg.accent : "#6b6b7a" }]} />
-              <Text style={[styles.typeText, { color: selected ? cfg.accent : "#6b6b7a" }]}>{cfg.label}</Text>
+              <View style={[styles.familyDot, { backgroundColor: selected ? tokens.accent : "#6b6b7a" }]} />
+              <Text style={[styles.familyText, { color: selected ? tokens.accent : "#6b6b7a" }]}>
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -175,67 +412,121 @@ export function PlanningEditor({
       <View style={styles.daysGrid}>
         {DAY_SHORT_LABELS.map((label, index) => {
           const dayOfWeek = index as ScheduledSlot["dayOfWeek"];
-          const slot = slotsByTypeDay.get(`${dayOfWeek}:${type}`);
+          const slotCount = slotCountsByDay.get(dayOfWeek) ?? 0;
+          const daySlots = getDaySlots(slots, dayOfWeek);
+          const visuals = getDayVisuals(daySlots);
 
           return (
             <View key={`${label}-${index}`} style={styles.dayCol}>
               <Text style={styles.dayLabel}>{label}</Text>
               <Pressable
-                onPress={() => {
-                  if (slot) {
-                    onSlotsChange(
-                      slots.filter((entry) => !(entry.dayOfWeek === dayOfWeek && entry.type === type)),
-                    );
-                    return;
-                  }
-                  openPicker(dayOfWeek);
-                }}
+                onPress={() => openPicker(dayOfWeek)}
                 style={[
                   styles.dayButton,
-                  slot ? { backgroundColor: config.background, borderColor: config.accent } : null,
+                  {
+                    backgroundColor: visuals.backgroundColor,
+                    borderColor: visuals.borderColor,
+                  },
                 ]}
               >
-                {slot ? <View style={[styles.dayInner, { backgroundColor: config.accent }]} /> : null}
+                {slotCount > 0 ? (
+                  <DayDots colors={visuals.dots} />
+                ) : (
+                  <Text style={styles.dayPlus}>+</Text>
+                )}
+                {slotCount > 0 ? <Text style={styles.dayAddHint}>+</Text> : null}
               </Pressable>
             </View>
           );
         })}
       </View>
 
+      {pickerVisible && Platform.OS === "web" ? (
+        <View style={styles.pickerCard}>
+          <View style={styles.inlineEditor}>
+            <Text style={styles.inlineEditorLabel}>Heure du créneau</Text>
+            <View style={styles.webTimeRow}>
+              <TextInput
+                keyboardType="number-pad"
+                maxLength={2}
+                onChangeText={setWebHourInput}
+                style={styles.webTimeInput}
+                value={webHourInput}
+              />
+              <Text style={styles.webTimeSeparator}>:</Text>
+              <TextInput
+                keyboardType="number-pad"
+                maxLength={2}
+                onChangeText={setWebMinuteInput}
+                style={styles.webTimeInput}
+                value={webMinuteInput}
+              />
+            </View>
+          </View>
+          <View style={styles.pickerActions}>
+            <Pressable onPress={closePicker} style={styles.pickerSecondaryAction}>
+              <Text style={styles.pickerSecondaryText}>Annuler</Text>
+            </Pressable>
+            <Pressable onPress={handleConfirmWebTime} style={styles.pickerPrimaryAction}>
+              <Text style={styles.pickerPrimaryText}>Valider</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {pickerVisible && Platform.OS !== "web" ? (
+        <View style={Platform.OS === "ios" ? styles.pickerCard : null}>
+          <DateTimePicker
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            mode="time"
+            onChange={handlePickerChange}
+            themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+            value={pickerDate}
+          />
+          {Platform.OS === "ios" ? (
+            <View style={[styles.pickerActions, { paddingBottom: 10 + Math.max(0, insets.bottom - 4) }]}>
+              <Pressable onPress={closePicker} style={styles.pickerSecondaryAction}>
+                <Text style={styles.pickerSecondaryText}>Annuler</Text>
+              </Pressable>
+              <Pressable onPress={handleConfirmPicker} style={styles.pickerPrimaryAction}>
+                <Text style={styles.pickerPrimaryText}>Valider</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text style={styles.sectionLabel}>Créneaux</Text>
       <View style={styles.slotList}>
         {slots.length === 0 ? (
-          <Text style={styles.emptyText}>Sélectionne un type, appuie sur un jour pour ajouter un créneau.</Text>
+          <Text style={styles.emptyText}>Choisis un type, tape un jour, puis règle l'heure du créneau.</Text>
         ) : (
           slots.map((slot) => (
             <SlotRow
               key={slot.id}
-              onDelete={() => onSlotsChange(slots.filter((entry) => entry.id !== slot.id))}
-              onEdit={() => openPicker(slot.dayOfWeek, slot)}
+              inlineEditor={inlineEditor}
+              onDelete={() => {
+                if (inlineEditor?.slotId === slot.id) {
+                  setInlineEditor(null);
+                }
+                onSlotsChange(slots.filter((entry) => entry.id !== slot.id));
+              }}
+              onOpenTime={() => openPicker(slot.dayOfWeek, slot)}
+              onSelectDay={(dayOfWeek) => {
+                updateSlot(slot.id, { dayOfWeek });
+                setInlineEditor(null);
+              }}
+              onSelectFamily={(family) => {
+                updateSlot(slot.id, { family });
+                setInlineEditor(null);
+              }}
+              onToggleDayEditor={() => toggleInlineEditor(slot.id, "day")}
+              onToggleFamilyEditor={() => toggleInlineEditor(slot.id, "family")}
               slot={slot}
             />
           ))
         )}
       </View>
-
-      {pickerVisible ? (
-        <View>
-          <DateTimePicker
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            mode="time"
-            minuteInterval={30}
-            onChange={handlePickerChange}
-            themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-            {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
-            value={pickerDate}
-          />
-          {Platform.OS === "ios" ? (
-            <Pressable onPress={() => setPickerVisible(false)} style={styles.pickerDoneButton}>
-              <Text style={styles.pickerDoneText}>Valider</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -251,38 +542,41 @@ const styles = StyleSheet.create({
     color: "#6b6b7a",
     fontFamily: fonts.bodySemiBold,
     marginBottom: 6,
-    marginTop: 12,
   },
-  typeRow: {
+  familyRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  typeButton: {
-    height: 32,
-    paddingHorizontal: 10,
+  familyButton: {
+    flex: 1,
+    minHeight: 36,
     borderRadius: 8,
     backgroundColor: "#1e1e24",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.07)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 4,
   },
-  typeDot: {
+  familyDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
   },
-  typeText: {
-    fontSize: 11,
-    fontFamily: fonts.bodyMedium,
+  familyText: {
+    flexShrink: 1,
+    fontSize: 8,
+    letterSpacing: 0.2,
+    fontFamily: fonts.displayBold,
+    textAlign: "center",
   },
   daysGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   dayCol: {
     alignItems: "center",
@@ -297,31 +591,72 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: "#1e1e24",
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.07)",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   dayInner: {
     width: 8,
     height: 8,
     borderRadius: 999,
   },
+  dayDotsStack: {
+    minWidth: 18,
+    minHeight: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  dayDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  dayDotSmall: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+  },
+  dayPlus: {
+    fontSize: 14,
+    lineHeight: 16,
+    color: "#6b6b7a",
+    fontFamily: fonts.displayBold,
+  },
+  dayAddHint: {
+    position: "absolute",
+    right: 4,
+    bottom: 1,
+    fontSize: 10,
+    lineHeight: 10,
+    color: "#6b6b7a",
+    fontFamily: fonts.displayBold,
+  },
   slotList: {
     gap: 7,
   },
-  slotRow: {
-    minHeight: 44,
+  slotCard: {
     borderRadius: 10,
     backgroundColor: "#16161a",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
+    overflow: "hidden",
+  },
+  slotRow: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  slotFieldButton: {
+    justifyContent: "center",
+  },
+  slotTimeButton: {
+    flex: 1,
   },
   slotDay: {
     minWidth: 28,
@@ -329,7 +664,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
   },
   slotTime: {
-    flex: 1,
     fontSize: 13,
     color: "#f0f0f2",
     fontFamily: fonts.bodyRegular,
@@ -339,8 +673,87 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
+  slotActions: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   slotTypeText: {
     fontSize: 9,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    fontFamily: fonts.displayBold,
+  },
+  deleteButton: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonText: {
+    color: "#8b8b98",
+    fontSize: 18,
+    lineHeight: 18,
+    fontFamily: fonts.bodyRegular,
+  },
+  inlineEditor: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.07)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  inlineEditorLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#6b6b7a",
+    fontFamily: fonts.bodySemiBold,
+  },
+  inlineEditorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  inlineOption: {
+    minWidth: 40,
+    minHeight: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1e1e24",
+    paddingHorizontal: 8,
+  },
+  inlineOptionText: {
+    color: "#f0f0f2",
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
+  },
+  inlineOptionTextSelected: {
+    color: "#CEFF00",
+  },
+  inlineEditorFamilyRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  inlineFamilyOption: {
+    minWidth: 96,
+    flexGrow: 1,
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#1e1e24",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  inlineFamilyOptionText: {
+    fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     fontFamily: fonts.displayBold,
@@ -351,15 +764,67 @@ const styles = StyleSheet.create({
     color: "#6b6b7a",
     fontFamily: fonts.bodyRegular,
   },
-  pickerDoneButton: {
-    alignSelf: "flex-end",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginTop: 4,
+  pickerCard: {
+    marginTop: 10,
+    borderRadius: 14,
+    backgroundColor: "#16161a",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    overflow: "hidden",
   },
-  pickerDoneText: {
-    fontSize: 14,
-    color: "#CEFF00",
+  pickerActions: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  webTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  webTimeInput: {
+    width: 64,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    backgroundColor: "#1e1e24",
+    color: "#f0f0f2",
+    textAlign: "center",
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+  },
+  webTimeSeparator: {
+    color: "#8b8b98",
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+  },
+  pickerSecondaryAction: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 10,
+    backgroundColor: "#1e1e24",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pickerPrimaryAction: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 10,
+    backgroundColor: "#CEFF00",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pickerSecondaryText: {
+    color: "#f0f0f2",
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+  },
+  pickerPrimaryText: {
+    color: "#0d0d0f",
+    fontSize: 13,
     fontFamily: fonts.displayBold,
   },
 });

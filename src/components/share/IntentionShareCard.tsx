@@ -1,9 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Session } from "@/src/types/session";
 import { truncate } from "@/src/utils/format";
+
+export const INTENTION_SHARE_CARD_BACKGROUND = "#100D1F";
 
 function ShareStars({ rating }: { rating: number }) {
   return (
@@ -21,23 +24,23 @@ export function IntentionShareCard({
   session,
   sessionNumber,
   username,
+  isCapturing = false,
 }: {
   session: Session;
   sessionNumber: number;
   username: string;
+  isCapturing?: boolean;
 }) {
-  const badgeTone =
-    session.type === "match"
-      ? { backgroundColor: "rgba(255,77,109,0.12)", color: "#FF4D6D" }
-      : session.type === "entrainement"
-        ? { backgroundColor: "rgba(0,229,255,0.12)", color: "#00E5FF" }
-        : { backgroundColor: "rgba(206,255,0,0.12)", color: "#CEFF00" };
+  const badgeTone = {
+    backgroundColor: SESSION_COLORS_BG[session.type],
+    color: SESSION_COLORS[session.type],
+  };
 
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.content}>
+    <View collapsable={false} style={[styles.card, isCapturing ? styles.cardCapturing : null]}>
+      <View>
         <View style={styles.eyebrow}>
           <Text style={styles.sessionMeta}>Séance {sessionNumber}</Text>
           <View style={styles.dot} />
@@ -51,14 +54,8 @@ export function IntentionShareCard({
           </View>
         </View>
         <Text style={styles.quoteMark}>"</Text>
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.74}
-          numberOfLines={6}
-          style={styles.intentionText}
-        >
-          {truncate(session.nextIntention, 220)}
+        <Text style={styles.intentionText}>
+          {truncate(session.nextIntention, 82)}
           {"\n"}
           <Text style={styles.intentionMeta}>— Prochaine séance</Text>
         </Text>
@@ -76,7 +73,7 @@ export function IntentionShareCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#100D1F",
+    backgroundColor: INTENTION_SHARE_CARD_BACKGROUND,
     paddingHorizontal: 18,
     paddingTop: 20,
     paddingBottom: 16,
@@ -84,15 +81,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "space-between",
   },
+  cardCapturing: {
+    borderRadius: 0,
+  },
   eyebrow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 14,
-  },
-  content: {
-    flexShrink: 1,
-    minHeight: 0,
   },
   sessionMeta: {
     fontSize: 11,

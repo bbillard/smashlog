@@ -1,3 +1,11 @@
+export type SessionType =
+  | "match"
+  | "entrainement"
+  | "jeu_libre"
+  | "renforcement"
+  | "cardio"
+  | "autre";
+
 export interface Match {
   // Champs existants conservés (migration douce)
   adversaire: string;
@@ -14,14 +22,6 @@ export interface Match {
   commentaire?: string;
 }
 
-export type SessionType =
-  | "match"
-  | "entrainement"
-  | "jeu_libre"
-  | "renforcement"
-  | "cardio"
-  | "autre";
-
 export interface Session {
   id: string;
   createdAt: string;
@@ -33,9 +33,9 @@ export interface Session {
   nextIntention: string;
   freeNotes?: string;
   matches?: Match[];
+  exerciseIds?: string[];
   notificationScheduledAt?: string;
   notificationIds?: string[];
-  exerciseIds?: string[];
 }
 
 export interface NotificationSettings {
@@ -44,5 +44,6 @@ export interface NotificationSettings {
   fixedMinute: number;
   nextSessionReminderEnabled: boolean;
   nextSessionAt: string | null;
+  nextSessionFamily: "badminton" | "renforcement" | "cardio" | null;
   nextSessionLeadMinutes: number;
 }

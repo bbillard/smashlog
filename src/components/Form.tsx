@@ -9,7 +9,6 @@ interface InputProps {
   onChangeText: (value: string) => void;
   placeholder?: string;
   multiline?: boolean;
-  maxLength?: number;
 }
 
 export function LabeledInput({
@@ -18,7 +17,6 @@ export function LabeledInput({
   onChangeText,
   placeholder,
   multiline = false,
-  maxLength,
 }: InputProps) {
   const { theme } = useAppTheme();
 
@@ -26,7 +24,6 @@ export function LabeledInput({
     <View style={styles.group}>
       <Text style={[styles.label, { color: theme.secondaryText }]}>{label}</Text>
       <TextInput
-        maxLength={maxLength}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         onChangeText={onChangeText}

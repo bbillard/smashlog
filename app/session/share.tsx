@@ -1,7 +1,8 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
+  BackHandler,
   Platform,
   Pressable,
   ScrollView,
@@ -11,24 +12,20 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import ViewShot from "react-native-view-shot";
 
-import { ExercisesShareCard } from "@/src/components/share/ExercisesShareCard";
-import { FallbackShareCard } from "@/src/components/share/FallbackShareCard";
-import { GenericShareCard } from "@/src/components/share/GenericShareCard";
-import { MatchResultShareCard } from "@/src/components/share/MatchResultShareCard";
-import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
-import { SessionSummaryShareCard } from "@/src/components/share/SessionSummaryShareCard";
-import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
-import { WinRateShareCard } from "@/src/components/share/WinRateShareCard";
+import { GENERIC_SHARE_CARD_BACKGROUND, GenericShareCard } from "@/src/components/share/GenericShareCard";
+import { INTENTION_SHARE_CARD_BACKGROUND, IntentionShareCard } from "@/src/components/share/IntentionShareCard";
+import { PROGRESS_SHARE_CARD_BACKGROUND, ProgressShareCard } from "@/src/components/share/ProgressShareCard";
+import { getCardTheme, SpecialShareCard } from "@/src/components/share/SpecialShareCard";
 import { LoadingView } from "@/src/components/LoadingView";
 import { Screen } from "@/src/components/Screen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getProfile } from "@/src/services/profile";
 import { downloadImageAsync, shareImageAsync } from "@/src/services/sharing";
 import { SharingPayload } from "@/src/services/sharingOrchestrator";
-import { getExercises, getSessions } from "@/src/services/storage";
-import { Exercise } from "@/src/types/index";
+import { getSessions } from "@/src/services/storage";
 import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
@@ -36,6 +33,7 @@ import { fonts } from "@/src/theme/typography";
 interface ShareTemplate {
   key: string;
   render: () => ReactNode;
+  captureBackgroundColor: string;
 }
 
 const EMPTY_PAYLOAD: SharingPayload = { specialCards: [] };
@@ -46,13 +44,13 @@ export default function ShareSessionScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { payload: payloadStr, sessionId } = useLocalSearchParams<{ payload?: string; sessionId?: string }>();
   const shareCardRefs = useRef<Array<ViewShot | null>>([]);
+  const webCardRefs = useRef<Array<any>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
 
   const payload = useMemo(() => {
@@ -69,14 +67,9 @@ export default function ShareSessionScreen() {
 
   useEffect(() => {
     async function load() {
-      const [allSessions, nextExercises, nextProfile] = await Promise.all([
-        getSessions(),
-        getExercises(),
-        getProfile(),
-      ]);
+      const [allSessions, nextProfile] = await Promise.all([getSessions(), getProfile()]);
       const nextSession = allSessions.find((entry) => entry.id === sessionId) ?? null;
       setSessions(allSessions);
-      setAllExercises(nextExercises);
       setSession(nextSession);
       setProfile(nextProfile);
       setIsLoading(false);
@@ -85,10 +78,22 @@ export default function ShareSessionScreen() {
     load();
   }, [sessionId]);
 
-  // Exercices résolus pour la séance courante
-  const sessionExercises = session
-    ? allExercises.filter((ex) => session.exerciseIds?.includes(ex.id) ?? false)
-    : [];
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== "android") {
+        return undefined;
+      }
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        router.replace("/");
+        return true;
+      });
+
+      return () => {
+        subscription.remove();
+      };
+    }, [router]),
+  );
 
   const contentWidth = Math.max(windowWidth - 40, 0);
   const shareCardSize =
@@ -102,65 +107,31 @@ export default function ShareSessionScreen() {
       ? [
           {
             key: "generic",
+            captureBackgroundColor: GENERIC_SHARE_CARD_BACKGROUND,
             render: () => (
-              <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+              <GenericShareCard
+                session={session}
+                sessionNumber={sessionNumber}
+                username={profile.username}
+              />
             ),
           },
-          ...(payload.winRateSnapshot != null
-            ? [
-                {
-                  key: "winrate-snapshot",
-                  render: () => (
-                    <WinRateShareCard
-                      snapshot={payload.winRateSnapshot!}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type === "match" && (session.matches ?? []).length === 1
-            ? [
-                {
-                  key: "match-result",
-                  render: () => (
-                    <MatchResultShareCard
-                      session={session}
-                      match={session.matches![0]}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type === "jeu_libre" && (session.matches ?? []).length >= 1
-            ? [
-                {
-                  key: "session-summary",
-                  render: () => (
-                    <SessionSummaryShareCard session={session} username={profile.username} />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type !== "match" && sessionExercises.length >= 2
-            ? [
-                {
-                  key: "exercises",
-                  render: () => (
-                    <ExercisesShareCard
-                      session={session}
-                      exercises={sessionExercises}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(sessionNumber >= 3
+          {
+            key: "intention",
+            captureBackgroundColor: INTENTION_SHARE_CARD_BACKGROUND,
+            render: () => (
+              <IntentionShareCard
+                session={session}
+                sessionNumber={sessionNumber}
+                username={profile.username}
+              />
+            ),
+          },
+          ...(sessions.length >= 7
             ? [
                 {
                   key: "progress",
+                  captureBackgroundColor: PROGRESS_SHARE_CARD_BACKGROUND,
                   render: () => (
                     <ProgressShareCard
                       sessionNumber={sessionNumber}
@@ -168,7 +139,7 @@ export default function ShareSessionScreen() {
                       username={profile.username}
                     />
                   ),
-                },
+                } satisfies ShareTemplate,
               ]
             : []),
         ]
@@ -176,25 +147,17 @@ export default function ShareSessionScreen() {
 
   const specialTemplates: ShareTemplate[] = payload.specialCards.map((card, index) => ({
     key: `special-${card.cardType}-${card.value}-${index}`,
-    render: () => <SpecialShareCard card={card} sessions={sessions} username={profile.username} />,
+    captureBackgroundColor: getCardTheme(card.cardType, card.level).backgroundColor,
+    render: () => (
+      <SpecialShareCard
+        card={card}
+        sessions={sessions}
+        username={profile.username}
+      />
+    ),
   }));
 
-  const fallbackTemplate: ShareTemplate | null =
-    session && sessionNumber > 0
-      ? {
-          key: "fallback",
-          render: () => (
-            <FallbackShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-          ),
-        }
-      : null;
-
-  // Fallback en position 0 par défaut, en position 1 si une carte spéciale est présente
-  const templates: ShareTemplate[] = fallbackTemplate
-    ? specialTemplates.length > 0
-      ? [specialTemplates[0], fallbackTemplate, ...specialTemplates.slice(1), ...genericTemplates]
-      : [fallbackTemplate, ...genericTemplates]
-    : [...specialTemplates, ...genericTemplates];
+  const templates = [...specialTemplates, ...genericTemplates];
   const canGoPrevTemplate = activeTemplate > 0;
   const canGoNextTemplate = activeTemplate < templates.length - 1;
 
@@ -209,6 +172,20 @@ export default function ShareSessionScreen() {
   async function captureActiveCard() {
     if (!templates.length) {
       return null;
+    }
+
+    if (Platform.OS === "web") {
+      const activeNode = webCardRefs.current[activeTemplate];
+      if (!activeNode) {
+        return null;
+      }
+
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(activeNode, {
+        backgroundColor: templates[activeTemplate].captureBackgroundColor,
+        scale: window.devicePixelRatio || 2,
+      });
+      return canvas.toDataURL("image/jpeg", 1);
     }
 
     const activeRef = shareCardRefs.current[activeTemplate];
@@ -282,7 +259,7 @@ export default function ShareSessionScreen() {
 
   if (isLoading) {
     return (
-      <Screen scrollable nativeHeader>
+      <Screen scrollable>
         <LoadingView />
       </Screen>
     );
@@ -290,13 +267,13 @@ export default function ShareSessionScreen() {
 
   if (!session || !templates.length) {
     return (
-      <Screen scrollable nativeHeader>
+      <Screen scrollable>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Partage indisponible</Text>
           <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
             Impossible de retrouver la séance à partager.
           </Text>
-          <Pressable onPress={() => router.replace("/(tabs)")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
+          <Pressable onPress={() => router.replace("/")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
             <Text style={[styles.doneButtonText, { color: theme.buttonTextOnPrimary }]}>Retour à l'accueil</Text>
           </Pressable>
         </View>
@@ -305,13 +282,19 @@ export default function ShareSessionScreen() {
   }
 
   return (
-    <Screen scrollable={Platform.OS === "web"} nativeHeader>
+    <Screen scrollable={Platform.OS === "web"}>
+      <Stack.Screen
+        options={{
+          headerBackVisible: false,
+          headerLeft: () => null,
+          gestureEnabled: false,
+        }}
+      />
+
       <View style={styles.shareTop}>
-        <Text style={[styles.shareCongrats, { color: theme.text }]}>
-          {sessionNumber === 1 ? "Félicitations 🎉" : "Séance notée 🏸"}
-        </Text>
+        <Text style={[styles.shareCongrats, { color: theme.text }]}>Bien joué ! 🏸</Text>
         <Text style={[styles.shareSub, { color: theme.secondaryText }]}>
-          {sessionNumber === 1 ? "Ta première séance est enregistrée" : "Continue sur cette lancée"}
+          Séance enregistrée · Partage ta session
         </Text>
       </View>
 
@@ -348,7 +331,15 @@ export default function ShareSessionScreen() {
           </Pressable>
 
           <View style={[styles.sharePage, { width: shareCardSize }]}>
-            <View style={styles.shareCardWrap}>{templates[activeTemplate].render()}</View>
+            <View
+              collapsable={false}
+              ref={(ref) => {
+                webCardRefs.current[activeTemplate] = ref;
+              }}
+              style={[styles.captureSurface, { width: shareCardSize, height: shareCardSize }]}
+            >
+              <View style={styles.shareCardWrap}>{templates[activeTemplate].render()}</View>
+            </View>
           </View>
 
           <Pressable
@@ -379,13 +370,20 @@ export default function ShareSessionScreen() {
           {templates.map((template, index) => (
             <View key={template.key} style={[styles.sharePageMobile, { width: sharePageWidth }]}>
               <ViewShot
-                options={{ format: "png", quality: 1, result: "tmpfile" }}
+                collapsable={false}
+                options={{
+                  format: "png",
+                  result: "tmpfile",
+                  useRenderInContext: true,
+                }}
                 ref={(ref) => {
                   shareCardRefs.current[index] = ref;
                 }}
-                style={[styles.shareCardWrap, { width: shareCardSize }]}
+                style={[styles.captureSurface, { width: shareCardSize, height: shareCardSize }]}
               >
-                {template.render()}
+                <View style={styles.shareCardWrap}>
+                  {template.render()}
+                </View>
               </ViewShot>
             </View>
           ))}
@@ -437,7 +435,7 @@ export default function ShareSessionScreen() {
 
         <View style={[styles.shareDivider, { backgroundColor: theme.border }]} />
 
-        <Pressable onPress={() => router.replace("/(tabs)")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
+        <Pressable onPress={() => router.replace("/")} style={[styles.doneButton, { backgroundColor: theme.primary }]}>
           <Text style={[styles.doneButtonText, { color: theme.buttonTextOnPrimary }]}>
             {isSharing ? "Partage..." : "Terminer"}
           </Text>
@@ -503,10 +501,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 0,
   },
+  captureSurface: {
+    backgroundColor: "transparent",
+    borderRadius: 24,
+    alignItems: "stretch",
+    justifyContent: "stretch",
+    overflow: "hidden",
+  },
   shareCardWrap: {
     width: "100%",
+    height: "100%",
     borderRadius: 24,
     overflow: "hidden",
+    backgroundColor: "transparent",
   },
   bottomSheet: {
     paddingTop: 10,

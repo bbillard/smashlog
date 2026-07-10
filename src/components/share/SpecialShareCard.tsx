@@ -130,7 +130,7 @@ function getWeeksStreakDisplay(weeks: number) {
   };
 }
 
-function getCardTheme(cardType: SpecialCard["cardType"], level: SpecialCard["level"]): CardTheme {
+export function getCardTheme(cardType: SpecialCard["cardType"], level: SpecialCard["level"]): CardTheme {
   if (cardType === "weeksStreak") {
     if (level === 5) {
       return {
@@ -412,17 +412,26 @@ function SessionsPerWeekShareCard({
   card,
   username,
   sessions,
+  isCapturing = false,
 }: {
   card: SpecialCard;
   username: string;
   sessions: Session[];
+  isCapturing?: boolean;
 }) {
   const theme = getCardTheme("sessionsPerWeek", card.level);
   const shareUsername = formatUsername(username);
   const days = getCurrentWeekSessions(sessions);
 
   return (
-    <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
+    <View
+      collapsable={false}
+      style={[
+        styles.cardBase,
+        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth },
+        isCapturing ? styles.cardBaseCapturing : null,
+      ]}
+    >
       <TopTrim theme={theme} />
 
       <View>
@@ -471,15 +480,12 @@ function SessionsPerWeekShareCard({
           })}
         </View>
 
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.76}
-          numberOfLines={4}
-          style={[styles.spwMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
-        >
-          {card.message.text}
-        </Text>
+        <View style={styles.messageRow}>
+          <View style={[styles.messageBar, { backgroundColor: theme.accentColor }]} />
+          <Text style={[styles.spwMessage, { color: theme.messageColor }]}>
+            {card.message.text}
+          </Text>
+        </View>
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -491,10 +497,12 @@ function WeeksStreakShareCard({
   card,
   username,
   sessions,
+  isCapturing = false,
 }: {
   card: SpecialCard;
   username: string;
   sessions: Session[];
+  isCapturing?: boolean;
 }) {
   const theme = getCardTheme("weeksStreak", card.level);
   const shareUsername = formatUsername(username);
@@ -503,7 +511,14 @@ function WeeksStreakShareCard({
   const streakDisplay = getWeeksStreakDisplay(card.value);
 
   return (
-    <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
+    <View
+      collapsable={false}
+      style={[
+        styles.cardBase,
+        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth },
+        isCapturing ? styles.cardBaseCapturing : null,
+      ]}
+    >
       <TopTrim theme={theme} />
 
       <View style={styles.weeksContent}>
@@ -547,15 +562,12 @@ function WeeksStreakShareCard({
           })}
         </View>
 
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.74}
-          numberOfLines={4}
-          style={[styles.ewMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
-        >
-          {card.message.text}
-        </Text>
+        <View style={styles.messageRow}>
+          <View style={[styles.messageBar, { backgroundColor: theme.accentColor }]} />
+          <Text style={[styles.ewMessage, { color: theme.messageColor }]}>
+            {card.message.text}
+          </Text>
+        </View>
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -566,15 +578,24 @@ function WeeksStreakShareCard({
 function MilestoneShareCard({
   card,
   username,
+  isCapturing = false,
 }: {
   card: SpecialCard;
   username: string;
+  isCapturing?: boolean;
 }) {
   const theme = getCardTheme("milestone", card.level);
   const shareUsername = formatUsername(username);
 
   return (
-    <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
+    <View
+      collapsable={false}
+      style={[
+        styles.cardBase,
+        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth },
+        isCapturing ? styles.cardBaseCapturing : null,
+      ]}
+    >
       <TopTrim theme={theme} />
 
       <View>
@@ -595,15 +616,12 @@ function MilestoneShareCard({
           <Text style={[styles.milestoneSup, { color: theme.milestoneSupColor }]}>e</Text>
         </Text>
         <Text style={[styles.milestoneLabel, { color: theme.dimAccentColor }]}>séance enregistrée</Text>
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.76}
-          numberOfLines={4}
-          style={[styles.milestoneMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
-        >
-          {card.message.text}
-        </Text>
+        <View style={styles.messageRow}>
+          <View style={[styles.messageBar, { backgroundColor: theme.accentColor }]} />
+          <Text style={[styles.milestoneMessage, { color: theme.messageColor }]}>
+            {card.message.text}
+          </Text>
+        </View>
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -615,20 +633,22 @@ export function SpecialShareCard({
   card,
   username,
   sessions = [],
+  isCapturing = false,
 }: {
   card: SpecialCard;
   username: string;
   sessions?: Session[];
+  isCapturing?: boolean;
 }) {
   if (card.cardType === "weeksStreak") {
-    return <WeeksStreakShareCard card={card} sessions={sessions} username={username} />;
+    return <WeeksStreakShareCard card={card} sessions={sessions} username={username} isCapturing={isCapturing} />;
   }
 
   if (card.cardType === "milestone") {
-    return <MilestoneShareCard card={card} username={username} />;
+    return <MilestoneShareCard card={card} username={username} isCapturing={isCapturing} />;
   }
 
-  return <SessionsPerWeekShareCard card={card} sessions={sessions} username={username} />;
+  return <SessionsPerWeekShareCard card={card} sessions={sessions} username={username} isCapturing={isCapturing} />;
 }
 
 const styles = StyleSheet.create({
@@ -641,6 +661,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     overflow: "hidden",
     position: "relative",
+  },
+  cardBaseCapturing: {
+    borderRadius: 0,
   },
   topTrimSoft: {
     position: "absolute",
@@ -761,8 +784,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
     fontSize: 12,
     lineHeight: 17,
-    borderLeftWidth: 2,
-    paddingLeft: 9,
+    flex: 1,
     marginBottom: 12,
   },
   ewTop: {
@@ -826,8 +848,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
     fontSize: 11,
     lineHeight: 15,
-    borderLeftWidth: 2,
-    paddingLeft: 9,
+    flex: 1,
     marginBottom: 8,
   },
   crownWrap: {
@@ -859,8 +880,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
     fontSize: 12,
     lineHeight: 17,
-    borderLeftWidth: 2,
-    paddingLeft: 9,
+    flex: 1,
     marginBottom: 12,
+  },
+  messageRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+  },
+  messageBar: {
+    width: 2,
+    borderRadius: 2,
+    alignSelf: "stretch",
+    minHeight: 28,
   },
 });

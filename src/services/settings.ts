@@ -11,6 +11,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   fixedMinute: 30,
   nextSessionReminderEnabled: false,
   nextSessionAt: null,
+  nextSessionFamily: null,
   nextSessionLeadMinutes: 30,
 };
 
@@ -42,11 +43,7 @@ export async function resetNotificationSettingsToDefault() {
   await saveNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
 }
 
-export function getNextScheduledSlotDate(slots: ScheduledSlot[], reference = new Date()) {
-  if (slots.length === 0) {
-    return null;
-  }
-
+export function getUpcomingScheduledSlotDates(slots: ScheduledSlot[], reference = new Date()) {
   const candidates = slots.map((slot) => {
     const candidate = new Date(reference);
     candidate.setSeconds(0, 0);
@@ -72,8 +69,47 @@ export function getNextScheduledSlotDate(slots: ScheduledSlot[], reference = new
     };
   });
 
-  candidates.sort((left, right) => left.date.getTime() - right.date.getTime());
-  return candidates[0] ?? null;
+  return candidates.sort((left, right) => left.date.getTime() - right.date.getTime());
+}
+
+export function getNextScheduledSlotDate(slots: ScheduledSlot[], reference = new Date()) {
+  return getUpcomingScheduledSlotDates(slots, reference)[0] ?? null;
+}
+
+export function getUpcomingReminderEntries(
+  slots: ScheduledSlot[],
+  leadMinutes: number,
+  reference = new Date(),
+) {
+  const now = reference.getTime();
+  return getUpcomingScheduledSlotDates(slots, reference)
+    .map((entry) => {
+      let sessionDate = new Date(entry.date);
+      let reminderDate = new Date(sessionDate.getTime() - leadMinutes * 60 * 1000);
+
+      // If the reminder time for this week's occurrence is already past,
+      // roll forward to the next weekly occurrence of that slot.
+      while (reminderDate.getTime() <= now) {
+        sessionDate = new Date(sessionDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        reminderDate = new Date(sessionDate.getTime() - leadMinutes * 60 * 1000);
+      }
+
+      return {
+        ...entry,
+        date: sessionDate,
+        reminderDate,
+      };
+    })
+    .filter((entry) => entry.reminderDate.getTime() > now)
+    .sort((left, right) => left.reminderDate.getTime() - right.reminderDate.getTime());
+}
+
+export function getNextScheduledReminder(
+  slots: ScheduledSlot[],
+  leadMinutes: number,
+  reference = new Date(),
+) {
+  return getUpcomingReminderEntries(slots, leadMinutes, reference)[0] ?? null;
 }
 
 export async function applyPlanningToNotificationSettings(slots: ScheduledSlot[]) {
@@ -82,11 +118,12 @@ export async function applyPlanningToNotificationSettings(slots: ScheduledSlot[]
 
   const nextSettings: NotificationSettings = {
     ...current,
-    fixedTimeEnabled: slots.length === 0,
-    fixedHour: slots.length === 0 ? DEFAULT_NOTIFICATION_SETTINGS.fixedHour : current.fixedHour,
-    fixedMinute: slots.length === 0 ? DEFAULT_NOTIFICATION_SETTINGS.fixedMinute : current.fixedMinute,
-    nextSessionReminderEnabled: slots.length > 0,
+    fixedTimeEnabled: current.fixedTimeEnabled,
+    fixedHour: current.fixedHour,
+    fixedMinute: current.fixedMinute,
+    nextSessionReminderEnabled: slots.length === 0 ? false : current.nextSessionReminderEnabled,
     nextSessionAt: nextSlot?.date.toISOString() ?? null,
+    nextSessionFamily: nextSlot?.slot.family ?? null,
     nextSessionLeadMinutes:
       typeof current.nextSessionLeadMinutes === "number"
         ? current.nextSessionLeadMinutes

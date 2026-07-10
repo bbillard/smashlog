@@ -21,7 +21,9 @@ export function DateTimeField({
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   function handleNativeDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    setShowDatePicker(false);
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
     if (event.type !== "set" || !selectedDate) {
       return;
     }
@@ -36,7 +38,9 @@ export function DateTimeField({
   }
 
   function handleNativeTimeChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    setShowTimePicker(false);
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
     if (event.type !== "set" || !selectedDate) {
       return;
     }
@@ -87,7 +91,10 @@ export function DateTimeField({
       <Text style={[styles.label, { color: theme.secondaryText }]}>{label}</Text>
       <View style={styles.row}>
         <Pressable
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            setShowDatePicker((current) => !current);
+            setShowTimePicker(false);
+          }}
           style={[
             styles.trigger,
             {
@@ -103,7 +110,10 @@ export function DateTimeField({
         </Pressable>
 
         <Pressable
-          onPress={() => setShowTimePicker(true)}
+          onPress={() => {
+            setShowTimePicker((current) => !current);
+            setShowDatePicker(false);
+          }}
           style={[
             styles.trigger,
             {
@@ -123,11 +133,10 @@ export function DateTimeField({
 
       {showDatePicker ? (
         <DateTimePicker
-          display={Platform.OS === "ios" ? "spinner" : "default"}
+          display={Platform.OS === "ios" ? "inline" : "default"}
           mode="date"
           onChange={handleNativeDateChange}
           themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
           value={value}
         />
       ) : null}
@@ -138,7 +147,6 @@ export function DateTimeField({
           mode="time"
           onChange={handleNativeTimeChange}
           themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
           value={value}
         />
       ) : null}

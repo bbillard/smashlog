@@ -4,6 +4,8 @@ import { StyleSheet, Text, View } from "react-native";
 import { fonts } from "@/src/theme/typography";
 import { Session } from "@/src/types/session";
 
+export const PROGRESS_SHARE_CARD_BACKGROUND = "#0F0F1A";
+
 function getTrend(currentRating: number, average: number) {
   const delta = currentRating - average;
   const stableThreshold = 0.35;
@@ -57,10 +59,12 @@ export function ProgressShareCard({
   sessions,
   sessionNumber,
   username,
+  isCapturing = false,
 }: {
   sessions: Session[];
   sessionNumber: number;
   username: string;
+  isCapturing?: boolean;
 }) {
   const lastSevenSessions = sessions.slice(0, 7).reverse();
   const ratings = lastSevenSessions.map((session) => session.rating);
@@ -72,7 +76,7 @@ export function ProgressShareCard({
   const averageLabel = `Moyenne ${lastSevenSessions.length} séance${lastSevenSessions.length > 1 ? "s" : ""}`;
 
   return (
-    <View style={styles.card}>
+    <View collapsable={false} style={[styles.card, isCapturing ? styles.cardCapturing : null]}>
       <View>
         <View style={styles.top}>
           <Text style={styles.title}>Ma progression</Text>
@@ -122,13 +126,16 @@ export function ProgressShareCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#0F0F1A",
+    backgroundColor: PROGRESS_SHARE_CARD_BACKGROUND,
     paddingHorizontal: 18,
     paddingTop: 20,
     paddingBottom: 16,
     aspectRatio: 1,
     borderRadius: 24,
     justifyContent: "space-between",
+  },
+  cardCapturing: {
+    borderRadius: 0,
   },
   top: {
     flexDirection: "row",

@@ -39,7 +39,12 @@ export default function OnboardingPseudoScreen() {
     }
 
     await completeOnboarding(trimmed);
-    router.replace("/(tabs)");
+    router.replace({
+      pathname: "/splash-animation",
+      params: {
+        target: "/(tabs)",
+      },
+    });
   }
 
   return (

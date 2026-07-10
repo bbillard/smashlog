@@ -2,6 +2,10 @@ import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library";
 
 function ensureFileUri(uri: string) {
+  if (uri.startsWith("data:")) {
+    return uri;
+  }
+
   return uri.startsWith("file://") ? uri : `file://${uri}`;
 }
 

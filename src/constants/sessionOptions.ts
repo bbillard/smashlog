@@ -1,12 +1,13 @@
+import { SESSION_COLORS } from "@/src/constants/sessionColors";
 import { SessionType } from "@/src/types/session";
 
 export const SESSION_TYPE_OPTIONS: Array<{ label: string; value: SessionType; accent: string }> = [
-  { label: "Match", value: "match", accent: "#CEFF00" },
-  { label: "Entraînement", value: "entrainement", accent: "#CEFF00" },
-  { label: "Jeu libre", value: "jeu_libre", accent: "#CEFF00" },
-  { label: "Renforcement", value: "renforcement", accent: "#FF4D6D" },
-  { label: "Cardio", value: "cardio", accent: "#00E5FF" },
-  { label: "Autre", value: "autre", accent: "#6b6b7a" },
+  { label: "Match", value: "match", accent: SESSION_COLORS.match },
+  { label: "Entraînement", value: "entrainement", accent: SESSION_COLORS.entrainement },
+  { label: "Jeu libre", value: "jeu_libre", accent: SESSION_COLORS.jeu_libre },
+  { label: "Renforcement", value: "renforcement", accent: SESSION_COLORS.renforcement },
+  { label: "Cardio", value: "cardio", accent: SESSION_COLORS.cardio },
+  { label: "Autre", value: "autre", accent: SESSION_COLORS.autre },
 ];
 
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = Object.fromEntries(
