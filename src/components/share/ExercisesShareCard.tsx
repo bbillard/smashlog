@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { SESSION_COLORS } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
@@ -9,14 +10,8 @@ const MAX_DISPLAYED = 4;
 
 // ── Couleur d'accent selon le type de séance ──────────────────────────────────
 
-const ACCENT_BY_TYPE: Partial<Record<SessionType, string>> = {
-  entrainement: '#CEFF00',
-  renforcement: '#FF4D6D',
-  cardio:       '#00E5FF',
-};
-
 function getAccent(type: SessionType): string {
-  return ACCENT_BY_TYPE[type] ?? '#CEFF00';
+  return SESSION_COLORS[type];
 }
 
 function formatSessionDate(isoDate: string): string {

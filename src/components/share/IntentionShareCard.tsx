@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Session } from "@/src/types/session";
@@ -26,12 +27,10 @@ export function IntentionShareCard({
   sessionNumber: number;
   username: string;
 }) {
-  const badgeTone =
-    session.type === "match"
-      ? { backgroundColor: "rgba(255,77,109,0.12)", color: "#FF4D6D" }
-      : session.type === "entrainement"
-        ? { backgroundColor: "rgba(0,229,255,0.12)", color: "#00E5FF" }
-        : { backgroundColor: "rgba(206,255,0,0.12)", color: "#CEFF00" };
+  const badgeTone = {
+    backgroundColor: SESSION_COLORS_BG[session.type],
+    color: SESSION_COLORS[session.type],
+  };
 
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
 

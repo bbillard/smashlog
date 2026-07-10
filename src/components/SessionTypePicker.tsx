@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
@@ -23,21 +24,8 @@ function renderIcon(type: SessionType, color: string) {
   }
 }
 
-function getIconBackground(type: SessionType, fallback: string) {
-  switch (type) {
-    case "match":
-      return "rgba(255,77,109,0.15)";
-    case "entrainement":
-      return "rgba(0,229,255,0.12)";
-    case "jeu_libre":
-      return "rgba(206,255,0,0.10)";
-    case "renforcement":
-      return "rgba(255,165,0,0.12)";
-    case "cardio":
-      return "rgba(180,100,255,0.12)";
-    default:
-      return fallback;
-  }
+function getIconBackground(type: SessionType): string {
+  return SESSION_COLORS_BG[type];
 }
 
 export function SessionTypePicker({
@@ -69,7 +57,7 @@ export function SessionTypePicker({
             <View
               style={[
                 styles.typeIcon,
-                { backgroundColor: getIconBackground(option.value, theme.surfaceAlt) },
+                { backgroundColor: getIconBackground(option.value) },
               ]}
             >
               {renderIcon(option.value, theme.text)}
