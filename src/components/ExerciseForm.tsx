@@ -317,7 +317,7 @@ export function ExerciseForm({
               style={[styles.textInput, { color: theme.text }]}
               value={name}
               onChangeText={setName}
-              placeholder="Ex : Smash croisé + relève"
+              placeholder="Ex: Routine smash croisé + block"
               placeholderTextColor={theme.secondaryText}
               maxLength={60}
               onFocus={() => setFocusedField("name")}
