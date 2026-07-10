@@ -1,9 +1,17 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { SESSION_COLORS } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
-import { Session } from "@/src/types/session";
+import { Session, SessionType } from "@/src/types/session";
+
+const TYPE_DOT_COLORS: Record<SessionType, string> = {
+  match: "#FF4D6D",
+  jeu_libre: "#FF4D6D",
+  entrainement: "#00E5FF",
+  renforcement: "#FF8C00",
+  cardio: "#FF5722",
+  autre: "#9999aa",
+};
 
 function formatSessionDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -27,7 +35,7 @@ function ShareStars({ rating }: { rating: number }) {
 }
 
 function TypeRow({ session }: { session: Session }) {
-  const dotColor = SESSION_COLORS[session.type];
+  const dotColor = TYPE_DOT_COLORS[session.type];
   const date = formatSessionDate(session.createdAt);
 
   return (

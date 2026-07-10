@@ -1,8 +1,10 @@
-import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Stack, router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
+import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -15,8 +17,9 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { rescheduleNotifications } from "@/src/services/notifications";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
-import { addSession, getSessions, updateSession } from "@/src/services/storage";
-import { Session, SessionType } from "@/src/types/session";
+import { addSession, getExercises, getSessions, updateSession } from "@/src/services/storage";
+import { Exercise } from "@/src/types/index";
+import { Match, Session, SessionType } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
 import { createId } from "@/src/utils/id";
 
@@ -29,6 +32,8 @@ interface DraftSession {
   wentWrong: string;
   nextIntention: string;
   freeNotes: string;
+  matches: Match[];
+  exerciseIds: string[];
 }
 
 const INITIAL_DRAFT: DraftSession = {
@@ -40,11 +45,11 @@ const INITIAL_DRAFT: DraftSession = {
   wentWrong: "",
   nextIntention: "",
   freeNotes: "",
+  matches: [],
+  exerciseIds: [],
 };
 
-function isNextIntentionRequired(type: SessionType | null) {
-  return type === "match" || type === "entrainement" || type === "jeu_libre";
-}
+const HEADER_BUTTON_COLOR = "#F0F0F2";
 
 const FIELD_COPY: Record<
   SessionType,
@@ -119,14 +124,52 @@ export default function NewSessionScreen() {
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<DraftSession>(INITIAL_DRAFT);
   const [isSaving, setIsSaving] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  // Snapshot pris juste avant de naviguer vers la création d'exercice
+  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
+
+  // Chargement garanti au montage
+  useEffect(() => {
+    getExercises().then(setAllExercises);
+  }, []);
+
+  // Rechargement au retour de focus + détection du nouvel exercice créé
+  useFocusEffect(
+    useCallback(() => {
+      getExercises().then((exs) => {
+        setAllExercises(exs);
+        if (exerciseSnapshotRef.current !== null) {
+          const snapshot = exerciseSnapshotRef.current;
+          exerciseSnapshotRef.current = null;
+          const newIds = exs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
+          if (newIds.length > 0) {
+            setDraft((prev) => ({
+              ...prev,
+              exerciseIds: [...prev.exerciseIds, ...newIds],
+            }));
+          }
+        }
+      });
+    }, []),
+  );
+
+  const hasUnsavedDraft =
+    step > 1 ||
+    draft.type !== null ||
+    draft.rating > 0 ||
+    draft.title.trim().length > 0 ||
+    draft.wentWell.trim().length > 0 ||
+    draft.wentWrong.trim().length > 0 ||
+    draft.nextIntention.trim().length > 0 ||
+    draft.freeNotes.trim().length > 0;
 
   const canGoToStepTwo = draft.type !== null;
-  const nextIntentionRequired = isNextIntentionRequired(draft.type);
+  const intentionRequired = draft.type === "match" || draft.type === "entrainement" || draft.type === "jeu_libre";
   const canSaveQuestions =
     draft.rating > 0 &&
     draft.wentWell.trim().length > 0 &&
     draft.wentWrong.trim().length > 0 &&
-    (!nextIntentionRequired || draft.nextIntention.trim().length > 0);
+    (!intentionRequired || draft.nextIntention.trim().length > 0);
   const copy = draft.type ? FIELD_COPY[draft.type] : null;
 
   async function handleSave() {
@@ -146,6 +189,8 @@ export default function NewSessionScreen() {
       wentWrong: draft.wentWrong.trim(),
       nextIntention: draft.nextIntention.trim(),
       freeNotes: draft.freeNotes.trim() || undefined,
+      matches: draft.matches,
+      exerciseIds: draft.exerciseIds.length > 0 ? draft.exerciseIds : undefined,
     };
 
     try {
@@ -157,7 +202,8 @@ export default function NewSessionScreen() {
       if (latestSession) {
         await updateSession(latestSession.id, notificationState);
       }
-      const sharingPayload = await computeSharingPayload(sessions);
+
+      const sharingPayload = await computeSharingPayload(sessions, { currentSessionType: session.type });
       router.push({
         pathname: "/session/share",
         params: {
@@ -187,8 +233,50 @@ export default function NewSessionScreen() {
     </View>
   );
 
+  function handleHeaderExit() {
+    if (!hasUnsavedDraft) {
+      router.replace("/(tabs)");
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      const confirmed = globalThis.confirm?.(
+        "Revenir à l'accueil ? Les données non enregistrées seront perdues.",
+      );
+      if (confirmed) {
+        router.replace("/(tabs)");
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Revenir à l'écran d'accueil ?",
+      "Cela va supprimer les données qui ne sont pas enregistrées.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Confirmer",
+          style: "destructive",
+          onPress: () => router.replace("/(tabs)"),
+        },
+      ],
+    );
+  }
+
   return (
-    <Screen key={step} footer={footer} scrollable>
+    <>
+      <Stack.Screen
+        options={{
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={handleHeaderExit} style={styles.headerExitButton}>
+              <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
+              <Text style={[styles.headerExitText, { color: HEADER_BUTTON_COLOR }]}>Accueil</Text>
+            </Pressable>
+          ),
+        }}
+      />
+    <Screen key={step} footer={footer} scrollable nativeHeader>
       <View style={styles.header}>
         {step > 1 ? (
           <Pressable onPress={() => setStep(step - 1)} style={styles.backRow}>
@@ -215,7 +303,7 @@ export default function NewSessionScreen() {
           <LabeledInput
             label="Titre de la séance"
             onChangeText={(title) => setDraft((current) => ({ ...current, title }))}
-            placeholder="Ex : Finale championnat régional"
+            placeholder="Ex : Match interclub contre Lyon"
             value={draft.title}
           />
           <SessionTypePicker
@@ -247,12 +335,50 @@ export default function NewSessionScreen() {
             value={draft.wentWrong}
           />
           <LabeledInput
-            label={`${copy?.nextLabel ?? "Intention pour la prochaine séance"}${nextIntentionRequired ? "" : " (optionnel)"}`}
+            label={copy?.nextLabel ?? "Intention pour la prochaine séance"}
             multiline
             onChangeText={(nextIntention) => setDraft((current) => ({ ...current, nextIntention }))}
             placeholder={copy?.nextPlaceholder ?? ""}
             value={draft.nextIntention}
           />
+
+          {draft.type === "match" || draft.type === "jeu_libre" ? (
+            <MatchesAccordion
+              matches={draft.matches}
+              onChange={(matches) => setDraft((current) => ({ ...current, matches }))}
+              singleMatch={draft.type === "match"}
+            />
+          ) : null}
+
+          {draft.type === "entrainement" ? (
+            <ExercisesAccordion
+              exerciseIds={draft.exerciseIds}
+              allExercises={allExercises}
+              onAdd={(id) =>
+                setDraft((current) => ({
+                  ...current,
+                  exerciseIds: [...current.exerciseIds, id],
+                }))
+              }
+              onRemove={(id) =>
+                setDraft((current) => ({
+                  ...current,
+                  exerciseIds: current.exerciseIds.filter((eid) => eid !== id),
+                }))
+              }
+              onCreateNew={() => {
+                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
+                router.push({
+                  pathname: "/exercise/new",
+                  params: { fromWizard: "true" },
+                });
+              }}
+              onOpenLibrary={async () => {
+                const exs = await getExercises();
+                setAllExercises(exs);
+              }}
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -269,6 +395,7 @@ export default function NewSessionScreen() {
         </View>
       ) : null}
     </Screen>
+    </>
   );
 }
 
@@ -278,6 +405,16 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 16,
+  },
+  headerExitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingRight: 6,
+  },
+  headerExitText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
   },
   backRow: {
     flexDirection: "row",

@@ -4,12 +4,14 @@ import {
   DMSans_600SemiBold,
 } from "@expo-google-fonts/dm-sans";
 import { Syne_700Bold, Syne_800ExtraBold } from "@expo-google-fonts/syne";
+import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
@@ -20,7 +22,9 @@ import {
   setOnboardingCompleted,
   syncLegacyProfileIntoOnboarding,
 } from "@/src/services/onboarding";
-import { getSessions } from "@/src/services/storage";
+import { getSessions, migratePlayersFromMatches } from "@/src/services/storage";
+
+const HEADER_BUTTON_COLOR = "#F0F0F2";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -35,7 +39,6 @@ export default function RootLayout() {
   });
   const [bootstrapped, setBootstrapped] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [initialRouteQueued, setInitialRouteQueued] = useState(false);
 
   useEffect(() => {
     if (!fontsLoaded) {
@@ -54,6 +57,7 @@ export default function RootLayout() {
       ]);
 
       await syncLegacyProfileIntoOnboarding();
+      await migratePlayersFromMatches();
 
       const hasLegacyPseudo =
         profile.username.trim().length > 0 && profile.username.trim() !== DEFAULT_PROFILE.username;
@@ -76,40 +80,29 @@ export default function RootLayout() {
     return () => {
       active = false;
     };
-  }, [fontsLoaded]);
+  }, [fontsLoaded, segments]);
 
   useEffect(() => {
-    if (!bootstrapped || initialRouteQueued) {
+    if (!bootstrapped) {
       return;
     }
 
     const inOnboarding = segments[0] === "onboarding";
-    const inSplashAnimation = segments[0] === "splash-animation";
 
     if (needsOnboarding && !inOnboarding) {
       router.replace("/onboarding/splash");
-      setInitialRouteQueued(true);
       return;
     }
 
-    if (!needsOnboarding && !inSplashAnimation) {
-      router.replace({
-        pathname: "/splash-animation",
-        params: {
-          target: "/(tabs)",
-        },
-      });
-      setInitialRouteQueued(true);
-      return;
+    if (!needsOnboarding && inOnboarding) {
+      router.replace("/(tabs)");
     }
+  }, [bootstrapped, needsOnboarding, router, segments]);
 
-    setInitialRouteQueued(true);
-  }, [bootstrapped, initialRouteQueued, needsOnboarding, router, segments]);
-
-  if (!fontsLoaded || !bootstrapped || !initialRouteQueued) {
+  if (!fontsLoaded || !bootstrapped) {
     return (
       <View style={styles.loadingScreen}>
-        <StatusBar backgroundColor="#0d0d0f" style="light" translucent={false} />
+        <StatusBar style="light" />
         <ActivityIndicator color="#CEFF00" size="small" />
       </View>
     );
@@ -128,87 +121,132 @@ export default function RootLayout() {
     },
   };
 
+  const headerBackToHome = () => (
+    <Pressable
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      onPress={() => router.replace("/(tabs)")}
+      style={styles.headerBackHome}
+    >
+      <Ionicons color={HEADER_BUTTON_COLOR} name="chevron-back" size={18} />
+      <Text style={[styles.headerBackHomeText, { color: HEADER_BUTTON_COLOR }]}>Accueil</Text>
+    </Pressable>
+  );
+
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar
-        backgroundColor={theme.background}
-        style={colorScheme === "dark" ? "light" : "dark"}
-        translucent={false}
-      />
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
-        <Stack
-          screenOptions={{
-            animation: "fade",
-            headerStyle: {
-              backgroundColor: theme.surface,
-            },
-            headerTintColor: theme.headerText,
-            headerShadowVisible: true,
-            headerTitleAlign: "center",
-            headerTransparent: false,
-            headerBackButtonDisplayMode: "minimal",
-            headerBackTitleVisible: false,
-            statusBarTranslucent: false,
-            ...(Platform.OS === "android"
-              ? {
-                  statusBarColor: theme.surface,
-                }
-              : null),
-            headerTitleStyle: {
-              fontFamily: "Syne_700Bold",
-              fontSize: 16,
-            },
-            headerBackgroundContainerStyle: {
-              borderBottomWidth: 1,
-              borderBottomColor: theme.border,
-            },
-            contentStyle: {
-              backgroundColor: theme.background,
-            },
-          }}
-        >
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="splash-animation"
-            options={{
-              headerShown: false,
-              presentation: "card",
-              animation: "none",
+    <SafeAreaProvider>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        <View style={{ flex: 1, backgroundColor: theme.background }}>
+          <Stack
+            screenOptions={{
+              animation: "fade",
+              headerStyle: {
+                backgroundColor: theme.surface,
+              },
+              headerTintColor: theme.headerText,
+              headerShadowVisible: true,
+              headerTitleAlign: "center",
+              headerTransparent: false,
+              headerTitleStyle: {
+                fontFamily: "Syne_700Bold",
+                fontSize: 16,
+              },
               contentStyle: {
-                backgroundColor: "#0d0d0f",
+                backgroundColor: theme.background,
               },
             }}
-          />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="session/new"
-            options={{
-              title: "Nouvelle séance",
-              presentation: "card",
-            }}
-          />
-          <Stack.Screen
-            name="session/[id]"
-            options={{
-              title: "Détail de séance",
-              presentation: "card",
-            }}
-          />
-          <Stack.Screen
-            name="session/share"
-            options={{
-              title: "Partager",
-              presentation: "card",
-            }}
-          />
-          <Stack.Screen name="debug" options={{ title: "Debug partage" }} />
-          <Stack.Screen name="planning" options={{ title: "Planning" }} />
-          <Stack.Screen name="profile" options={{ title: "Profil" }} />
-          <Stack.Screen name="sessions" options={{ title: "Séances" }} />
-          <Stack.Screen name="settings" options={{ title: "Réglages notifications" }} />
-        </Stack>
-      </View>
-    </ThemeProvider>
+          >
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="session/new"
+              options={{
+                title: "Nouvelle séance",
+                presentation: "card",
+                headerBackVisible: false,
+                headerLeft: headerBackToHome,
+              }}
+            />
+            <Stack.Screen
+              name="session/[id]"
+              options={{
+                title: "Détail de séance",
+                presentation: "card",
+                headerBackVisible: false,
+                headerLeft: headerBackToHome,
+              }}
+            />
+            <Stack.Screen
+              name="session/share"
+              options={{
+                title: "Partager",
+                presentation: "card",
+                headerBackVisible: false,
+                headerLeft: () => null,
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="debug"
+              options={{ title: "Debug partage", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="planning"
+              options={{ title: "Planning", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="profile"
+              options={{ title: "Profil", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="sessions"
+              options={{ title: "Séances", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{ title: "Réglages", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="intentions"
+              options={{ title: "Mes intentions", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="players"
+              options={{ title: "Mes joueurs", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            {/* players/* : pas de headerLeft override → back natif affiche "Mes joueurs" */}
+            <Stack.Screen name="players/[id]" options={{ title: "Joueur" }} />
+            <Stack.Screen name="players/adversaires" options={{ title: "Adversaires" }} />
+            <Stack.Screen name="players/partenaires" options={{ title: "Partenaires" }} />
+            {/* exercise/* : headerLeft géré inline dans chaque écran via router.back() */}
+            <Stack.Screen
+              name="exercise/new"
+              options={{
+                title: "Nouvel exercice",
+                presentation: "card",
+                headerBackVisible: false,
+              }}
+            />
+            <Stack.Screen
+              name="exercise/[id]"
+              options={{
+                title: "Détail de l'exercice",
+                presentation: "card",
+                headerBackVisible: false,
+              }}
+            />
+            <Stack.Screen
+              name="exercise/[id]/edit"
+              options={{
+                title: "Modifier l'exercice",
+                presentation: "card",
+                headerBackVisible: false,
+              }}
+            />
+          </Stack>
+        </View>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -218,5 +256,14 @@ const styles = {
     alignItems: "center" as const,
     justifyContent: "center" as const,
     backgroundColor: "#0d0d0f",
+  },
+  headerBackHome: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 3,
+    paddingRight: 6,
+  },
+  headerBackHomeText: {
+    fontSize: 13,
   },
 };

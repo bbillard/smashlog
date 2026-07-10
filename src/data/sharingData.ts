@@ -110,8 +110,8 @@ export const MILESTONE_THRESHOLDS: Threshold[] = [
 export const PLAYERS: Player[] = [
   { name: 'Lee Chong Wei',      weight: 1.0  },
   { name: 'Lin Dan',            weight: 1.0  },
-  { name: 'Axelsen',     weight: 1.0  },
-  { name: 'Momota',       weight: 1.0  },
+  { name: 'Viktor Axelsen',     weight: 1.0  },
+  { name: 'Kento Momota',       weight: 1.0  },
   { name: 'Peter Gade',         weight: 1.0  },
   { name: 'Chen Long',          weight: 1.0  },
   { name: 'Christo Popov',      weight: 1.0  },
@@ -121,9 +121,9 @@ export const PLAYERS: Player[] = [
   { name: 'Chen Yu Fei',        weight: 1.0  },
   { name: 'Tai Tzu Ying',       weight: 1.0  },
   { name: 'Carolina Marin',     weight: 1.0  },
-  { name: 'Yamaguchi',    weight: 1.0  },
+  { name: 'Akane Yamaguchi',    weight: 1.0  },
   { name: 'Lee Zii Jia',        weight: 1.0  },
-  { name: 'Vitidsarn', weight: 1.0  },
+  { name: 'Kunlavut Vitidsarn', weight: 1.0  },
   { name: 'Loh Kean Yew',       weight: 1.0  },
   { name: 'Baptou',             weight: 0.09 }, // easter egg ~0.5%
 ];
@@ -145,7 +145,7 @@ export const MESSAGES: ShareMessage[] = [
   { id: 11, template: "Cette semaine, tu as joué. La semaine prochaine aussi ?",                                                       type: 'sessions_per_week', level: 1, hasPlayer: false },
   { id: 12, template: "*player_name* a commencé quelque part, toi aussi.",                                                            type: null,               level: 1, hasPlayer: true  },
   { id: 13, template: "Un smash puissant se construit une séance à la fois.",                                                          type: null,               level: 1, hasPlayer: false },
-  { id: 14, template: "Séance enregistrée. Le volant s'en souvient.",                                                                 type: null,               level: 1, hasPlayer: false },
+  { id: 14, template: "Séance enregistrée. Le gymnase s'en souvient.",                                                                 type: null,               level: 1, hasPlayer: false },
   { id: 15, template: "Pas de grands joueurs sans petites séances.",                                                                   type: 'low_session_rate', level: 1, hasPlayer: false },
 
   // Niveau 2
@@ -188,4 +188,62 @@ export const MESSAGES: ShareMessage[] = [
   { id: 46, template: "*player_name* t'a mis en favori sur son téléphone pour te surveiller.",                                        type: null,               level: 5, hasPlayer: true  },
   { id: 47, template: "Là il faudrait songer à trouver un travail.",                                                                  type: 'sessions_per_week', level: 5, hasPlayer: false },
   { id: 48, template: "Aucune excuse, aucune pause, aucun compromis. Respect.",                                                       type: 'weeks_streak',     level: 5, hasPlayer: false },
+
+  // ── Nouvelles phrases — Niveau 1 ──────────────────────────────────────────────
+  { id: 49, template: "Ton revers s'améliore une séance à la fois. C'est comme ça que ça marche.",                                    type: null,               level: 1, hasPlayer: false },
+  { id: 50, template: "Un service propre, ça se travaille. Comme tu le fais.",                                                        type: null,               level: 1, hasPlayer: false },
+  { id: 51, template: "Le volant ne ment pas sur la régularité. Et toi tu joues.",                                                    type: null,               level: 1, hasPlayer: false },
+  { id: 52, template: "Pas de résultat sans séances. Tu coches la première case.",                                                    type: null,               level: 1, hasPlayer: false },
+  { id: 53, template: "Tu es revenu sur le terrain. C'est ce qui sépare l'intention de la pratique.",                                 type: 'low_session_rate', level: 1, hasPlayer: false },
+  { id: 54, template: "Une séance de moins que tu n'en voulais ? La prochaine compte.",                                               type: 'low_session_rate', level: 1, hasPlayer: false },
+  { id: 55, template: "*player_name* aussi a eu des semaines difficiles. La constance l'a emporté.",                                  type: null,               level: 1, hasPlayer: true  },
+  { id: 56, template: "Le smash qu'on prépare, c'est à l'entraînement. Comme aujourd'hui.",                                          type: null,               level: 1, hasPlayer: false },
+  { id: 57, template: "Le volant finit toujours par récompenser ceux qui reviennent.",                                                type: 'low_session_rate', level: 1, hasPlayer: false },
+  { id: 58, template: "Le service que tu rates aujourd'hui, tu le rentres demain.",                                                   type: null,               level: 1, hasPlayer: false },
+
+  // ── Nouvelles phrases — Niveau 2 ──────────────────────────────────────────────
+  { id: 59, template: "Ton coup droit commence à avoir de la conviction.",                                                            type: null,               level: 2, hasPlayer: false },
+  { id: 60, template: "*player_name* n'a pas bâti son jeu différemment. Séance après séance.",                                       type: null,               level: 2, hasPlayer: true  },
+  { id: 61, template: "Ce rythme sur la semaine ? Le filet s'en souvient.",                                                          type: 'sessions_per_week', level: 2, hasPlayer: false },
+  { id: 62, template: "Chaque amorti bien placé vient de séances comme celle-là.",                                                   type: null,               level: 2, hasPlayer: false },
+  { id: 63, template: "Deux mois de suite. L'effort finit par laisser des traces dans ton jeu.",                                     type: 'weeks_streak',     level: 2, hasPlayer: false },
+  { id: 64, template: "Ta régularité devient difficile à imiter pour tes adversaires.",                                               type: 'weeks_streak',     level: 2, hasPlayer: false },
+  { id: 65, template: "À ce rythme hebdomadaire, ton endurance n'est plus un problème.",                                             type: 'sessions_per_week', level: 2, hasPlayer: false },
+  { id: 66, template: "*player_name* confirme : la constance bat le talent une fois sur deux.",                                      type: null,               level: 2, hasPlayer: true  },
+  { id: 67, template: "Le coup droit ne s'improvise pas. Les séances que tu fais prouvent que tu le sais.",                          type: null,               level: 2, hasPlayer: false },
+  { id: 68, template: "Ton amorti finit par devenir un réflexe. C'est ça, l'entraînement.",                                         type: null,               level: 2, hasPlayer: false },
+
+  // ── Nouvelles phrases — Niveau 3 ──────────────────────────────────────────────
+  { id: 69, template: "Ton dégagement a changé de statut. C'est une arme maintenant.",                                               type: null,               level: 3, hasPlayer: false },
+  { id: 70, template: "Cette semaine-là, même le volant était surpris.",                                                             type: 'sessions_per_week', level: 3, hasPlayer: false },
+  { id: 71, template: "*player_name* a remarqué ta progression. Ce n'est pas anodin.",                                               type: null,               level: 3, hasPlayer: true  },
+  { id: 72, template: "Le contre que tu travailles finit toujours par payer.",                                                       type: null,               level: 3, hasPlayer: false },
+  { id: 73, template: "Ce milestone, c'est la preuve que l'effort était là depuis le début.",                                        type: 'milestones',       level: 3, hasPlayer: false },
+  { id: 74, template: "Ton engagement au filet raconte quelque chose sur ta progression.",                                           type: null,               level: 3, hasPlayer: false },
+  { id: 75, template: "Plusieurs mois sans interruption. Les adversaires commencent à le sentir.",                                   type: 'weeks_streak',     level: 3, hasPlayer: false },
+  { id: 76, template: "À ce stade, chaque séance renforce ce que tu as déjà construit.",                                            type: null,               level: 3, hasPlayer: false },
+  { id: 77, template: "Cette série de semaines consécutives parle seule.",                                                           type: 'weeks_streak',     level: 3, hasPlayer: false },
+  { id: 78, template: "Le badminton ne pardonne pas l'irrégularité. Toi, tu es régulier.",                                          type: null,               level: 3, hasPlayer: false },
+  { id: 79, template: "*player_name* s'entraîne avec la même discipline. Maintenant toi aussi.",                                    type: null,               level: 3, hasPlayer: true  },
+
+  // ── Nouvelles phrases — Niveau 4 ──────────────────────────────────────────────
+  { id: 80, template: "Ton revers de maintenant n'a plus grand-chose à voir avec celui du début.",                                   type: null,               level: 4, hasPlayer: false },
+  { id: 81, template: "*player_name* passerait volontiers ton engagement en interview.",                                             type: null,               level: 4, hasPlayer: true  },
+  { id: 82, template: "Cette semaine de feu restera dans tes références personnelles.",                                              type: 'sessions_per_week', level: 4, hasPlayer: false },
+  { id: 83, template: "Ton smash à ce stade n'est plus un coup. C'est une signature.",                                              type: null,               level: 4, hasPlayer: false },
+  { id: 84, template: "La constance sur cette durée, peu de joueurs y arrivent. Toi si.",                                           type: 'weeks_streak',     level: 4, hasPlayer: false },
+  { id: 85, template: "Tu as passé un seuil. L'amorti croisé vient naturellement maintenant.",                                      type: 'milestones',       level: 4, hasPlayer: false },
+  { id: 86, template: "Ton niveau de pratique force le respect, que tu le sentes ou non.",                                          type: null,               level: 4, hasPlayer: false },
+  { id: 87, template: "*player_name* a eu ce genre de régularité. Et tu sais où ça l'a mené.",                                     type: null,               level: 4, hasPlayer: true  },
+  { id: 88, template: "Ce que tu construis là, c'est difficile à défaire.",                                                         type: null,               level: 4, hasPlayer: false },
+
+  // ── Nouvelles phrases — Niveau 5 ──────────────────────────────────────────────
+  { id: 89, template: "Ton service en ce moment, c'est différent. Les mois de pratique, ça fait ça.",                               type: null,               level: 5, hasPlayer: false },
+  { id: 90, template: "*player_name* te mettrait dans sa liste d'adversaires à surveiller.",                                        type: null,               level: 5, hasPlayer: true  },
+  { id: 91, template: "Ce volume de séances en si peu de temps — c'est exceptionnel.",                                              type: 'milestones',       level: 5, hasPlayer: false },
+  { id: 92, template: "Tu as trouvé ton rythme. Et ton rythme est redoutable.",                                                     type: 'weeks_streak',     level: 5, hasPlayer: false },
+  { id: 93, template: "L'intensité de tes semaines parle d'elle-même. Plus besoin de commentaire.",                                 type: 'sessions_per_week', level: 5, hasPlayer: false },
+  { id: 94, template: "À ce stade, le dégagement, le smash, le contre — tout ça s'est fondu dans ton jeu.",                        type: null,               level: 5, hasPlayer: false },
+  { id: 95, template: "*player_name* en aurait fait un documentaire.",                                                              type: null,               level: 5, hasPlayer: true  },
+  { id: 96, template: "Tes adversaires ne savent pas encore ce qui les attend. Toi si.",                                            type: null,               level: 5, hasPlayer: false },
 ];

@@ -8,10 +8,9 @@ interface ScreenProps extends PropsWithChildren {
   scrollable?: boolean;
   footer?: ReactNode;
   /**
-   * Passe à true quand l'écran est rendu sous un header natif (Stack.Screen /
-   * expo-router). Dans ce cas, le header gère déjà l'espacement du haut et la
-   * zone de sécurité — Screen ne doit donc pas ajouter son propre padding top
-   * ni son propre inset "top" de SafeAreaView.
+   * Mettre à true pour les écrans sous un header Stack natif.
+   * Le header natif gère déjà le top safe area (notch/status bar),
+   * donc on retire le top edge du SafeAreaView pour éviter le double espacement.
    */
   nativeHeader?: boolean;
 }
@@ -19,9 +18,15 @@ interface ScreenProps extends PropsWithChildren {
 export function Screen({ children, scrollable = false, footer, nativeHeader = false }: ScreenProps) {
   const { theme } = useAppTheme();
 
+  const edges = nativeHeader
+    ? (["right", "bottom", "left"] as const)
+    : (["top", "right", "bottom", "left"] as const);
+
+  const paddingTop = nativeHeader ? 16 : 20;
+
   return (
     <SafeAreaView
-      edges={nativeHeader ? ["right", "bottom", "left"] : undefined}
+      edges={edges}
       style={StyleSheet.flatten([styles.safeArea, { backgroundColor: theme.background }])}
     >
       <KeyboardAvoidingView
@@ -30,22 +35,18 @@ export function Screen({ children, scrollable = false, footer, nativeHeader = fa
       >
         {scrollable ? (
           <ScrollView
-            contentContainerStyle={StyleSheet.flatten([
-              nativeHeader ? styles.scrollContentNativeHeader : styles.scrollContent,
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop },
               footer ? styles.withFooter : null,
-            ])}
+            ]}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
             {children}
           </ScrollView>
         ) : (
-          <View
-            style={StyleSheet.flatten([
-              nativeHeader ? styles.contentNativeHeader : styles.content,
-              footer ? styles.withFooter : null,
-            ])}
-          >
+          <View style={[styles.content, { paddingTop }, footer ? styles.withFooter : null]}>
             {children}
           </View>
         )}
@@ -68,24 +69,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
-    paddingTop: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 16,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 28,
-    gap: 16,
-  },
-  contentNativeHeader: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 12,
-    gap: 16,
-  },
-  scrollContentNativeHeader: {
-    padding: 20,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 16,
   },
   footer: {

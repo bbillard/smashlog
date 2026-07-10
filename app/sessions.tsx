@@ -12,8 +12,8 @@ import { SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
-import { Session, SessionType } from "@/src/types/session";
 import { formatShortDate } from "@/src/utils/format";
+import { Session, SessionType } from "@/src/types/session";
 
 type DateFilterTarget = "from" | "to" | null;
 

@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
@@ -16,10 +15,12 @@ interface SessionCardProps {
 
 export function SessionCard({ session, onPress }: SessionCardProps) {
   const { theme } = useAppTheme();
-  const badgeStyle = {
-    backgroundColor: SESSION_COLORS_BG[session.type],
-    color: SESSION_COLORS[session.type],
-  };
+  const badgeStyle =
+    session.type === "match"
+      ? { backgroundColor: "rgba(255,77,109,0.15)", color: theme.accent2 }
+      : session.type === "entrainement"
+        ? { backgroundColor: "rgba(0,229,255,0.12)", color: theme.accent3 }
+        : { backgroundColor: "rgba(206,255,0,0.12)", color: theme.primary };
 
   return (
     <Pressable onPress={onPress}>

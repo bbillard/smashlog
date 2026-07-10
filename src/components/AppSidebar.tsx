@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
@@ -32,7 +33,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
     [onClose],
   );
 
-  function navigate(pathname: "/profile" | "/sessions" | "/planning" | "/settings") {
+  function navigate(pathname: "/profile" | "/sessions" | "/planning" | "/settings" | "/intentions" | "/players") {
     onClose();
     router.push(pathname);
   }
@@ -50,7 +51,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
               <View style={styles.menuIdentity}>
                 <ProfileAvatar size={52} uri={profile.photoUri} />
                 <View style={styles.menuIdentityText}>
-                  <Text style={[styles.menuTitle, { color: theme.text }]}>{profile.username}</Text>
+                  <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.menuTitle, { color: theme.text }]}>
+                    {profile.username}
+                  </Text>
                   <Text style={[styles.menuSubtitle, { color: theme.secondaryText }]}>Compte local</Text>
                 </View>
               </View>
@@ -84,6 +87,22 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
             </Pressable>
 
             <Pressable
+              onPress={() => navigate("/players")}
+              style={[styles.menuItem, { borderColor: theme.border }]}
+            >
+              <Ionicons color={theme.text} name="people-outline" size={20} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Mes joueurs</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigate("/intentions")}
+              style={[styles.menuItem, { borderColor: theme.border }]}
+            >
+              <Ionicons color={theme.text} name="flag-outline" size={20} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Mes intentions</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => navigate("/settings")}
               style={[styles.menuItem, { borderColor: theme.border }]}
             >
@@ -93,6 +112,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
           </View>
 
           <View style={styles.menuSwipeSpacer} />
+          <Text style={[styles.versionLabel, { color: theme.secondaryText }]}>
+            v{Constants.expoConfig?.version ?? "—"}
+          </Text>
         </View>
       </View>
     </Modal>
@@ -142,6 +164,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontFamily: fonts.displayBold,
+    flexShrink: 1,
   },
   menuSubtitle: {
     fontSize: 12,
@@ -160,5 +183,11 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
+  },
+  versionLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    textAlign: "center",
+    paddingBottom: 16,
   },
 });

@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/src/components/EmptyState";
 import { LoadingView } from "@/src/components/LoadingView";
-import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
@@ -42,7 +41,9 @@ const FILTERS: FilterOption[] = [
 ];
 
 function getBadgeStyle(type: SessionType): { backgroundColor: string; color: string } {
-  return { backgroundColor: SESSION_COLORS_BG[type], color: SESSION_COLORS[type] };
+  if (type === "match") return { backgroundColor: "rgba(255,77,109,0.15)", color: "#FF4D6D" };
+  if (type === "entrainement") return { backgroundColor: "rgba(0,229,255,0.12)", color: "#00E5FF" };
+  return { backgroundColor: "rgba(206,255,0,0.12)", color: "#CEFF00" };
 }
 
 const TYPE_LABELS: Record<SessionType, string> = {

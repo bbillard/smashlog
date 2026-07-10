@@ -1,14 +1,23 @@
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, DevSettings, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Sharing from "expo-sharing";
 
 import { LabeledInput, ToggleRow } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import {
+  ImportSummary,
+  exportBackupAsync,
+  importBackupAsync,
+  isBackupFile,
+  isOlderBackupVersion,
+  pickBackupFileAsync,
+} from "@/src/services/backup";
 import { getScheduledSlots } from "@/src/services/onboarding";
 import { rescheduleNotifications, requestNotificationPermissions } from "@/src/services/notifications";
 import { getProfile } from "@/src/services/profile";
@@ -88,6 +97,8 @@ export default function SettingsScreen() {
   const [leadMinutesInput, setLeadMinutesInput] = useState(String(DEFAULT_NOTIFICATION_SETTINGS.nextSessionLeadMinutes));
   const [hasLoaded, setHasLoaded] = useState(false);
   const [showFixedTimePicker, setShowFixedTimePicker] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const lastSavedSettingsRef = useRef(JSON.stringify(DEFAULT_NOTIFICATION_SETTINGS));
   const permissionAlertShownRef = useRef(false);
 
@@ -112,6 +123,129 @@ export default function SettingsScreen() {
       loadSettingsState();
     }, [loadSettingsState]),
   );
+
+  function confirmImport(isOlderVersion: boolean): Promise<boolean> {
+    return new Promise((resolve) => {
+      const message = isOlderVersion
+        ? "Cette action remplacera toutes vos données actuelles.\n\nCe fichier provient d'une ancienne version de Smashlog — certaines données pourraient ne pas être compatibles."
+        : "Cette action remplacera toutes vos données actuelles.";
+
+      Alert.alert("Importer mes données", message, [
+        { text: "Annuler", style: "cancel", onPress: () => resolve(false) },
+        { text: "Importer", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  }
+
+  function handleRestart() {
+    try {
+      if (__DEV__ && typeof DevSettings?.reload === "function") {
+        DevSettings.reload();
+        return;
+      }
+    } catch {
+      // Ignore et bascule sur le fallback ci-dessous.
+    }
+
+    router.replace("/");
+  }
+
+  function buildImportSummaryMessage(summary: ImportSummary): string {
+    const segments: string[] = [];
+    if (summary.restoredKeys.includes("sessions")) {
+      segments.push(`${summary.counts.sessions} séance${summary.counts.sessions > 1 ? "s" : ""}`);
+    }
+    if (summary.restoredKeys.includes("exercises")) {
+      segments.push(`${summary.counts.exercises} exercice${summary.counts.exercises > 1 ? "s" : ""}`);
+    }
+    if (summary.restoredKeys.includes("players")) {
+      segments.push(`${summary.counts.players} joueur${summary.counts.players > 1 ? "s" : ""}`);
+    }
+    if (summary.restoredKeys.includes("planning")) {
+      segments.push("le planning");
+    }
+    if (summary.restoredKeys.includes("profile")) {
+      segments.push("le profil");
+    }
+
+    const restoredText = segments.length > 0 ? `Restauré : ${segments.join(", ")}.` : "Aucune donnée n'a été restaurée.";
+    const missingText =
+      summary.missingKeys.length > 0
+        ? " Les données absentes de ce fichier n'ont pas été modifiées."
+        : "";
+
+    return `${restoredText}${missingText}`;
+  }
+
+  async function handleExport() {
+    if (isExporting) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const { fileUri } = await exportBackupAsync();
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Partage indisponible", "Le partage de fichiers n'est pas disponible sur cet appareil.");
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: "application/json",
+        dialogTitle: "Exporter mes données Smashlog",
+        UTI: "public.json",
+      });
+    } catch {
+      Alert.alert("Erreur", "Impossible d'exporter les données.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleImport() {
+    if (isImporting) {
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const picked = await pickBackupFileAsync();
+      if (picked.canceled) {
+        return;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(picked.raw);
+      } catch {
+        Alert.alert("Fichier invalide", "Ce fichier n'est pas un JSON valide.");
+        return;
+      }
+
+      if (!isBackupFile(parsed)) {
+        Alert.alert("Fichier non reconnu", "Ce fichier ne provient pas de Smashlog.");
+        return;
+      }
+
+      const olderVersion = isOlderBackupVersion(parsed.meta.version);
+      const confirmed = await confirmImport(olderVersion);
+      if (!confirmed) {
+        return;
+      }
+
+      const summary = await importBackupAsync(parsed);
+
+      Alert.alert("Import terminé", buildImportSummaryMessage(summary), [
+        { text: "Plus tard", style: "cancel" },
+        { text: "Redémarrer maintenant", onPress: handleRestart },
+      ]);
+    } catch {
+      Alert.alert("Erreur", "Impossible d'importer les données.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
 
   useEffect(() => {
     const nextReminder = settings.nextSessionReminderEnabled
@@ -330,6 +464,28 @@ export default function SettingsScreen() {
         />
       </SectionCard>
 
+      <SectionCard>
+        <Text style={[styles.dataTitle, { color: theme.text }]}>Mes données</Text>
+        <Text style={[styles.dataDescription, { color: theme.secondaryText }]}>
+          Sauvegarde ou restaure l&apos;intégralité de tes données Smashlog.
+        </Text>
+        <PrimaryButton
+          label={isExporting ? "Export en cours…" : "Exporter mes données"}
+          onPress={handleExport}
+          tone="secondary"
+        />
+        <View style={styles.importButton}>
+          <PrimaryButton
+            label={isImporting ? "Import en cours…" : "Importer mes données"}
+            onPress={handleImport}
+            tone="secondary"
+          />
+        </View>
+        <Text style={[styles.dataHint, { color: theme.secondaryText }]}>
+          Séances, exercices, joueurs, planning et profil
+        </Text>
+      </SectionCard>
+
       {canOpenDebug ? (
         <SectionCard>
           <Text style={[styles.debugTitle, { color: theme.text }]}>Debug développement</Text>
@@ -414,5 +570,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: fonts.bodyRegular,
     marginBottom: 12,
+  },
+  dataTitle: {
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    marginBottom: 8,
+  },
+  dataDescription: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 12,
+  },
+  importButton: {
+    marginTop: 8,
+  },
+  dataHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: fonts.bodyRegular,
+    marginTop: 10,
   },
 });

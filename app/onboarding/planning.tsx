@@ -4,14 +4,9 @@ import { Pressable, StyleSheet, Text } from "react-native";
 
 import { OnboardingButton, OnboardingScaffold } from "@/src/components/onboarding/OnboardingScaffold";
 import { PlanningEditor } from "@/src/components/planning/PlanningEditor";
-import { requestNotificationPermissions, rescheduleNotifications } from "@/src/services/notifications";
+import { requestNotificationPermissions } from "@/src/services/notifications";
 import { ScheduledSlot, saveScheduledSlots } from "@/src/services/onboarding";
-import {
-  applyPlanningToNotificationSettings,
-  resetNotificationSettingsToDefault,
-  saveNotificationSettings,
-} from "@/src/services/settings";
-import { getSessions, updateSession } from "@/src/services/storage";
+import { applyPlanningToNotificationSettings, resetNotificationSettingsToDefault } from "@/src/services/settings";
 import { fonts } from "@/src/theme/typography";
 
 export default function OnboardingPlanningScreen() {
@@ -20,23 +15,11 @@ export default function OnboardingPlanningScreen() {
 
   async function handleEnableReminders() {
     await saveScheduledSlots(slots);
-    const syncedSettings = await applyPlanningToNotificationSettings(slots);
-    const nextSettings = {
-      ...syncedSettings,
-      fixedTimeEnabled: false,
-      nextSessionReminderEnabled: true,
-    };
-    await saveNotificationSettings(nextSettings);
+    await applyPlanningToNotificationSettings(slots);
     try {
       await requestNotificationPermissions();
     } catch {
       // continue silently
-    }
-    const sessions = await getSessions();
-    const latestSession = sessions[0];
-    const notificationState = await rescheduleNotifications(nextSettings);
-    if (latestSession) {
-      await updateSession(latestSession.id, notificationState);
     }
     router.push("/onboarding/pseudo");
   }

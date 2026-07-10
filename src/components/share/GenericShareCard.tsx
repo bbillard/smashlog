@@ -1,12 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Session } from "@/src/types/session";
 import { truncate } from "@/src/utils/format";
-
-export const GENERIC_SHARE_CARD_BACKGROUND = "#0D1F1A";
 
 function ShareStars({ rating }: { rating: number }) {
   return (
@@ -27,23 +24,23 @@ export function GenericShareCard({
   session,
   sessionNumber,
   username,
-  isCapturing = false,
 }: {
   session: Session;
   sessionNumber: number;
   username: string;
-  isCapturing?: boolean;
 }) {
-  const badgeTone = {
-    backgroundColor: SESSION_COLORS_BG[session.type],
-    color: SESSION_COLORS[session.type],
-  };
+  const badgeTone =
+    session.type === "match"
+      ? { backgroundColor: "rgba(255,77,109,0.12)", color: "#FF4D6D" }
+      : session.type === "entrainement"
+        ? { backgroundColor: "rgba(0,229,255,0.12)", color: "#00E5FF" }
+        : { backgroundColor: "rgba(206,255,0,0.12)", color: "#CEFF00" };
 
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
 
   return (
-    <View collapsable={false} style={[styles.card, isCapturing ? styles.cardCapturing : null]}>
-      <View>
+    <View style={styles.card}>
+      <View style={styles.content}>
         <View style={styles.top}>
           <View>
             <Text style={styles.sessionNumber}>{sessionNumber}</Text>
@@ -60,18 +57,23 @@ export function GenericShareCard({
         </View>
 
         {session.title ? (
-          <Text style={styles.title}>{truncate(session.title, 52)}</Text>
+          <Text adjustsFontSizeToFit ellipsizeMode="tail" minimumFontScale={0.82} numberOfLines={2} style={styles.title}>
+            {truncate(session.title, 120)}
+          </Text>
         ) : null}
 
         <View style={styles.divider} />
 
         <Text style={styles.intentionLabel}>Prochaine séance</Text>
-        <View style={styles.intentionWrap}>
-          <View style={styles.intentionBar} />
-          <Text style={styles.intentionText}>
-            {truncate(session.nextIntention, 96)}
-          </Text>
-        </View>
+        <Text
+          adjustsFontSizeToFit
+          ellipsizeMode="tail"
+          minimumFontScale={0.76}
+          numberOfLines={4}
+          style={styles.intentionText}
+        >
+          {truncate(session.nextIntention, 220)}
+        </Text>
       </View>
 
       <View style={styles.footer}>
@@ -86,7 +88,7 @@ export function GenericShareCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: GENERIC_SHARE_CARD_BACKGROUND,
+    backgroundColor: "#0D1F1A",
     paddingHorizontal: 18,
     paddingTop: 20,
     paddingBottom: 16,
@@ -94,14 +96,15 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "space-between",
   },
-  cardCapturing: {
-    borderRadius: 0,
-  },
   top: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 14,
+  },
+  content: {
+    flexShrink: 1,
+    minHeight: 0,
   },
   sessionNumber: {
     fontFamily: fonts.displayExtraBold,
@@ -169,25 +172,15 @@ const styles = StyleSheet.create({
     color: "rgba(206,255,0,0.5)",
     marginBottom: 7,
   },
-  intentionWrap: {
-    position: "relative",
-    paddingLeft: 12,
-    marginBottom: 18,
-  },
-  intentionBar: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    borderRadius: 2,
-    backgroundColor: "#CEFF00",
-  },
   intentionText: {
     fontFamily: fonts.displayBold,
     fontSize: 16,
     lineHeight: 22,
     color: "#F0F0F2",
+    borderLeftWidth: 2,
+    borderLeftColor: "#CEFF00",
+    paddingLeft: 9,
+    marginBottom: 18,
   },
   footer: {
     flexDirection: "row",
