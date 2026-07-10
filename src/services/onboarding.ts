@@ -12,7 +12,7 @@ export interface ScheduledSlot {
   dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   hour: number;
   minute: number;
-  family: "badminton" | "renforcement" | "cardio";
+  family: "badminton" | "renforcement" | "cardio" | "autre";
 }
 
 export async function getOnboardingCompleted() {

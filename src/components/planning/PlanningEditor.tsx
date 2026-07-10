@@ -55,6 +55,14 @@ export function getFamilyTokens(family: SlotFamily) {
     };
   }
 
+  if (family === "autre") {
+    return {
+      accent: SESSION_COLORS.autre,
+      background: SESSION_COLORS_BG.autre,
+      pillBackground: SESSION_COLORS_BG.autre,
+    };
+  }
+
   return {
     accent: SESSION_COLORS.cardio,
     background: SESSION_COLORS_BG.cardio,
@@ -69,6 +77,10 @@ function getFamilyLabel(family: SlotFamily) {
 
   if (family === "renforcement") {
     return "Renforcement";
+  }
+
+  if (family === "autre") {
+    return "Autre";
   }
 
   return "Cardio";
@@ -88,9 +100,9 @@ function getDayVisuals(daySlots: ScheduledSlot[]) {
       accumulator[slot.family] += 1;
       return accumulator;
     },
-    { badminton: 0, renforcement: 0, cardio: 0 } as Record<SlotFamily, number>,
+    { badminton: 0, renforcement: 0, cardio: 0, autre: 0 } as Record<SlotFamily, number>,
   );
-  const maxCount = Math.max(counts.badminton, counts.renforcement, counts.cardio);
+  const maxCount = Math.max(counts.badminton, counts.renforcement, counts.cardio, counts.autre);
   const leadingFamilies = (Object.keys(counts) as SlotFamily[]).filter(
     (family) => counts[family] === maxCount,
   );
@@ -229,6 +241,7 @@ function SlotRow({
               { value: "badminton" as const, label: "Badminton" },
               { value: "renforcement" as const, label: "Renforcement" },
               { value: "cardio" as const, label: "Cardio" },
+              { value: "autre" as const, label: "Autre" },
             ]).map(({ value, label }) => {
               const familyTokens = getFamilyTokens(value);
               const selected = slot.family === value;
@@ -386,6 +399,7 @@ export function PlanningEditor({
           { value: "badminton" as const, label: "Badminton" },
           { value: "renforcement" as const, label: "Renforcement" },
           { value: "cardio" as const, label: "Cardio" },
+          { value: "autre" as const, label: "Autre" },
         ]).map(({ value, label }) => {
           const selected = family === value;
           const tokens = getFamilyTokens(value);

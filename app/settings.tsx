@@ -34,7 +34,7 @@ function parseBoundedInteger(value: string, fallback: number, min: number, max: 
 
 function formatNextNotificationSummary(
   dateIso: string | null,
-  family?: "badminton" | "renforcement" | "cardio",
+  family?: "badminton" | "renforcement" | "cardio" | "autre",
 ) {
   if (!dateIso) {
     return "Aucune notification planifiée";
@@ -52,7 +52,9 @@ function formatNextNotificationSummary(
         ? "Cardio"
         : family === "badminton"
           ? "Badminton"
-          : "Quotidien";
+          : family === "autre"
+            ? "Autre"
+            : "Quotidien";
   const formatted = new Intl.DateTimeFormat("fr-FR", {
     weekday: "short",
     day: "numeric",

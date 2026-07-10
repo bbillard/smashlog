@@ -52,7 +52,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getSessionFamily(type: Session["type"]): "badminton" | "renforcement" | "cardio" {
+function getSessionFamily(type: Session["type"]): "badminton" | "renforcement" | "cardio" | "autre" {
   if (type === "renforcement") {
     return "renforcement";
   }
@@ -61,12 +61,16 @@ function getSessionFamily(type: Session["type"]): "badminton" | "renforcement" |
     return "cardio";
   }
 
+  if (type === "autre") {
+    return "autre";
+  }
+
   return "badminton";
 }
 
 function findLatestSessionIntention(
   sessions: Session[],
-  family: "badminton" | "renforcement" | "cardio",
+  family: "badminton" | "renforcement" | "cardio" | "autre",
 ) {
   return sessions.find(
     (session) =>
@@ -86,7 +90,7 @@ function buildDailyNotificationContent(sessions: Session[]) {
 
 function buildPlanningNotificationContent(
   sessions: Session[],
-  family: "badminton" | "renforcement" | "cardio",
+  family: "badminton" | "renforcement" | "cardio" | "autre",
 ) {
   if (family === "badminton") {
     return buildContent(
@@ -101,6 +105,14 @@ function buildPlanningNotificationContent(
       "C'est l'heure du renforcement 💪",
       findLatestSessionIntention(sessions, "renforcement") ??
         pickMotivationMessage("planning_renforcement_no_intent"),
+    );
+  }
+
+  if (family === "autre") {
+    return buildContent(
+      "C'est l'heure de ta séance ✨",
+      findLatestSessionIntention(sessions, "autre") ??
+        pickMotivationMessage("planning_autre_no_intent"),
     );
   }
 
