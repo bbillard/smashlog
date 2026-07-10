@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { detectTriggeredCards, computeWeeksStreak, computeSessionsThisWeek } from './sharingTrigger';
+import { detectTriggeredCards, computeWeeksStreak, computeSessionsThisWeek, getISOWeekString } from './sharingTrigger';
 import { generateMessage, updateRecentMessageIds } from './sharingMessage';
 import type { TriggeredCard } from './sharingTrigger';
 import type { GeneratedMessage } from './sharingMessage';
@@ -17,6 +17,7 @@ import type { Match, SessionType } from '../types/session';
 
 const RECENT_MESSAGE_IDS_KEY = 'smashlog_recent_message_ids';
 const WINRATE_LAST_SHOWN_KEY = 'smashlog_winrate_card_last_shown';
+const SPECIAL_CARDS_LAST_SHOWN_KEY = 'smashlog_special_cards_last_shown';
 
 // ── Types exposés à l'UI ──────────────────────────────────────────────────────
 
@@ -24,7 +25,10 @@ export interface SpecialCard {
   cardType: 'weeksStreak' | 'sessionsPerWeek' | 'milestone';
   value: number;          // valeur du palier (ex: 7, 50, 100)
   level: 1 | 2 | 3 | 4 | 5;
-  message: GeneratedMessage;
+  // Absent pour les paliers de niveau < MIN_MESSAGE_LEVEL : la carte s'affiche
+  // quand même (palier atteint = carte), mais sans texte motivationnel ni
+  // joueur tiré au sort, pour éviter la redondance sur les paliers fréquents.
+  message?: GeneratedMessage;
 }
 
 export type TrendDirection = 'up' | 'down' | 'stable' | null;
@@ -48,6 +52,31 @@ export interface SharingDebugOverrides {
 }
 
 const WINRATE_ELIGIBLE_SESSION_TYPES: SessionType[] = ['match', 'jeu_libre'];
+
+// ── Niveau minimum pour générer un message motivationnel ──────────────────────
+
+/**
+ * Toutes les cartes de palier sont affichées, quel que soit leur niveau.
+ * En revanche, seuls les paliers de niveau ≥ MIN_MESSAGE_LEVEL reçoivent un
+ * texte motivationnel (avec tirage de joueur) : en dessous, les paliers sont
+ * trop fréquents et généreraient trop de répétition / de noms de joueurs.
+ */
+const MIN_MESSAGE_LEVEL = 2;
+
+// ── Anti-doublon des cartes de palier ──────────────────────────────────────────
+
+/**
+ * Certains paliers (notamment weeksStreak) ne changent pas de valeur tant que
+ * la semaine calendaire en cours ne change pas — enregistrer plusieurs séances
+ * la même semaine ne doit donc pas réafficher la carte à chaque fois. On
+ * mémorise le dernier palier affiché par cardType (+ la semaine ISO pour les
+ * paliers hebdomadaires) et on ignore un palier déjà montré dans ce contexte.
+ */
+interface SpecialCardsLastShown {
+  milestone?: number;
+  weeksStreak?: { value: number; week: string };
+  sessionsPerWeek?: { value: number; week: string };
+}
 
 // ── Win Rate Snapshot ─────────────────────────────────────────────────────────
 
@@ -158,10 +187,55 @@ export async function computeSharingPayload(
     isLowSessionRate,
   });
 
-  // 3. Générer les messages pour les cartes spéciales (si paliers atteints)
+  // 2.5. Écarter les paliers déjà affichés dans le même contexte, pour éviter
+  //      qu'une carte redémarre à chaque nouvelle séance tant que le palier
+  //      n'a pas réellement changé (ex : 2 séances la même semaine avec un
+  //      streak de semaines qui reste à la même valeur).
+  const currentWeek = getISOWeekString(new Date());
+  let lastShown: SpecialCardsLastShown = {};
+  try {
+    const storedLastShown = await AsyncStorage.getItem(SPECIAL_CARDS_LAST_SHOWN_KEY);
+    if (storedLastShown) lastShown = JSON.parse(storedLastShown);
+  } catch {
+    // AsyncStorage indisponible → on continue sans historique (au pire une
+    // carte pourra être réaffichée)
+  }
+
+  const newCards = cards.filter((card) => {
+    if (card.cardType === 'milestone') {
+      return lastShown.milestone !== card.value;
+    }
+    if (card.cardType === 'weeksStreak') {
+      return !(lastShown.weeksStreak?.value === card.value && lastShown.weeksStreak?.week === currentWeek);
+    }
+    return !(lastShown.sessionsPerWeek?.value === card.value && lastShown.sessionsPerWeek?.week === currentWeek);
+  });
+
+  if (newCards.length > 0) {
+    const updatedLastShown: SpecialCardsLastShown = { ...lastShown };
+    for (const card of newCards) {
+      if (card.cardType === 'milestone') {
+        updatedLastShown.milestone = card.value;
+      } else if (card.cardType === 'weeksStreak') {
+        updatedLastShown.weeksStreak = { value: card.value, week: currentWeek };
+      } else {
+        updatedLastShown.sessionsPerWeek = { value: card.value, week: currentWeek };
+      }
+    }
+
+    try {
+      await AsyncStorage.setItem(SPECIAL_CARDS_LAST_SHOWN_KEY, JSON.stringify(updatedLastShown));
+    } catch {
+      // silencieux
+    }
+  }
+
+  // 3. Générer les messages pour les cartes spéciales dont le niveau le permet
+  //    (les cartes en dessous de MIN_MESSAGE_LEVEL sont quand même incluses,
+  //    mais sans message motivationnel)
   let specialCards: SpecialCard[] = [];
 
-  if (cards.length > 0) {
+  if (newCards.length > 0) {
     let recentIds: number[] = [];
     try {
       const stored = await AsyncStorage.getItem(RECENT_MESSAGE_IDS_KEY);
@@ -171,10 +245,14 @@ export async function computeSharingPayload(
     }
 
     let updatedIds = [...recentIds];
-    for (const card of cards) {
-      const message = generateMessage(card, updatedIds);
-      specialCards.push({ ...card, message });
-      updatedIds = updateRecentMessageIds(updatedIds, message.messageId);
+    for (const card of newCards) {
+      if (card.level >= MIN_MESSAGE_LEVEL) {
+        const message = generateMessage(card, updatedIds);
+        specialCards.push({ ...card, message });
+        updatedIds = updateRecentMessageIds(updatedIds, message.messageId);
+      } else {
+        specialCards.push({ ...card });
+      }
     }
 
     try {
@@ -216,6 +294,15 @@ export async function getWinRateLastShown(): Promise<Date | null> {
  */
 export async function resetWinRateThrottle(): Promise<void> {
   await AsyncStorage.removeItem(WINRATE_LAST_SHOWN_KEY);
+}
+
+/**
+ * Efface l'historique anti-doublon des cartes de palier (milestone /
+ * weeksStreak / sessionsPerWeek). La prochaine génération de payload pourra
+ * redéclencher un palier déjà vu. Réservé au debug.
+ */
+export async function resetSpecialCardsHistory(): Promise<void> {
+  await AsyncStorage.removeItem(SPECIAL_CARDS_LAST_SHOWN_KEY);
 }
 
 /**
@@ -299,10 +386,10 @@ async function computeWinRateSnapshotIfEligible(
 //     cardType: 'milestone',        // 'weeksStreak' | 'sessionsPerWeek' | 'milestone'
 //     value: 50,                    // valeur atteinte — afficher en grand sur la carte
 //     level: 2,                     // 1-5 — peut servir pour des variations visuelles
-//     message: {
-//       text: "50 séances. À ce rythme, Momota commence à s'inquiéter.",
-//       messageId: 6,
-//       playerName: 'Kento Momota', // null si pas de joueur dans le message
+//     message: {                    // absent si level < MIN_MESSAGE_LEVEL (2) :
+//       text: "50 séances. À ce rythme, Momota commence à s'inquiéter.", // la carte
+//       messageId: 6,                                                   // s'affiche
+//       playerName: 'Kento Momota', // null si pas de joueur dans le message // sans texte
 //     }
 //   }
 //

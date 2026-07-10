@@ -20,6 +20,7 @@ import {
 import {
   computeSharingPayload,
   getWinRateLastShown,
+  resetSpecialCardsHistory,
   resetWinRateThrottle,
   type SharingPayload,
 } from "@/src/services/sharingOrchestrator";
@@ -121,6 +122,7 @@ export default function DebugScreen() {
   const [generatedSessions, setGeneratedSessions] = useState<Session[]>([]);
   const [winRateLastShown, setWinRateLastShown] = useState<Date | null | undefined>(undefined);
   const [isResettingWinRate, setIsResettingWinRate] = useState(false);
+  const [isResettingSpecialCards, setIsResettingSpecialCards] = useState(false);
 
   async function refreshCount() {
     const sessions = await getSessions();
@@ -371,6 +373,21 @@ export default function DebugScreen() {
     }
   }
 
+  async function handleResetSpecialCardsHistory() {
+    setIsResettingSpecialCards(true);
+    try {
+      await resetSpecialCardsHistory();
+      Alert.alert(
+        "Historique réinitialisé",
+        "Les cartes de palier (milestone / streak semaines / séances par semaine) pourront être redéclenchées dès la prochaine génération, même si le palier a déjà été affiché.",
+      );
+    } catch {
+      Alert.alert("Erreur", "Impossible de réinitialiser l'historique.");
+    } finally {
+      setIsResettingSpecialCards(false);
+    }
+  }
+
   async function handleLaunchOnboarding() {
     const nextUsername = onboardingUsernameInput.trim() || DEFAULT_PROFILE.username;
 
@@ -548,6 +565,21 @@ export default function DebugScreen() {
           disabled={isResettingWinRate || winRateLastShown === null}
           label={isResettingWinRate ? "Réinitialisation…" : "Reset throttle (forcer affichage)"}
           onPress={handleResetWinRateThrottle}
+          tone="secondary"
+        />
+      </SectionCard>
+
+      <SectionCard>
+        <Text style={[styles.blockTitle, { color: theme.text }]}>Cartes de palier — anti-doublon</Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          Un palier (milestone / streak semaines / séances par semaine) n'est affiché qu'une fois par
+          contexte (semaine en cours pour les streaks). Réinitialiser l'historique permet de le
+          redéclencher pour tester, même si sa valeur n'a pas changé.
+        </Text>
+        <PrimaryButton
+          disabled={isResettingSpecialCards}
+          label={isResettingSpecialCards ? "Réinitialisation…" : "Reset historique paliers (forcer réaffichage)"}
+          onPress={handleResetSpecialCardsHistory}
           tone="secondary"
         />
       </SectionCard>

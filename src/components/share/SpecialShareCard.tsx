@@ -420,13 +420,15 @@ function SessionsPerWeekShareCard({
   const theme = getCardTheme("sessionsPerWeek", card.level);
   const shareUsername = formatUsername(username);
   const days = getCurrentWeekSessions(sessions);
+  const hasMessage = Boolean(card.message);
+  const barScale = hasMessage ? 1 : 1.25;
 
   return (
     <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
       <TopTrim theme={theme} />
 
-      <View>
-        <View style={styles.spwTop}>
+      <View style={[styles.specialContent, !hasMessage ? styles.specialContentCentered : null]}>
+        <View style={[styles.spwTop, !hasMessage ? styles.spwTopRoomy : null]}>
           <View>
             {theme.showCrown ? (
               <View style={styles.crownWrap}>
@@ -438,15 +440,20 @@ function SessionsPerWeekShareCard({
             </View>
           </View>
           <View style={styles.spwCount}>
-            <Text style={[styles.spwCountNum, { color: theme.brightAccentColor }]}>{card.value}</Text>
-            <Text style={[styles.spwCountLabel, { color: theme.dimAccentColor }]}>séances cette semaine</Text>
+            <Text style={[styles.spwCountNum, !hasMessage ? styles.spwCountNumLarge : null, { color: theme.brightAccentColor }]}>
+              {card.value}
+            </Text>
+            <Text style={[styles.spwCountLabel, !hasMessage ? styles.spwCountLabelLarge : null, { color: theme.dimAccentColor }]}>
+              séances cette semaine
+            </Text>
           </View>
         </View>
 
-        <View style={styles.spwWeek}>
+        <View style={[styles.spwWeek, !hasMessage ? styles.spwWeekRoomy : null]}>
           {days.map((day) => {
             const displayedCount = day.count;
-            const height = displayedCount >= 3 ? 44 : displayedCount === 2 ? 36 : 28;
+            const baseHeight = displayedCount >= 3 ? 44 : displayedCount === 2 ? 36 : 28;
+            const height = baseHeight * barScale;
             const isDone = displayedCount > 0;
             const dayBackgroundColor = isDone ? theme.accentColor : `${theme.accentColor}12`;
 
@@ -455,15 +462,25 @@ function SessionsPerWeekShareCard({
                 <View
                   style={[
                     styles.spwDayDot,
+                    !hasMessage ? styles.spwDayDotLarge : null,
                     { height, backgroundColor: day.isFuture ? `${theme.accentColor}12` : dayBackgroundColor },
                     day.isToday ? [styles.spwDayDotToday, { borderColor: theme.dimAccentColor }] : null,
                   ]}
                 >
                   {displayedCount > 0 ? (
-                    <Text style={[styles.spwDayCount, { color: theme.badgeTextColor }]}>x{displayedCount}</Text>
+                    <Text style={[styles.spwDayCount, !hasMessage ? styles.spwDayCountLarge : null, { color: theme.badgeTextColor }]}>
+                      x{displayedCount}
+                    </Text>
                   ) : null}
                 </View>
-                <Text style={[styles.spwDayLabel, { color: theme.dimAccentColor }, day.isToday ? { color: theme.brightAccentColor, fontFamily: fonts.bodySemiBold } : null]}>
+                <Text
+                  style={[
+                    styles.spwDayLabel,
+                    !hasMessage ? styles.spwDayLabelLarge : null,
+                    { color: theme.dimAccentColor },
+                    day.isToday ? { color: theme.brightAccentColor, fontFamily: fonts.bodySemiBold } : null,
+                  ]}
+                >
                   {day.label}
                 </Text>
               </View>
@@ -471,15 +488,17 @@ function SessionsPerWeekShareCard({
           })}
         </View>
 
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.76}
-          numberOfLines={4}
-          style={[styles.spwMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
-        >
-          {card.message.text}
-        </Text>
+        {card.message ? (
+          <Text
+            adjustsFontSizeToFit
+            ellipsizeMode="tail"
+            minimumFontScale={0.76}
+            numberOfLines={4}
+            style={[styles.spwMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+          >
+            {card.message.text}
+          </Text>
+        ) : null}
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -501,13 +520,15 @@ function WeeksStreakShareCard({
   const months = getRecentMonthsActivity(sessions, 8);
   const maxCount = Math.max(...months.map((month) => month.count), 1);
   const streakDisplay = getWeeksStreakDisplay(card.value);
+  const hasMessage = Boolean(card.message);
+  const barScale = hasMessage ? 1 : 1.2;
 
   return (
     <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
       <TopTrim theme={theme} />
 
-      <View style={styles.weeksContent}>
-        <View style={styles.ewTop}>
+      <View style={[styles.weeksContent, !hasMessage ? styles.specialContentCentered : null]}>
+        <View style={[styles.ewTop, !hasMessage ? styles.ewTopRoomy : null]}>
           <View>
             {theme.showCrown ? (
               <View style={styles.crownWrap}>
@@ -520,15 +541,22 @@ function WeeksStreakShareCard({
           </View>
         </View>
 
-        <View style={styles.ewNumberWrap}>
-          <Text style={[styles.ewNumber, { color: theme.brightAccentColor }]}>{streakDisplay.value}</Text>
-          <Text style={[styles.ewUnit, { color: theme.dimAccentColor }]}>{streakDisplay.shortUnit}</Text>
+        <View style={[styles.ewNumberWrap, !hasMessage ? styles.ewNumberWrapLarge : null]}>
+          <Text style={[styles.ewNumber, !hasMessage ? styles.ewNumberLarge : null, { color: theme.brightAccentColor }]}>
+            {streakDisplay.value}
+          </Text>
+          <Text style={[styles.ewUnit, !hasMessage ? styles.ewUnitLarge : null, { color: theme.dimAccentColor }]}>
+            {streakDisplay.shortUnit}
+          </Text>
         </View>
-        <Text style={[styles.ewSublabel, { color: theme.dimAccentColor }]}>{streakDisplay.sublabel}</Text>
+        <Text style={[styles.ewSublabel, !hasMessage ? styles.ewSublabelLarge : null, { color: theme.dimAccentColor }]}>
+          {streakDisplay.sublabel}
+        </Text>
 
-        <View style={styles.streakChart}>
+        <View style={[styles.streakChart, !hasMessage ? styles.streakChartRoomy : null]}>
           {months.map((month) => {
-            const height = month.count === 0 ? 22 : Math.max(26, 22 + (month.count / maxCount) * 48);
+            const baseHeight = month.count === 0 ? 22 : Math.max(26, 22 + (month.count / maxCount) * 48);
+            const height = baseHeight * barScale;
 
             return (
               <View key={month.key} style={styles.streakMonth}>
@@ -547,15 +575,17 @@ function WeeksStreakShareCard({
           })}
         </View>
 
-        <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.74}
-          numberOfLines={4}
-          style={[styles.ewMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
-        >
-          {card.message.text}
-        </Text>
+        {card.message ? (
+          <Text
+            adjustsFontSizeToFit
+            ellipsizeMode="tail"
+            minimumFontScale={0.74}
+            numberOfLines={4}
+            style={[styles.ewMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+          >
+            {card.message.text}
+          </Text>
+        ) : null}
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -572,38 +602,51 @@ function MilestoneShareCard({
 }) {
   const theme = getCardTheme("milestone", card.level);
   const shareUsername = formatUsername(username);
+  const hasMessage = Boolean(card.message);
 
   return (
     <View style={[styles.cardBase, { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor, borderWidth: theme.borderWidth }]}>
       <TopTrim theme={theme} />
 
-      <View>
+      <View style={[styles.specialContent, !hasMessage ? styles.milestoneContentCentered : null]}>
         {theme.showCrown ? (
-          <View style={styles.crownWrap}>
+          <View style={[styles.crownWrap, !hasMessage ? styles.crownWrapCentered : null]}>
             <CrownIcon accentColor={theme.accentColor} brightColor={theme.brightAccentColor} />
           </View>
         ) : null}
 
-        <View style={styles.milestoneTop}>
-          <View style={[styles.badge, { backgroundColor: theme.badgeBackgroundColor }]}>
+        <View style={[styles.milestoneTop, !hasMessage ? styles.milestoneTopCentered : null]}>
+          <View style={[styles.badge, { backgroundColor: theme.badgeBackgroundColor }, !hasMessage ? styles.badgeCentered : null]}>
             <Text style={[styles.badgeText, { color: theme.badgeTextColor }]}>{theme.badgeLabel}</Text>
           </View>
         </View>
 
-        <Text style={[styles.milestoneNumber, { color: theme.milestoneNumberColor }]}>
-          {card.value}
-          <Text style={[styles.milestoneSup, { color: theme.milestoneSupColor }]}>e</Text>
-        </Text>
-        <Text style={[styles.milestoneLabel, { color: theme.dimAccentColor }]}>séance enregistrée</Text>
         <Text
-          adjustsFontSizeToFit
-          ellipsizeMode="tail"
-          minimumFontScale={0.76}
-          numberOfLines={4}
-          style={[styles.milestoneMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+          style={[
+            styles.milestoneNumber,
+            !hasMessage ? styles.milestoneNumberLarge : null,
+            { color: theme.milestoneNumberColor },
+          ]}
         >
-          {card.message.text}
+          {card.value}
+          <Text style={[styles.milestoneSup, !hasMessage ? styles.milestoneSupLarge : null, { color: theme.milestoneSupColor }]}>
+            e
+          </Text>
         </Text>
+        <Text style={[styles.milestoneLabel, !hasMessage ? styles.milestoneLabelLarge : null, { color: theme.dimAccentColor }]}>
+          séance enregistrée
+        </Text>
+        {card.message ? (
+          <Text
+            adjustsFontSizeToFit
+            ellipsizeMode="tail"
+            minimumFontScale={0.76}
+            numberOfLines={4}
+            style={[styles.milestoneMessage, { color: theme.messageColor, borderLeftColor: theme.accentColor }]}
+          >
+            {card.message.text}
+          </Text>
+        ) : null}
       </View>
 
       <Footer logoColor={theme.logoColor} logoDimColor={theme.logoDimColor} username={shareUsername} />
@@ -687,6 +730,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignSelf: "flex-start",
   },
+  badgeCentered: {
+    alignSelf: "center",
+  },
+  // Conteneur générique du contenu (hors footer). flex: 1 lui permet de
+  // remplir l'espace disponible dans la carte, ce qui permet ensuite de le
+  // centrer verticalement (specialContentCentered) quand il n'y a pas de
+  // message — l'espace libéré est alors comblé par le centrage + des
+  // éléments agrandis plutôt que laissé vide en haut de carte.
+  specialContent: {
+    flex: 1,
+  },
+  specialContentCentered: {
+    justifyContent: "center",
+  },
   badgeText: {
     fontFamily: fonts.displayBold,
     fontSize: 10,
@@ -713,6 +770,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
   },
+  spwTopRoomy: {
+    marginBottom: 22,
+  },
   spwCount: {
     alignItems: "flex-end",
   },
@@ -721,10 +781,18 @@ const styles = StyleSheet.create({
     fontSize: 52,
     lineHeight: 52,
   },
+  spwCountNumLarge: {
+    fontSize: 74,
+    lineHeight: 74,
+  },
   spwCountLabel: {
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
     marginTop: 2,
+  },
+  spwCountLabelLarge: {
+    fontSize: 13,
+    marginTop: 4,
   },
   spwWeek: {
     flexDirection: "row",
@@ -732,6 +800,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 4,
     marginBottom: 12,
+  },
+  spwWeekRoomy: {
+    marginBottom: 22,
   },
   spwDay: {
     alignItems: "center",
@@ -745,6 +816,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: 3,
   },
+  spwDayDotLarge: {
+    width: 30,
+    borderRadius: 7,
+  },
   spwDayDotToday: {
     borderWidth: 2,
   },
@@ -753,9 +828,16 @@ const styles = StyleSheet.create({
     fontSize: 8,
     lineHeight: 8,
   },
+  spwDayCountLarge: {
+    fontSize: 9,
+    lineHeight: 9,
+  },
   spwDayLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 9,
+  },
+  spwDayLabelLarge: {
+    fontSize: 10,
   },
   spwMessage: {
     fontFamily: fonts.displayBold,
@@ -771,7 +853,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 8,
   },
+  ewTopRoomy: {
+    marginBottom: 16,
+  },
   weeksContent: {
+    flex: 1,
     flexShrink: 1,
   },
   ewNumberWrap: {
@@ -780,11 +866,18 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 2,
   },
+  ewNumberWrapLarge: {
+    marginBottom: 6,
+  },
   ewNumber: {
     fontFamily: fonts.displayExtraBold,
     fontSize: 52,
     lineHeight: 52,
     letterSpacing: -2,
+  },
+  ewNumberLarge: {
+    fontSize: 76,
+    lineHeight: 76,
   },
   ewUnit: {
     fontFamily: fonts.displayBold,
@@ -792,11 +885,20 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     paddingBottom: 5,
   },
+  ewUnitLarge: {
+    fontSize: 17,
+    lineHeight: 17,
+    paddingBottom: 8,
+  },
   ewSublabel: {
     fontFamily: fonts.bodyRegular,
     fontSize: 10,
     marginBottom: 10,
     letterSpacing: 0.4,
+  },
+  ewSublabelLarge: {
+    fontSize: 12,
+    marginBottom: 18,
   },
   streakChart: {
     flexDirection: "row",
@@ -804,6 +906,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 6,
     marginBottom: 10,
+  },
+  streakChartRoomy: {
+    marginBottom: 18,
   },
   streakMonth: {
     flex: 1,
@@ -833,11 +938,22 @@ const styles = StyleSheet.create({
   crownWrap: {
     marginBottom: 6,
   },
+  crownWrapCentered: {
+    marginBottom: 12,
+  },
+  milestoneContentCentered: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   milestoneTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 6,
+  },
+  milestoneTopCentered: {
+    justifyContent: "center",
+    marginBottom: 16,
   },
   milestoneNumber: {
     fontFamily: fonts.displayExtraBold,
@@ -845,15 +961,28 @@ const styles = StyleSheet.create({
     lineHeight: 64,
     letterSpacing: -2,
   },
+  milestoneNumberLarge: {
+    fontSize: 96,
+    lineHeight: 96,
+  },
   milestoneSup: {
     fontSize: 20,
     lineHeight: 20,
+  },
+  milestoneSupLarge: {
+    fontSize: 30,
+    lineHeight: 30,
   },
   milestoneLabel: {
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
     marginTop: 2,
     marginBottom: 10,
+  },
+  milestoneLabelLarge: {
+    fontSize: 15,
+    marginTop: 6,
+    marginBottom: 0,
   },
   milestoneMessage: {
     fontFamily: fonts.displayBold,
