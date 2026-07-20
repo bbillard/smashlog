@@ -13,6 +13,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AuthProvider } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
 import {
@@ -133,7 +134,8 @@ export default function RootLayout() {
   );
 
   return (
-    <SafeAreaProvider>
+    <AuthProvider>
+      <SafeAreaProvider>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -199,6 +201,15 @@ export default function RootLayout() {
               options={{ title: "Profil", headerBackVisible: false, headerLeft: headerBackToHome }}
             />
             <Stack.Screen
+              name="auth"
+              options={{
+                title: "Compte",
+                presentation: "modal",
+                headerBackVisible: false,
+                headerLeft: () => null,
+              }}
+            />
+            <Stack.Screen
               name="sessions"
               options={{ title: "Séances", headerBackVisible: false, headerLeft: headerBackToHome }}
             />
@@ -246,7 +257,8 @@ export default function RootLayout() {
           </Stack>
         </View>
       </ThemeProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }
 

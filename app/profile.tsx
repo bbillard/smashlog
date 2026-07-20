@@ -1,5 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -8,6 +8,7 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ProfileAvatar } from "@/src/components/ProfileAvatar";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { setOnboardingUsername } from "@/src/services/onboarding";
 import { getProfile, saveProfile } from "@/src/services/profile";
@@ -18,9 +19,23 @@ const USERNAME_MAX_LENGTH = 20;
 
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible de se déconnecter pour le moment.");
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
 
   const loadProfile = useCallback(async () => {
     const nextProfile = await getProfile();
@@ -85,6 +100,47 @@ export default function ProfileScreen() {
       footer={<PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />}
     >
       <Text style={[styles.title, { color: theme.text }]}>Profil</Text>
+
+      <SectionCard>
+        {user ? (
+          <>
+            <Text style={[styles.accountLabel, { color: theme.secondaryText }]}>Compte</Text>
+            <Text style={[styles.accountEmail, { color: theme.text }]}>{user.email}</Text>
+            <Pressable
+              disabled={isSigningOut}
+              onPress={handleSignOut}
+              style={[styles.photoButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, marginTop: 8 }]}
+            >
+              <Text style={[styles.photoButtonText, { color: theme.text }]}>
+                {isSigningOut ? "Déconnexion..." : "Se déconnecter"}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.accountLabel, { color: theme.secondaryText }]}>
+              Sauvegardez vos données dans le cloud
+            </Text>
+            <View style={styles.accountCtaRow}>
+              <Pressable
+                onPress={() => router.push("/auth")}
+                style={[styles.accountCtaButton, { backgroundColor: theme.primary }]}
+              >
+                <Text style={[styles.accountCtaTextPrimary, { color: theme.buttonTextOnPrimary }]}>
+                  Créer un compte
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/auth")}
+                style={[styles.accountCtaButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, borderWidth: 1 }]}
+              >
+                <Text style={[styles.accountCtaTextSecondary, { color: theme.text }]}>Se connecter</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+      </SectionCard>
+
       <SectionCard>
         <View style={styles.avatarBlock}>
           <ProfileAvatar size={96} uri={profile.photoUri} />
@@ -163,6 +219,37 @@ const styles = StyleSheet.create({
   removePhoto: {
     fontSize: 13,
     fontFamily: fonts.bodyRegular,
+  },
+  accountLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  accountEmail: {
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
+  },
+  accountCtaRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  accountCtaButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  accountCtaTextPrimary: {
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+  },
+  accountCtaTextSecondary: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
   },
   placeholder: {
     fontSize: 15,

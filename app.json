@@ -30,7 +30,9 @@
             "buildReactNativeFromSource": true
           }
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      "./app.plugin.js"
     ],
     "experiments": {
       "typedRoutes": true

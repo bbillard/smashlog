@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { Profile } from "@/src/types/profile";
 import { fonts } from "@/src/theme/typography";
@@ -19,6 +20,7 @@ interface AppSidebarProps {
 export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
   const router = useRouter();
   const { theme } = useAppTheme();
+  const { user } = useAuth();
   const closeSwipe = useMemo(
     () =>
       PanResponder.create({
@@ -33,7 +35,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
     [onClose],
   );
 
-  function navigate(pathname: "/profile" | "/sessions" | "/planning" | "/settings" | "/intentions" | "/players") {
+  function navigate(
+    pathname: "/profile" | "/sessions" | "/planning" | "/settings" | "/intentions" | "/players" | "/auth",
+  ) {
     onClose();
     router.push(pathname);
   }
@@ -54,13 +58,25 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
                   <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.menuTitle, { color: theme.text }]}>
                     {profile.username}
                   </Text>
-                  <Text style={[styles.menuSubtitle, { color: theme.secondaryText }]}>Compte local</Text>
+                  <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.menuSubtitle, { color: theme.secondaryText }]}>
+                    {user ? user.email : "Compte local"}
+                  </Text>
                 </View>
               </View>
               <Pressable onPress={onClose}>
                 <Ionicons color={theme.secondaryText} name="close-outline" size={24} />
               </Pressable>
             </View>
+
+            {!user ? (
+              <Pressable
+                onPress={() => navigate("/auth")}
+                style={[styles.menuItem, styles.menuItemAccent, { borderColor: theme.primary }]}
+              >
+                <Ionicons color={theme.primary} name="cloud-upload-outline" size={20} />
+                <Text style={[styles.menuItemText, { color: theme.primary }]}>Créer un compte</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable
               onPress={() => navigate("/profile")}
@@ -179,6 +195,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  menuItemAccent: {
+    borderWidth: 1.5,
   },
   menuItemText: {
     fontSize: 15,

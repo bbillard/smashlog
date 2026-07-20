@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { TextInputProps } from "react-native";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
@@ -10,6 +11,13 @@ interface InputProps {
   placeholder?: string;
   multiline?: boolean;
   maxLength?: number;
+  secureTextEntry?: boolean;
+  keyboardType?: TextInputProps["keyboardType"];
+  autoCapitalize?: TextInputProps["autoCapitalize"];
+  autoComplete?: TextInputProps["autoComplete"];
+  textContentType?: TextInputProps["textContentType"];
+  autoCorrect?: boolean;
+  errorText?: string;
 }
 
 export function LabeledInput({
@@ -19,6 +27,13 @@ export function LabeledInput({
   placeholder,
   multiline = false,
   maxLength,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  autoComplete,
+  textContentType,
+  autoCorrect,
+  errorText,
 }: InputProps) {
   const { theme } = useAppTheme();
 
@@ -26,25 +41,32 @@ export function LabeledInput({
     <View style={styles.group}>
       <Text style={[styles.label, { color: theme.secondaryText }]}>{label}</Text>
       <TextInput
+        autoCapitalize={autoCapitalize}
+        autoComplete={autoComplete}
+        autoCorrect={autoCorrect}
+        keyboardType={keyboardType}
         maxLength={maxLength}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.secondaryText}
+        secureTextEntry={secureTextEntry}
         style={[
           styles.input,
           multiline ? styles.multiline : null,
           {
             backgroundColor: theme.surface,
-            borderColor: theme.border,
+            borderColor: errorText ? theme.danger : theme.border,
             color: theme.text,
             fontFamily: fonts.bodyRegular,
           },
         ]}
         textAlignVertical={multiline ? "top" : "center"}
+        textContentType={textContentType}
         value={value}
       />
+      {errorText ? <Text style={[styles.errorText, { color: theme.danger }]}>{errorText}</Text> : null}
     </View>
   );
 }
@@ -97,6 +119,10 @@ const styles = StyleSheet.create({
   },
   multiline: {
     minHeight: 110,
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
   },
   toggleRow: {
     flexDirection: "row",
