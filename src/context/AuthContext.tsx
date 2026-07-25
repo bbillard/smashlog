@@ -133,6 +133,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw new Error("Supabase n'a pas renvoyé d'URL d'autorisation Google.");
         }
 
+        // TEMP DEBUG (redirect_uri_mismatch) — à retirer une fois le souci résolu.
+        console.log("[signInWithGoogle] redirectTo (app):", redirectTo);
+        console.log("[signInWithGoogle] authorize URL (Supabase -> Google):", data.url);
+        try {
+          const redirectUriParam = new URL(data.url).searchParams.get("redirect_uri");
+          console.log("[signInWithGoogle] redirect_uri envoyé à Google:", redirectUriParam);
+        } catch {
+          // ignore
+        }
+
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
         if (result.type !== "success" || !result.url) {
           // Annulé par l'utilisateur : pas d'erreur à remonter.

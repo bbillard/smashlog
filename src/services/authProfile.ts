@@ -2,15 +2,18 @@ import { supabase } from "@/src/lib/supabase";
 import { getOnboardingUsername } from "@/src/services/onboarding";
 
 /**
- * Garantit qu'une ligne public.profiles existe pour l'utilisateur connecté,
- * initialisée avec le pseudo déjà choisi localement (AsyncStorage,
- * clé "smashlog_username" — cf. src/services/onboarding.ts).
+ * Garantit qu'une ligne public.profiles existe pour l'utilisateur connecté
+ * (les autres tables — players, exercises, sessions... — ont une FK vers
+ * profiles.id, cette ligne doit donc exister avant toute écriture).
  *
  * Idempotent : safe à appeler à chaque connexion (email, Apple, Google),
- * pas seulement à l'inscription — un upsert sur `id` ne duplique jamais
- * la ligne et ne réinitialise pas les champs déjà renseignés dans le cloud
- * (`ignoreDuplicates` non utilisé volontairement : on veut que l'update
- * soit un no-op silencieux si le username local est vide).
+ * pas seulement à l'inscription. `ignoreDuplicates: true` est volontaire :
+ * si la ligne existe déjà (2e appareil, reconnexion...), on ne touche pas
+ * au username déjà présent dans le cloud — sinon on écraserait
+ * silencieusement le pseudo d'un autre appareil à chaque connexion. La
+ * réconciliation du pseudo (garder le local ou le cloud en cas de
+ * différence) est gérée explicitement, une seule fois, par la migration
+ * (cf. src/services/migration.ts, reconcileProfile/resolveProfileConflict).
  */
 export async function ensureAuthProfile(userId: string): Promise<void> {
   const localUsername = (await getOnboardingUsername()).trim();
@@ -22,7 +25,7 @@ export async function ensureAuthProfile(userId: string): Promise<void> {
         id: userId,
         ...(localUsername ? { username: localUsername } : {}),
       },
-      { onConflict: "id" },
+      { onConflict: "id", ignoreDuplicates: true },
     );
 
   if (error) {

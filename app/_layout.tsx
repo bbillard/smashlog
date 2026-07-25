@@ -14,6 +14,8 @@ import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider } from "@/src/context/AuthContext";
+import { MigrationProvider } from "@/src/context/MigrationContext";
+import { MigrationOverlay } from "@/src/components/MigrationOverlay";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
 import {
@@ -135,10 +137,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <MigrationProvider>
       <SafeAreaProvider>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         <View style={{ flex: 1, backgroundColor: theme.background }}>
+          <MigrationOverlay />
           <Stack
             screenOptions={{
               animation: "fade",
@@ -258,6 +262,7 @@ export default function RootLayout() {
         </View>
       </ThemeProvider>
       </SafeAreaProvider>
+      </MigrationProvider>
     </AuthProvider>
   );
 }

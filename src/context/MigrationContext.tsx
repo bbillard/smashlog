@@ -1,0 +1,128 @@
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from "react";
+
+import { useAuth } from "@/src/context/AuthContext";
+import {
+  isMigrationDone,
+  resolveProfileConflict as resolveProfileConflictService,
+  runMigration,
+  type ProfileConflict,
+} from "@/src/services/migration";
+
+export type MigrationStatus = "idle" | "syncing" | "profile_conflict" | "done" | "error";
+
+interface MigrationContextValue {
+  status: MigrationStatus;
+  profileConflict: ProfileConflict | null;
+  /** L'utilisateur tranche le conflit de pseudo (2e appareil). */
+  resolveProfileConflict: (choice: "local" | "cloud") => Promise<void>;
+  /** Referme manuellement une bannière "syncing"/"done"/"error". */
+  dismiss: () => void;
+}
+
+const MigrationContext = createContext<MigrationContextValue | null>(null);
+
+const DONE_BANNER_DURATION_MS = 2500;
+const ERROR_BANNER_DURATION_MS = 4000;
+
+/**
+ * Déclenche automatiquement la migration AsyncStorage -> Supabase dès
+ * qu'un utilisateur authentifié est détecté (première connexion/inscription,
+ * ou reprise d'une session persistée si une tentative précédente avait
+ * échoué — le flag `smashlog_migration_done` n'est posé qu'en cas de
+ * succès complet, cf. src/services/migration.ts).
+ *
+ * Doit être monté à l'intérieur d'<AuthProvider> (utilise useAuth()).
+ */
+export function MigrationProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
+  const [status, setStatus] = useState<MigrationStatus>("idle");
+  const [profileConflict, setProfileConflict] = useState<ProfileConflict | null>(null);
+  // Évite de relancer plusieurs fois la migration pour le même utilisateur
+  // pendant la durée de vie du composant (re-renders, refresh de token...).
+  const attemptedForUserId = useRef<string | null>(null);
+
+  const startMigration = useCallback(async (userId: string) => {
+    if (await isMigrationDone()) {
+      return;
+    }
+
+    setStatus("syncing");
+    const outcome = await runMigration(userId);
+
+    if (outcome.status === "skipped") {
+      setStatus("idle");
+      return;
+    }
+
+    if (outcome.status === "error") {
+      // Ne bloque jamais l'utilisateur : l'app reste utilisable en local,
+      // le flag n'a pas été posé donc la migration sera retentée à la
+      // prochaine connexion (ou si l'app est relancée avec la session
+      // encore active).
+      setStatus("error");
+      setTimeout(() => setStatus((current) => (current === "error" ? "idle" : current)), ERROR_BANNER_DURATION_MS);
+      return;
+    }
+
+    if (outcome.profileConflict) {
+      setProfileConflict(outcome.profileConflict);
+      setStatus("profile_conflict");
+      return;
+    }
+
+    setStatus("done");
+    setTimeout(() => setStatus((current) => (current === "done" ? "idle" : current)), DONE_BANNER_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      attemptedForUserId.current = null;
+      return;
+    }
+
+    if (attemptedForUserId.current === user.id) {
+      return;
+    }
+    attemptedForUserId.current = user.id;
+    void startMigration(user.id);
+  }, [user, startMigration]);
+
+  const resolveProfileConflict = useCallback(
+    async (choice: "local" | "cloud") => {
+      if (!user || !profileConflict) {
+        return;
+      }
+
+      setStatus("syncing");
+      try {
+        await resolveProfileConflictService(user.id, choice, profileConflict);
+        setProfileConflict(null);
+        setStatus("done");
+        setTimeout(() => setStatus((current) => (current === "done" ? "idle" : current)), DONE_BANNER_DURATION_MS);
+      } catch {
+        // Le choix n'a pas pu être écrit (réseau) : on garde le conflit
+        // affiché, l'utilisateur peut retenter.
+        setStatus("profile_conflict");
+      }
+    },
+    [user, profileConflict],
+  );
+
+  const dismiss = useCallback(() => {
+    setStatus((current) => (current === "profile_conflict" ? current : "idle"));
+  }, []);
+
+  return (
+    <MigrationContext.Provider value={{ status, profileConflict, resolveProfileConflict, dismiss }}>
+      {children}
+    </MigrationContext.Provider>
+  );
+}
+
+export function useMigration() {
+  const context = useContext(MigrationContext);
+  if (!context) {
+    throw new Error("useMigration doit être utilisé à l'intérieur d'un <MigrationProvider>.");
+  }
+  return context;
+}
