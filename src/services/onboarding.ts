@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { DEFAULT_PROFILE, getProfile, saveProfile } from "@/src/services/profile";
+import { createId } from "@/src/utils/id";
 
 export const ONBOARDING_COMPLETED_KEY = "smashlog_onboarding_completed";
 export const ONBOARDING_USERNAME_KEY = "smashlog_username";
@@ -83,10 +84,17 @@ export async function syncLegacyProfileIntoOnboarding() {
   }
 }
 
+/**
+ * Toujours un uuid v4 valide (délègue à createId(), déjà utilisé pour
+ * players/exercises/sessions). Historiquement cette fonction retombait sur
+ * un format `slot-<timestamp>-<random>` quand `crypto.randomUUID` n'était
+ * pas disponible dans le runtime JS — cassait l'upsert Supabase de
+ * planning_slots (colonne `id` typée uuid) lors de la migration cloud, avec
+ * une erreur Postgres 22P02 "invalid input syntax for type uuid". Les slots
+ * déjà créés avec l'ancien format sont gérés côté migration (cf.
+ * src/services/migration.ts, toPlanningRow) pour ne pas bloquer les
+ * utilisateurs qui en ont déjà en local.
+ */
 export function createScheduledSlotId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `slot-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  return createId();
 }

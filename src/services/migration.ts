@@ -85,9 +85,20 @@ function toExerciseRow(exercise: Exercise, userId: string): TablesInsert<"exerci
   };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * planning_slots.id est typé uuid côté Supabase, mais createScheduledSlotId()
+ * (src/services/onboarding.ts) a longtemps pu générer un id au format
+ * `slot-<timestamp>-<random>` sur les runtimes JS sans crypto.randomUUID —
+ * déjà corrigé à la source, mais des appareils existants peuvent encore
+ * avoir des slots locaux avec l'ancien format. On dérive un uuid stable à
+ * partir de l'id original plutôt que de planter la migration entière
+ * dessus (même mécanisme que pour les Match, cf. deterministicId).
+ */
 function toPlanningRow(slot: ScheduledSlot, userId: string): TablesInsert<"planning_slots"> {
   return {
-    id: slot.id,
+    id: UUID_RE.test(slot.id) ? slot.id : deterministicId(`smashlog:planning-slot:${slot.id}`),
     user_id: userId,
     day_of_week: slot.dayOfWeek,
     hour: slot.hour,
