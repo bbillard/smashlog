@@ -1,12 +1,10 @@
 import { supabase } from "@/src/lib/supabase";
-import type { TablesInsert } from "@/src/lib/supabase";
-import type { Json } from "@/src/types/supabase";
 import { getOnboardingUsername, getScheduledSlots, setOnboardingUsername, type ScheduledSlot } from "@/src/services/onboarding";
 import { getProfile, saveProfile } from "@/src/services/profile";
 import { getExercises, getPlayers, getSessions } from "@/src/services/storage";
+import { toExerciseRow, toMatchRow, toPlanningRow, toPlayerRow, toSessionRow } from "@/src/services/supabaseMappers";
 import { Exercise, Player } from "@/src/types/index";
-import { Match, Session } from "@/src/types/session";
-import { deterministicId } from "@/src/utils/deterministicId";
+import { Session } from "@/src/types/session";
 
 /**
  * Migration automatique des données AsyncStorage vers Supabase, rejouée à
@@ -52,101 +50,9 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-// ─── Row mappers : modèle local -> Insert Supabase ────────────────────────
-
-function toPlayerRow(player: Player, userId: string): TablesInsert<"players"> {
-  return {
-    id: player.id,
-    user_id: userId,
-    name: player.name,
-    notes: player.notes ?? null,
-    created_at: player.createdAt,
-  };
-}
-
-function toExerciseRow(exercise: Exercise, userId: string): TablesInsert<"exercises"> {
-  return {
-    id: exercise.id,
-    user_id: userId,
-    name: exercise.name,
-    description: exercise.description ?? null,
-    players_count: exercise.playersCount ?? null,
-    labels: (exercise.labels ?? []) as unknown as Json,
-    duration_minutes: exercise.durationMinutes ?? null,
-    level: exercise.level ?? null,
-    orientation: exercise.orientation ?? null,
-    attention_points: exercise.attentionPoints ?? null,
-    variant_easier: exercise.variantEasier ?? null,
-    variant_harder: exercise.variantHarder ?? null,
-    source: exercise.source ?? null,
-    photos: exercise.photos ?? null,
-    created_at: exercise.createdAt,
-  };
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * planning_slots.id est typé uuid côté Supabase, mais createScheduledSlotId()
- * (src/services/onboarding.ts) a longtemps pu générer un id au format
- * `slot-<timestamp>-<random>` sur les runtimes JS sans crypto.randomUUID —
- * déjà corrigé à la source, mais des appareils existants peuvent encore
- * avoir des slots locaux avec l'ancien format. On dérive un uuid stable à
- * partir de l'id original plutôt que de planter la migration entière
- * dessus (même mécanisme que pour les Match, cf. deterministicId).
- */
-function toPlanningRow(slot: ScheduledSlot, userId: string): TablesInsert<"planning_slots"> {
-  return {
-    id: UUID_RE.test(slot.id) ? slot.id : deterministicId(`smashlog:planning-slot:${slot.id}`),
-    user_id: userId,
-    day_of_week: slot.dayOfWeek,
-    hour: slot.hour,
-    minute: slot.minute,
-    family: slot.family,
-  };
-}
-
-function toSessionRow(session: Session, userId: string): TablesInsert<"sessions"> {
-  return {
-    id: session.id,
-    user_id: userId,
-    // Pas de champ "date" distinct côté modèle local : createdAt représente
-    // déjà la date/heure de la séance, éditable via DateTimeField (cf.
-    // app/session/new.tsx).
-    date: session.createdAt,
-    created_at: session.createdAt,
-    title: session.title ?? null,
-    type: session.type,
-    rating: session.rating ?? null,
-    went_well: session.wentWell ?? null,
-    went_wrong: session.wentWrong ?? null,
-    next_intention: session.nextIntention ?? null,
-    free_notes: session.freeNotes ?? null,
-    exercise_ids: session.exerciseIds ?? null,
-    notification_scheduled_at: session.notificationScheduledAt ?? null,
-    notification_ids: session.notificationIds ?? null,
-  };
-}
-
-function toMatchRow(session: Session, match: Match, index: number, userId: string): TablesInsert<"matches"> {
-  return {
-    id: deterministicId(`smashlog:match:${session.id}:${index}`),
-    session_id: session.id,
-    user_id: userId,
-    opponent: match.adversaire ?? null,
-    opponent_id: match.adversaireId ?? null,
-    opponent_ids: match.adversaireIds ?? null,
-    partner: match.partenaire ?? null,
-    partner_id: match.partenaireId ?? null,
-    partner_ids: match.partenaireIds ?? null,
-    result: match.resultat,
-    mode: match.mode,
-    sets: match.sets as unknown as Json,
-    comment: match.commentaire ?? null,
-  };
-}
-
 // ─── Upserts (idempotents, ignorent les conflits d'id) ────────────────────
+// Mappers modèle local -> ligne Supabase : src/services/supabaseMappers.ts
+// (partagés avec la synchro temps réel, cf. src/services/cloudSync.ts).
 
 async function upsertPlayers(players: Player[], userId: string): Promise<number> {
   const rows = players.map((player) => toPlayerRow(player, userId));

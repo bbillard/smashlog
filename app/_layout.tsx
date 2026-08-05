@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider } from "@/src/context/AuthContext";
 import { MigrationProvider } from "@/src/context/MigrationContext";
+import { SyncProvider } from "@/src/context/SyncContext";
 import { MigrationOverlay } from "@/src/components/MigrationOverlay";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
@@ -138,6 +139,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <MigrationProvider>
+      <SyncProvider>
       <SafeAreaProvider>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
@@ -262,6 +264,7 @@ export default function RootLayout() {
         </View>
       </ThemeProvider>
       </SafeAreaProvider>
+      </SyncProvider>
       </MigrationProvider>
     </AuthProvider>
   );

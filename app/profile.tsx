@@ -8,6 +8,7 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ProfileAvatar } from "@/src/components/ProfileAvatar";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { SyncStatusBadge } from "@/src/components/SyncStatusBadge";
 import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { setOnboardingUsername } from "@/src/services/onboarding";
@@ -106,6 +107,7 @@ export default function ProfileScreen() {
           <>
             <Text style={[styles.accountLabel, { color: theme.secondaryText }]}>Compte</Text>
             <Text style={[styles.accountEmail, { color: theme.text }]}>{user.email}</Text>
+            <SyncStatusBadge />
             <Pressable
               disabled={isSigningOut}
               onPress={handleSignOut}

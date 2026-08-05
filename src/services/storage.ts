@@ -1,5 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import {
+  syncExerciseDelete,
+  syncExerciseUpsert,
+  syncPlayerDelete,
+  syncPlayerUpsert,
+  syncSessionDelete,
+  syncSessionUpsert,
+} from "@/src/services/entitySync";
 import { Session } from "@/src/types/session";
 import { Exercise, Player } from "@/src/types/index";
 import { createId } from "@/src/utils/id";
@@ -34,19 +42,31 @@ export async function addSession(session: Session): Promise<void> {
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
   await persistSessions(updated);
+  void syncSessionUpsert(session, undefined, "insert");
 }
 
 export async function updateSession(id: string, updates: Partial<Session>): Promise<void> {
   const sessions = await getSessions();
-  const updated = sessions.map((session) =>
-    session.id === id ? { ...session, ...updates } : session,
-  );
+  const previous = sessions.find((session) => session.id === id);
+  let next: Session | undefined;
+  const updated = sessions.map((session) => {
+    if (session.id !== id) return session;
+    next = { ...session, ...updates };
+    return next;
+  });
   await persistSessions(updated);
+  if (next) {
+    void syncSessionUpsert(next, previous?.matches, "update");
+  }
 }
 
 export async function deleteSession(id: string): Promise<void> {
   const sessions = await getSessions();
+  const target = sessions.find((session) => session.id === id);
   await persistSessions(sessions.filter((session) => session.id !== id));
+  if (target) {
+    void syncSessionDelete(target);
+  }
 }
 
 export async function getSessionById(id: string): Promise<Session | null> {
@@ -56,6 +76,11 @@ export async function getSessionById(id: string): Promise<Session | null> {
 
 /**
  * Remplace intégralement les séances stockées (utilisé par l'import de sauvegarde).
+ * Ne pousse PAS vers Supabase — hors périmètre de la synchro temps réel
+ * (ticket "Synchronisation bidirectionnelle"), qui ne couvre que les écritures
+ * unitaires (addSession/updateSession/deleteSession). Un import de sauvegarde
+ * restant local-only jusqu'à la prochaine connexion, où runMigration()
+ * (src/services/migration.ts) le remontera (il est rejoué à chaque login).
  */
 export async function replaceSessions(sessions: Session[]): Promise<void> {
   await persistSessions(sessions);
@@ -97,21 +122,32 @@ export async function getExercises(): Promise<Exercise[]> {
 export async function addExercise(exercise: Exercise): Promise<void> {
   const exercises = await getExercises();
   await persistExercises([...exercises, exercise]);
+  void syncExerciseUpsert(exercise, "insert");
 }
 
 export async function updateExercise(id: string, updates: Partial<Exercise>): Promise<void> {
   const exercises = await getExercises();
-  const updated = exercises.map((ex) => (ex.id === id ? { ...ex, ...updates } : ex));
+  let next: Exercise | undefined;
+  const updated = exercises.map((ex) => {
+    if (ex.id !== id) return ex;
+    next = { ...ex, ...updates };
+    return next;
+  });
   await persistExercises(updated);
+  if (next) {
+    void syncExerciseUpsert(next, "update");
+  }
 }
 
 export async function deleteExercise(id: string): Promise<void> {
   const exercises = await getExercises();
   await persistExercises(exercises.filter((ex) => ex.id !== id));
+  void syncExerciseDelete(id);
 }
 
 /**
  * Remplace intégralement les exercices stockés (utilisé par l'import de sauvegarde).
+ * Ne pousse pas vers Supabase — cf. commentaire de replaceSessions ci-dessus.
  */
 export async function replaceExercises(exercises: Exercise[]): Promise<void> {
   await persistExercises(exercises);
@@ -138,6 +174,7 @@ export async function saveCustomLabels(labels: string[]): Promise<void> {
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
+// Ne pousse pas vers Supabase — cf. commentaire de replaceSessions ci-dessus.
 export async function importSessions(incoming: Session[]): Promise<{ imported: number; skipped: number }> {
   const existing = await getSessions();
   const existingIds = new Set(existing.map((s) => s.id));
@@ -173,21 +210,32 @@ export async function getPlayers(): Promise<Player[]> {
 export async function addPlayer(player: Player): Promise<void> {
   const players = await getPlayers();
   await persistPlayers([...players, player]);
+  void syncPlayerUpsert(player, "insert");
 }
 
 export async function updatePlayer(id: string, updates: Partial<Player>): Promise<void> {
   const players = await getPlayers();
-  const updated = players.map((p) => (p.id === id ? { ...p, ...updates } : p));
+  let next: Player | undefined;
+  const updated = players.map((p) => {
+    if (p.id !== id) return p;
+    next = { ...p, ...updates };
+    return next;
+  });
   await persistPlayers(updated);
+  if (next) {
+    void syncPlayerUpsert(next, "update");
+  }
 }
 
 export async function deletePlayer(id: string): Promise<void> {
   const players = await getPlayers();
   await persistPlayers(players.filter((p) => p.id !== id));
+  void syncPlayerDelete(id);
 }
 
 /**
  * Remplace intégralement les joueurs stockés (utilisé par l'import de sauvegarde).
+ * Ne pousse pas vers Supabase — cf. commentaire de replaceSessions ci-dessus.
  */
 export async function replacePlayers(players: Player[]): Promise<void> {
   await persistPlayers(players);

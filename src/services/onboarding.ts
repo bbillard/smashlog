@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { syncPlanningReplace } from "@/src/services/entitySync";
 import { DEFAULT_PROFILE, getProfile, saveProfile } from "@/src/services/profile";
 import { createId } from "@/src/utils/id";
 
@@ -55,7 +56,9 @@ export async function getScheduledSlots(): Promise<ScheduledSlot[]> {
 }
 
 export async function saveScheduledSlots(slots: ScheduledSlot[]) {
+  const previous = await getScheduledSlots();
   await AsyncStorage.setItem(SCHEDULED_SLOTS_KEY, JSON.stringify(slots));
+  void syncPlanningReplace(previous, slots);
 }
 
 export async function completeOnboarding(username: string) {
