@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 
 import { useAuth } from "@/src/context/AuthContext";
 import {
-  isMigrationDone,
   resolveProfileConflict as resolveProfileConflictService,
   runMigration,
   type ProfileConflict,
@@ -25,11 +24,12 @@ const DONE_BANNER_DURATION_MS = 2500;
 const ERROR_BANNER_DURATION_MS = 4000;
 
 /**
- * Déclenche automatiquement la migration AsyncStorage -> Supabase dès
- * qu'un utilisateur authentifié est détecté (première connexion/inscription,
- * ou reprise d'une session persistée si une tentative précédente avait
- * échoué — le flag `smashlog_migration_done` n'est posé qu'en cas de
- * succès complet, cf. src/services/migration.ts).
+ * Déclenche automatiquement la migration AsyncStorage -> Supabase à chaque
+ * connexion/reconnexion détectée (pas seulement la toute première : voir
+ * le commentaire en tête de src/services/migration.ts — les upserts sont
+ * idempotents, donc rejouer la migration à chaque login est volontaire et
+ * sans danger, y compris pour des données créées localement pendant une
+ * période où l'utilisateur n'était pas connecté).
  *
  * Doit être monté à l'intérieur d'<AuthProvider> (utilise useAuth()).
  */
@@ -42,23 +42,13 @@ export function MigrationProvider({ children }: PropsWithChildren) {
   const attemptedForUserId = useRef<string | null>(null);
 
   const startMigration = useCallback(async (userId: string) => {
-    if (await isMigrationDone()) {
-      return;
-    }
-
     setStatus("syncing");
     const outcome = await runMigration(userId);
 
-    if (outcome.status === "skipped") {
-      setStatus("idle");
-      return;
-    }
-
     if (outcome.status === "error") {
       // Ne bloque jamais l'utilisateur : l'app reste utilisable en local,
-      // le flag n'a pas été posé donc la migration sera retentée à la
-      // prochaine connexion (ou si l'app est relancée avec la session
-      // encore active).
+      // la migration sera simplement retentée à la prochaine connexion
+      // (les upserts déjà passés étant idempotents).
       setStatus("error");
       setTimeout(() => setStatus((current) => (current === "error" ? "idle" : current)), ERROR_BANNER_DURATION_MS);
       return;

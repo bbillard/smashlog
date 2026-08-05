@@ -74,7 +74,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
                 style={[styles.menuItem, styles.menuItemAccent, { borderColor: theme.primary }]}
               >
                 <Ionicons color={theme.primary} name="cloud-upload-outline" size={20} />
-                <Text style={[styles.menuItemText, { color: theme.primary }]}>Créer un compte</Text>
+                <Text style={[styles.menuItemText, { color: theme.primary }]}>Créer un compte / Se connecter</Text>
               </Pressable>
             ) : null}
 

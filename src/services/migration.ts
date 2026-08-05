@@ -1,5 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { supabase } from "@/src/lib/supabase";
 import type { TablesInsert } from "@/src/lib/supabase";
 import type { Json } from "@/src/types/supabase";
@@ -11,9 +9,20 @@ import { Match, Session } from "@/src/types/session";
 import { deterministicId } from "@/src/utils/deterministicId";
 
 /**
- * Migration automatique des données AsyncStorage vers Supabase, déclenchée
- * une seule fois après la première connexion/inscription réussie (voir
- * src/context/MigrationContext.tsx pour le déclenchement et l'UI).
+ * Migration automatique des données AsyncStorage vers Supabase, rejouée à
+ * chaque connexion/reconnexion réussie (voir src/context/MigrationContext.tsx
+ * pour le déclenchement et l'UI) — pas seulement à la toute première.
+ *
+ * Il n'y a volontairement PAS de flag "migration déjà faite" persistant :
+ * un utilisateur peut très bien créer des données en local pendant qu'il
+ * n'est pas connecté (l'app reste utilisable sans compte), puis se
+ * reconnecter plus tard — ces données doivent remonter à CE moment-là,
+ * pas seulement à la toute première connexion historique de l'appareil.
+ * On s'appuie donc entièrement sur l'idempotence des upserts ci-dessous
+ * pour que rejouer la migration à chaque connexion soit sans danger et peu
+ * coûteux (cf. src/context/MigrationContext.tsx, le ref `attemptedForUserId`
+ * évite juste les déclenchements redondants pendant qu'une session reste
+ * montée).
  *
  * Stratégie de dédoublonnage : chaque enregistrement local a déjà un id
  * stable (uuid v4, cf. src/utils/id.ts) — sauf les `Match`, qui n'ont pas
@@ -22,8 +31,8 @@ import { deterministicId } from "@/src/utils/deterministicId";
  * `ignoreDuplicates: true` sur `id` : un enregistrement déjà présent côté
  * Supabase (même id) n'est jamais écrasé, et un enregistrement local absent
  * du cloud est inséré. Ce même mécanisme couvre à la fois :
- * - le rejeu sans danger après un échec réseau partiel (les lignes déjà
- *   migrées sont simplement ignorées, pas de doublon, pas d'erreur) ;
+ * - le rejeu sans danger à chaque connexion (les lignes déjà migrées sont
+ *   simplement ignorées, pas de doublon, pas d'erreur) ;
  * - le merge automatique multi-appareils pour joueurs/exercices/planning/
  *   séances/matchs (des ids différents sur les deux appareils s'insèrent
  *   tous les deux, sans conflit).
@@ -33,17 +42,7 @@ import { deterministicId } from "@/src/utils/deterministicId";
  * reconcileProfile / resolveProfileConflict plus bas.
  */
 
-export const MIGRATION_DONE_KEY = "smashlog_migration_done";
-
 const UPSERT_CHUNK_SIZE = 300;
-
-export async function isMigrationDone(): Promise<boolean> {
-  return (await AsyncStorage.getItem(MIGRATION_DONE_KEY)) === "true";
-}
-
-async function markMigrationDone(): Promise<void> {
-  await AsyncStorage.setItem(MIGRATION_DONE_KEY, "true");
-}
 
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -238,8 +237,7 @@ async function reconcileProfile(userId: string): Promise<ProfileConflict | null>
 
 /**
  * Applique le choix de l'utilisateur ("local" ou "cloud") suite à un
- * ProfileConflict, puis pose le flag de migration (dernière étape en
- * attente jusque-là).
+ * ProfileConflict.
  */
 export async function resolveProfileConflict(
   userId: string,
@@ -257,8 +255,6 @@ export async function resolveProfileConflict(
     const profile = await getProfile();
     await saveProfile({ ...profile, username });
   }
-
-  await markMigrationDone();
 }
 
 // ─── Orchestration ─────────────────────────────────────────────────────────
@@ -272,23 +268,18 @@ export interface MigrationCounts {
 }
 
 export type MigrationOutcome =
-  | { status: "skipped" }
   | { status: "success"; counts: MigrationCounts; profileConflict: ProfileConflict | null }
   | { status: "error"; error: unknown };
 
 /**
  * Point d'entrée : migre toutes les données locales vers Supabase pour
- * `userId`. Ne fait rien (status "skipped") si déjà fait. Ne pose jamais le
- * flag de migration si une étape échoue (réseau coupé, etc.) : l'app reste
- * utilisable en local, la migration sera retentée à la prochaine connexion
+ * `userId`. Rejoué à chaque connexion (cf. commentaire en tête de fichier) :
+ * si une étape échoue (réseau coupé, etc.), l'app reste utilisable en
+ * local et la migration sera simplement retentée à la prochaine connexion
  * (les upserts déjà passés étant idempotents, ils ne sont jamais rejoués en
  * double).
  */
 export async function runMigration(userId: string): Promise<MigrationOutcome> {
-  if (await isMigrationDone()) {
-    return { status: "skipped" };
-  }
-
   try {
     const [players, exercises, planning, sessions] = await Promise.all([
       getPlayers(),
@@ -307,10 +298,6 @@ export async function runMigration(userId: string): Promise<MigrationOutcome> {
     const matchesCount = await upsertMatches(sessions, userId);
 
     const profileConflict = await reconcileProfile(userId);
-
-    if (!profileConflict) {
-      await markMigrationDone();
-    }
 
     return {
       status: "success",
