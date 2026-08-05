@@ -21,7 +21,15 @@ export function DateTimeField({
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   function handleNativeDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    setShowDatePicker(false);
+    // On Android the picker is a modal dialog: onChange fires exactly once
+    // (on confirm/cancel), so it's correct to close it right away.
+    // On iOS the "spinner" picker is inline and has no OK button: onChange
+    // fires once per wheel the user turns (day, month, year separately), so
+    // closing here would kick the user out after a single wheel. iOS is
+    // dismissed explicitly via the "Terminé" button instead.
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
     if (event.type !== "set" || !selectedDate) {
       return;
     }
@@ -36,7 +44,9 @@ export function DateTimeField({
   }
 
   function handleNativeTimeChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    setShowTimePicker(false);
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
     if (event.type !== "set" || !selectedDate) {
       return;
     }
@@ -122,25 +132,39 @@ export function DateTimeField({
       <Text style={[styles.preview, { color: theme.tertiaryText }]}>{formatDate(value.toISOString())}</Text>
 
       {showDatePicker ? (
-        <DateTimePicker
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          mode="date"
-          onChange={handleNativeDateChange}
-          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
-          value={value}
-        />
+        <View style={styles.pickerContainer}>
+          {Platform.OS === "ios" ? (
+            <Pressable onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
+              <Text style={[styles.doneButtonText, { color: theme.primary }]}>Terminé</Text>
+            </Pressable>
+          ) : null}
+          <DateTimePicker
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            mode="date"
+            onChange={handleNativeDateChange}
+            themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+            {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
+            value={value}
+          />
+        </View>
       ) : null}
 
       {showTimePicker ? (
-        <DateTimePicker
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          mode="time"
-          onChange={handleNativeTimeChange}
-          themeVariant={Platform.OS === "ios" ? "dark" : undefined}
-          {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
-          value={value}
-        />
+        <View style={styles.pickerContainer}>
+          {Platform.OS === "ios" ? (
+            <Pressable onPress={() => setShowTimePicker(false)} style={styles.doneButton}>
+              <Text style={[styles.doneButtonText, { color: theme.primary }]}>Terminé</Text>
+            </Pressable>
+          ) : null}
+          <DateTimePicker
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            mode="time"
+            onChange={handleNativeTimeChange}
+            themeVariant={Platform.OS === "ios" ? "dark" : undefined}
+            {...(Platform.OS === "ios" ? { textColor: "#F0F0F2" } : null)}
+            value={value}
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -180,5 +204,17 @@ const styles = StyleSheet.create({
   },
   webGroup: {
     gap: 8,
+  },
+  pickerContainer: {
+    gap: 4,
+  },
+  doneButton: {
+    alignSelf: "flex-end",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  doneButtonText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
   },
 });
