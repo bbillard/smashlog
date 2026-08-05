@@ -23,6 +23,7 @@ import {
 } from "@/src/services/onboarding";
 import { applyPlanningToNotificationSettings, saveNotificationSettings } from "@/src/services/settings";
 import { getSessions, updateSession } from "@/src/services/storage";
+import { palette } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 
 type SlotFamily = ScheduledSlot["family"];
@@ -365,7 +366,7 @@ export default function PlanningScreen() {
                     <Text
                       style={[
                         styles.modalDayLabel,
-                        { color: selected ? tokens.accent : "#8b8b98" },
+                        { color: selected ? tokens.accent : palette.textDim },
                       ]}
                     >
                       {label}

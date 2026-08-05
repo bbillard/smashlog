@@ -79,7 +79,7 @@ export default function PartenairesScreen() {
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Rechercher un partenaire..."
-            placeholderTextColor={theme.secondaryText + "70"}
+            placeholderTextColor={theme.secondaryText}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}

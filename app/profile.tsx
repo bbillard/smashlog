@@ -166,12 +166,6 @@ export default function ProfileScreen() {
         placeholder="Ex : smash.baptiste"
         value={profile.username}
       />
-      <SectionCard>
-        <Text style={[styles.placeholder, { color: theme.secondaryText }]}>
-          Ce profil est stocke localement sur cet appareil. Le username et la photo apparaissent sur l'accueil et dans le menu lateral.
-        </Text>
-      </SectionCard>
-
       <Modal
         animationType="fade"
         onRequestClose={() => setShowSavedModal(false)}
@@ -252,11 +246,6 @@ const styles = StyleSheet.create({
   accountCtaTextSecondary: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
-  },
-  placeholder: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: fonts.bodyRegular,
   },
   modalOverlay: {
     flex: 1,

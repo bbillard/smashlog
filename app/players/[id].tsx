@@ -417,7 +417,7 @@ export default function PlayerDetailScreen() {
                   },
                 ]}
                 placeholder="Ajoute des notes sur ce joueur..."
-                placeholderTextColor={theme.secondaryText + "70"}
+                placeholderTextColor={theme.secondaryText}
                 value={notesDraft}
                 onChangeText={setNotesDraft}
                 multiline

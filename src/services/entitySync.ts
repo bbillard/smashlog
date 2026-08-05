@@ -2,6 +2,7 @@ import { getAuthUserId, syncDelete, syncUpsert } from "@/src/services/cloudSync"
 import type { ScheduledSlot } from "@/src/services/onboarding";
 import {
   matchDeterministicId,
+  planningSlotRowId,
   toExerciseRow,
   toMatchRow,
   toPlanningRow,
@@ -103,7 +104,11 @@ export async function syncPlanningReplace(previous: ScheduledSlot[], next: Sched
   const nextIds = new Set(next.map((slot) => slot.id));
   for (const slot of previous) {
     if (!nextIds.has(slot.id)) {
-      await syncDelete("planning_slots", slot.id);
+      // Doit cibler le même id que celui réellement écrit par toPlanningRow()
+      // (déterministe si l'id local est un ancien format non-uuid), sinon le
+      // delete vise une ligne qui n'a jamais existé sous cet id et plante
+      // avec une erreur Postgres 22P02 (cf. planningSlotRowId).
+      await syncDelete("planning_slots", planningSlotRowId(slot.id));
     }
   }
 

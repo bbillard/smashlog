@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SESSION_COLORS, SESSION_COLORS_BG } from "@/src/constants/sessionColors";
 import { ScheduledSlot, createScheduledSlotId } from "@/src/services/onboarding";
+import { palette } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 
 type SlotFamily = ScheduledSlot["family"];
@@ -259,7 +260,7 @@ function SlotRow({
                   <Text
                     style={[
                       styles.inlineFamilyOptionText,
-                      { color: selected ? familyTokens.accent : "#8b8b98" },
+                      { color: selected ? familyTokens.accent : palette.textDim },
                     ]}
                   >
                     {label}
@@ -706,7 +707,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   deleteButtonText: {
-    color: "#8b8b98",
+    color: palette.textDim,
     fontSize: 18,
     lineHeight: 18,
     fontFamily: fonts.bodyRegular,
@@ -811,7 +812,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
   },
   webTimeSeparator: {
-    color: "#8b8b98",
+    color: palette.textDim,
     fontSize: 18,
     fontFamily: fonts.displayBold,
   },

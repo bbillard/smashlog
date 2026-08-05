@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { addPlayer, getPlayerById, getPlayers, getSessions } from '@/src/services/storage';
+import { palette } from '@/src/theme/colors';
 import { Player } from '@/src/types/index';
 import { createId } from '@/src/utils/id';
 
@@ -282,7 +283,7 @@ export default function PlayerAutocomplete({
             ref={inputRef}
             style={styles.textInput}
             placeholder={placeholder}
-            placeholderTextColor="rgba(107,107,122,0.45)"
+            placeholderTextColor={palette.textDim}
             value={inputText}
             onChangeText={setInputText}
             onFocus={() => setIsFocused(true)}

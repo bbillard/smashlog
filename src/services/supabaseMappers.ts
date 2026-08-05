@@ -55,10 +55,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * appareils existants peuvent encore avoir des slots locaux avec l'ancien
  * format. On dérive un uuid stable à partir de l'id original plutôt que de
  * planter dessus (même mécanisme que pour les Match).
+ *
+ * IMPORTANT : toute fonction qui vise une ligne planning_slots par id
+ * (upsert ET delete) doit passer par ce helper, sinon un delete visant
+ * l'id local brut échoue avec une erreur Postgres 22P02 "invalid input
+ * syntax for type uuid" — la ligne n'a jamais existé sous cet id côté
+ * Supabase (cf. syncPlanningReplace dans entitySync.ts).
  */
+export function planningSlotRowId(slotId: string): string {
+  return UUID_RE.test(slotId) ? slotId : deterministicId(`smashlog:planning-slot:${slotId}`);
+}
+
 export function toPlanningRow(slot: ScheduledSlot, userId: string): TablesInsert<"planning_slots"> {
   return {
-    id: UUID_RE.test(slot.id) ? slot.id : deterministicId(`smashlog:planning-slot:${slot.id}`),
+    id: planningSlotRowId(slot.id),
     user_id: userId,
     day_of_week: slot.dayOfWeek,
     hour: slot.hour,

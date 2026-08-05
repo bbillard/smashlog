@@ -13,6 +13,7 @@ import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
 import { SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
 import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { flushSyncQueue } from "@/src/services/cloudSync";
 import {
   setForceOnboarding,
   setOnboardingCompleted,
@@ -27,6 +28,7 @@ import {
 } from "@/src/services/sharingOrchestrator";
 import { DEFAULT_PROFILE, getProfile, saveProfile } from "@/src/services/profile";
 import { SESSIONS_KEY, getSessions } from "@/src/services/storage";
+import { clearSyncQueue, getSyncQueue, type SyncOperation } from "@/src/services/syncQueue";
 import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
@@ -104,6 +106,9 @@ export default function DebugScreen() {
   const { user, isConnected, isBetaUser, isPremium, isAdmin, isPremiumOrBeta, refreshFeatureFlags } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const [isRefreshingFlags, setIsRefreshingFlags] = useState(false);
+  const [pendingOperations, setPendingOperations] = useState<SyncOperation[]>([]);
+  const [isFlushing, setIsFlushing] = useState(false);
+  const [lastFlushError, setLastFlushError] = useState<string | null>(null);
   const [sessionCountInput, setSessionCountInput] = useState("10");
   const [weeksStreakInput, setWeeksStreakInput] = useState("");
   const [streakUnit, setStreakUnit] = useState<StreakUnit>("weeks");
@@ -138,6 +143,48 @@ export default function DebugScreen() {
     setHasRealSessionsBackup(Boolean(backup));
   }
 
+  async function refreshQueue() {
+    setPendingOperations(await getSyncQueue());
+  }
+
+  async function handleForceFlush() {
+    setIsFlushing(true);
+    try {
+      const result = await flushSyncQueue();
+      setLastFlushError(result.lastError);
+      await refreshQueue();
+      Alert.alert(
+        "Flush terminé",
+        result.lastError
+          ? `${result.flushed} synchronisée(s), ${result.remaining} en attente.\n\nErreur qui a stoppé le flush :\n${result.lastError}`
+          : `${result.flushed} synchronisée(s), ${result.remaining} en attente.`,
+      );
+    } catch (error) {
+      Alert.alert("Erreur", error instanceof Error ? error.message : "Impossible de lancer le flush.");
+    } finally {
+      setIsFlushing(false);
+    }
+  }
+
+  function handleClearQueue() {
+    Alert.alert(
+      "Vider la file de synchronisation",
+      "Les opérations en attente seront abandonnées sans être rejouées vers Supabase. À utiliser uniquement pour des entrées cassées (ex : mauvais format d'id) que le flush ne pourra jamais résoudre.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Vider",
+          style: "destructive",
+          onPress: async () => {
+            await clearSyncQueue();
+            setLastFlushError(null);
+            await refreshQueue();
+          },
+        },
+      ],
+    );
+  }
+
   // L'accès à cet écran est désormais conditionné au flag admin (public.profiles.admin),
   // verrouillé côté DB (cf. migration admin_flag_and_column_protection) — plus au pseudo
   // local "admin", trop facile à usurper une fois l'app en production.
@@ -155,6 +202,7 @@ export default function DebugScreen() {
 
       setIsAllowed(true);
       await refreshCount();
+      await refreshQueue();
       setWinRateLastShown(await getWinRateLastShown());
     }
 
@@ -475,6 +523,52 @@ export default function DebugScreen() {
       </SectionCard>
 
       <SectionCard>
+        <Text style={[styles.blockTitle, { color: theme.text }]}>File de synchronisation</Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          Opérations en attente : {pendingOperations.length}
+        </Text>
+        {pendingOperations.length === 0 ? (
+          <Text style={[styles.meta, { color: theme.secondaryText }]}>Rien en attente.</Text>
+        ) : (
+          pendingOperations.map((op) => (
+            <View key={op.id} style={[styles.queueItem, { borderColor: theme.border }]}>
+              <Text style={[styles.queueItemTitle, { color: theme.text }]}>
+                {op.table} · {op.operation}
+              </Text>
+              <Text style={[styles.queueItemMeta, { color: theme.secondaryText }]}>
+                Depuis : {new Date(op.createdAt).toLocaleString("fr-FR")}
+              </Text>
+              <Text style={[styles.queueItemPayload, { color: theme.secondaryText }]}>
+                {JSON.stringify(op.payload)}
+              </Text>
+            </View>
+          ))
+        )}
+        {lastFlushError ? (
+          <Text style={[styles.queueError, { color: theme.text }]}>Dernière erreur : {lastFlushError}</Text>
+        ) : null}
+        <View style={styles.debugActions}>
+          <PrimaryButton
+            disabled={isFlushing}
+            label={isFlushing ? "Flush en cours..." : "Forcer un flush maintenant"}
+            onPress={handleForceFlush}
+            tone="secondary"
+          />
+        </View>
+        <View style={styles.debugActions}>
+          <PrimaryButton label="Rafraîchir la liste" onPress={refreshQueue} tone="secondary" />
+        </View>
+        <View style={styles.debugActions}>
+          <PrimaryButton
+            disabled={pendingOperations.length === 0}
+            label="Vider la file (entrées cassées)"
+            onPress={handleClearQueue}
+            tone="secondary"
+          />
+        </View>
+      </SectionCard>
+
+      <SectionCard>
         <Text style={[styles.blockTitle, { color: theme.text }]}>Séances</Text>
         <Text style={[styles.meta, { color: theme.secondaryText }]}>
           Séances actuellement stockées : {currentSessionCount}
@@ -699,5 +793,31 @@ const styles = StyleSheet.create({
   previewCard: {
     borderRadius: 18,
     overflow: "hidden",
+  },
+  queueItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
+    gap: 2,
+  },
+  queueItemTitle: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+  },
+  queueItemMeta: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+  },
+  queueItemPayload: {
+    fontSize: 11,
+    fontFamily: "Courier",
+    marginTop: 4,
+  },
+  queueError: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: fonts.bodyMedium,
+    marginBottom: 10,
   },
 });

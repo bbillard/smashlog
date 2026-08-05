@@ -79,7 +79,7 @@ export default function AdversairesScreen() {
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Rechercher un adversaire..."
-            placeholderTextColor={theme.secondaryText + "70"}
+            placeholderTextColor={theme.secondaryText}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}

@@ -6,6 +6,7 @@ import {
   runMigration,
   type ProfileConflict,
 } from "@/src/services/migration";
+import { getSyncQueueLength } from "@/src/services/syncQueue";
 
 export type MigrationStatus = "idle" | "syncing" | "profile_conflict" | "done" | "error";
 
@@ -60,6 +61,19 @@ export function MigrationProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    // runMigration() ne concerne que la synchro initiale AsyncStorage ->
+    // Supabase, un mécanisme distinct de la file d'attente des écritures en
+    // direct (cf. src/services/syncQueue.ts) : le succès de la migration ne
+    // garantit pas que celle-ci est vide. Annoncer "vos données sont
+    // synchronisées ✓" alors qu'il reste des opérations en attente serait
+    // trompeur — le badge de l'écran Profil (SyncStatusBadge) reflète déjà
+    // fidèlement cet état, la bannière n'est donc affichée que si tout est
+    // effectivement à jour.
+    if ((await getSyncQueueLength()) > 0) {
+      setStatus("idle");
+      return;
+    }
+
     setStatus("done");
     setTimeout(() => setStatus((current) => (current === "done" ? "idle" : current)), DONE_BANNER_DURATION_MS);
   }, []);
@@ -87,6 +101,12 @@ export function MigrationProvider({ children }: PropsWithChildren) {
       try {
         await resolveProfileConflictService(user.id, choice, profileConflict);
         setProfileConflict(null);
+
+        if ((await getSyncQueueLength()) > 0) {
+          setStatus("idle");
+          return;
+        }
+
         setStatus("done");
         setTimeout(() => setStatus((current) => (current === "done" ? "idle" : current)), DONE_BANNER_DURATION_MS);
       } catch {

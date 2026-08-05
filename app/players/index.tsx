@@ -113,7 +113,7 @@ export default function PlayersScreen() {
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Rechercher un joueur..."
-            placeholderTextColor={theme.secondaryText + "70"}
+            placeholderTextColor={theme.secondaryText}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}

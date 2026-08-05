@@ -21,7 +21,7 @@ export const lightTheme = {
   surface: palette.surface,
   surfaceAlt: palette.surface2,
   text: palette.text,
-  secondaryText: palette.textMuted,
+  secondaryText: palette.textDim,
   tertiaryText: palette.textDim,
   primary: palette.accent,
   primaryMuted: "rgba(206,255,0,0.06)",

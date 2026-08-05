@@ -176,21 +176,32 @@ export async function syncDelete(table: SyncTable, id: string): Promise<void> {
 export interface FlushResult {
   flushed: number;
   remaining: number;
+  /** Détail de l'échec qui a stoppé le flush, le cas échéant (cf. écran debug). */
+  lastError: string | null;
+}
+
+function describeError(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
 }
 
 /**
  * Vide la file d'attente dans l'ordre chronologique. S'arrête au premier
- * échec (probablement un nouveau décrochage réseau) : les opérations
- * restantes sont laissées en file pour le prochain essai, jamais perdues.
+ * échec (probablement un nouveau décrochage réseau, ou une écriture
+ * durablement invalide côté serveur) : les opérations restantes sont
+ * laissées en file pour le prochain essai, jamais perdues.
  */
 export async function flushSyncQueue(): Promise<FlushResult> {
   const userId = await getAuthUserId();
   if (!userId || !(await isOnline())) {
-    return { flushed: 0, remaining: await getSyncQueueLength() };
+    return { flushed: 0, remaining: await getSyncQueueLength(), lastError: null };
   }
 
   const queue = await getSyncQueue();
   let flushed = 0;
+  let lastError: string | null = null;
 
   for (const op of queue) {
     try {
@@ -202,6 +213,7 @@ export async function flushSyncQueue(): Promise<FlushResult> {
       await removeSyncOperation(op.id);
       flushed += 1;
     } catch (error) {
+      lastError = describeError(error);
       console.warn(
         `[cloudSync] Échec flush "${op.table}" (${op.operation}), file laissée en l'état :`,
         error,
@@ -215,5 +227,5 @@ export async function flushSyncQueue(): Promise<FlushResult> {
     await markSyncedNow();
   }
 
-  return { flushed, remaining };
+  return { flushed, remaining, lastError };
 }
