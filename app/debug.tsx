@@ -11,6 +11,7 @@ import { GenericShareCard } from "@/src/components/share/GenericShareCard";
 import { ProgressShareCard } from "@/src/components/share/ProgressShareCard";
 import { SpecialShareCard } from "@/src/components/share/SpecialShareCard";
 import { SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
+import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
   setForceOnboarding,
@@ -100,7 +101,9 @@ function buildFakeSessions(count: number): Session[] {
 
 export default function DebugScreen() {
   const { theme } = useAppTheme();
+  const { user, isConnected, isBetaUser, isPremium, isAdmin, isPremiumOrBeta, refreshFeatureFlags } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
+  const [isRefreshingFlags, setIsRefreshingFlags] = useState(false);
   const [sessionCountInput, setSessionCountInput] = useState("10");
   const [weeksStreakInput, setWeeksStreakInput] = useState("");
   const [streakUnit, setStreakUnit] = useState<StreakUnit>("weeks");
@@ -135,25 +138,28 @@ export default function DebugScreen() {
     setHasRealSessionsBackup(Boolean(backup));
   }
 
+  // L'accès à cet écran est désormais conditionné au flag admin (public.profiles.admin),
+  // verrouillé côté DB (cf. migration admin_flag_and_column_protection) — plus au pseudo
+  // local "admin", trop facile à usurper une fois l'app en production.
   useEffect(() => {
     async function bootstrap() {
       const nextProfile = await getProfile();
-      const allowed = __DEV__ && nextProfile.username.trim().toLowerCase() === "admin";
       setProfile(nextProfile);
       setOnboardingUsernameInput(nextProfile.username);
-      setIsAllowed(allowed);
 
-      if (!allowed) {
+      if (!isAdmin) {
+        setIsAllowed(false);
         router.replace("/settings");
         return;
       }
 
+      setIsAllowed(true);
       await refreshCount();
       setWinRateLastShown(await getWinRateLastShown());
     }
 
     bootstrap();
-  }, []);
+  }, [isAdmin]);
 
   const previewCardWidth = Math.min(windowWidth - 72, 360);
   const streakValue = weeksStreakInput.trim().length > 0 ? Math.max(parseInteger(weeksStreakInput), 0) : undefined;
@@ -388,6 +394,17 @@ export default function DebugScreen() {
     }
   }
 
+  async function handleRefreshFlags() {
+    setIsRefreshingFlags(true);
+    try {
+      await refreshFeatureFlags();
+    } catch {
+      Alert.alert("Erreur", "Impossible de rafraîchir les feature flags.");
+    } finally {
+      setIsRefreshingFlags(false);
+    }
+  }
+
   async function handleLaunchOnboarding() {
     const nextUsername = onboardingUsernameInput.trim() || DEFAULT_PROFILE.username;
 
@@ -430,6 +447,32 @@ export default function DebugScreen() {
       <Text style={[styles.description, { color: theme.secondaryText }]}>
         Outils de test locaux pour streaks, milestones et cartes de partage.
       </Text>
+
+      <SectionCard>
+        <Text style={[styles.blockTitle, { color: theme.text }]}>Feature flags (cloud)</Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          Valeurs actuelles exposées par useAuth(), lues depuis public.profiles.
+        </Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          Connecté : {isConnected ? "Oui" : "Non"}{user?.email ? ` (${user.email})` : ""}
+        </Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          isBetaUser : {isBetaUser ? "true" : "false"} · isPremium : {isPremium ? "true" : "false"} ·
+          isPremiumOrBeta : {isPremiumOrBeta ? "true" : "false"} · isAdmin : {isAdmin ? "true" : "false"}
+        </Text>
+        <Text style={[styles.meta, { color: theme.secondaryText }]}>
+          Pour tester : dans Supabase → Table Editor ou SQL Editor, modifie beta_access, premium_access ou
+          admin sur ta ligne profiles, puis appuie sur "Rafraîchir" ci-dessous. Ces colonnes sont verrouillées
+          uniquement en écriture depuis l'app (cf. migration admin_flag_and_column_protection) — le Dashboard
+          n'est pas concerné.
+        </Text>
+        <PrimaryButton
+          disabled={isRefreshingFlags || !isConnected}
+          label={isRefreshingFlags ? "Rafraîchissement..." : "Rafraîchir depuis Supabase"}
+          onPress={handleRefreshFlags}
+          tone="secondary"
+        />
+      </SectionCard>
 
       <SectionCard>
         <Text style={[styles.blockTitle, { color: theme.text }]}>Séances</Text>

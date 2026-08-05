@@ -8,6 +8,8 @@ import type { Session, User } from "@supabase/supabase-js";
 
 import { supabase } from "@/src/lib/supabase";
 import { ensureAuthProfile } from "@/src/services/authProfile";
+import { fetchFeatureFlags, getCachedFeatureFlags } from "@/src/services/featureFlags";
+import { isPremiumOrBeta } from "@/src/utils/premium";
 
 // Nécessaire pour que le WebBrowser ferme proprement l'onglet d'auth après
 // redirection (recommandé par la doc expo-auth-session).
@@ -24,6 +26,18 @@ interface AuthContextValue {
   /** true tant que la session initiale (supabase.auth.getSession()) n'a pas été résolue. */
   initializing: boolean;
   isAppleAuthAvailable: boolean;
+  /** true si un compte est connecté (à ne pas confondre avec la connectivité réseau, cf. useSync()). */
+  isConnected: boolean;
+  /** beta_access du profil Supabase ; toujours false si non connecté. */
+  isBetaUser: boolean;
+  /** premium_access du profil Supabase ; toujours false si non connecté. */
+  isPremium: boolean;
+  /** admin du profil Supabase ; toujours false si non connecté. Verrouillé côté DB (cf. migration admin_flag_and_column_protection). */
+  isAdmin: boolean;
+  /** Équivalent pratique de isPremiumOrBeta({ isPremium, isBetaUser }), cf. src/utils/premium.ts. */
+  isPremiumOrBeta: boolean;
+  /** Relit isBetaUser/isPremium depuis Supabase sans attendre le prochain login/relance. No-op si déconnecté. Utile pour tester (cf. écran debug). */
+  refreshFeatureFlags: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<SignUpResult>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -38,6 +52,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
+  const [isBetaUser, setIsBetaUser] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -65,12 +82,70 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  // Feature flags (beta_access / premium_access) : se déclenche à chaque
+  // changement de compte connecté, donc aussi à l'ouverture de l'app quand
+  // getSession() restaure une session persistée (ticket "rafraîchir à
+  // chaque ouverture de l'app si connecté"). Ne dépend que de l'id
+  // utilisateur (pas de l'objet `session` entier), pour ne pas re-fetcher à
+  // chaque refresh de token.
+  const userId = session?.user.id ?? null;
+
+  useEffect(() => {
+    let active = true;
+
+    if (!userId) {
+      setIsBetaUser(false);
+      setIsPremium(false);
+      setIsAdmin(false);
+      return;
+    }
+
+    (async () => {
+      // 1. Affichage immédiat depuis le cache local (fallback offline).
+      const cached = await getCachedFeatureFlags(userId);
+      if (!active) return;
+      if (cached) {
+        setIsBetaUser(cached.betaAccess);
+        setIsPremium(cached.premiumAccess);
+        setIsAdmin(cached.admin);
+      }
+
+      // 2. Tentative de rafraîchissement réseau. En cas d'échec (offline,
+      // erreur serveur...), on conserve silencieusement les valeurs déjà
+      // appliquées ci-dessus plutôt que de révoquer l'accès à tort.
+      const fresh = await fetchFeatureFlags(userId);
+      if (!active || !fresh) return;
+      setIsBetaUser(fresh.betaAccess);
+      setIsPremium(fresh.premiumAccess);
+      setIsAdmin(fresh.admin);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       user: session?.user ?? null,
       initializing,
       isAppleAuthAvailable,
+      isConnected: Boolean(session?.user),
+      isBetaUser,
+      isPremium,
+      isAdmin,
+      isPremiumOrBeta: isPremiumOrBeta({ isPremium, isBetaUser }),
+
+      async refreshFeatureFlags() {
+        if (!userId) return;
+        const fresh = await fetchFeatureFlags(userId);
+        if (fresh) {
+          setIsBetaUser(fresh.betaAccess);
+          setIsPremium(fresh.premiumAccess);
+          setIsAdmin(fresh.admin);
+        }
+      },
 
       async signUpWithEmail(email, password) {
         const { data, error } = await supabase.auth.signUp({ email, password });
@@ -176,7 +251,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (error) throw error;
       },
     }),
-    [session, initializing, isAppleAuthAvailable],
+    [session, userId, initializing, isAppleAuthAvailable, isBetaUser, isPremium, isAdmin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

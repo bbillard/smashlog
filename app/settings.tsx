@@ -9,6 +9,7 @@ import { LabeledInput, ToggleRow } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
   ImportSummary,
@@ -20,7 +21,6 @@ import {
 } from "@/src/services/backup";
 import { getScheduledSlots } from "@/src/services/onboarding";
 import { rescheduleNotifications, requestNotificationPermissions } from "@/src/services/notifications";
-import { getProfile } from "@/src/services/profile";
 import {
   applyPlanningToNotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -89,8 +89,8 @@ function getNextFixedNotificationDate(hour: number, minute: number, reference = 
 
 export default function SettingsScreen() {
   const { theme } = useAppTheme();
+  const { isAdmin } = useAuth();
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
-  const [canOpenDebug, setCanOpenDebug] = useState(false);
   const [hasPlanning, setHasPlanning] = useState(false);
   const [slots, setSlots] = useState<Awaited<ReturnType<typeof getScheduledSlots>>>([]);
   const [nextNotificationSummary, setNextNotificationSummary] = useState("Aucune notification planifiée");
@@ -104,8 +104,7 @@ export default function SettingsScreen() {
 
   const loadSettingsState = useCallback(async () => {
     async function load() {
-      const [profile, nextSlots] = await Promise.all([getProfile(), getScheduledSlots()]);
-      setCanOpenDebug(__DEV__ && profile.username.trim().toLowerCase() === "admin");
+      const nextSlots = await getScheduledSlots();
       setSlots(nextSlots);
       setHasPlanning(nextSlots.length > 0);
       const syncedSettings = await applyPlanningToNotificationSettings(nextSlots);
@@ -486,7 +485,7 @@ export default function SettingsScreen() {
         </Text>
       </SectionCard>
 
-      {canOpenDebug ? (
+      {isAdmin ? (
         <SectionCard>
           <Text style={[styles.debugTitle, { color: theme.text }]}>Debug développement</Text>
           <Text style={[styles.debugDescription, { color: theme.secondaryText }]}>

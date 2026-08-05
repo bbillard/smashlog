@@ -237,6 +237,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin: boolean
           beta_access: boolean | null
           created_at: string | null
           id: string
@@ -246,6 +247,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          admin?: boolean
           beta_access?: boolean | null
           created_at?: string | null
           id: string
@@ -255,6 +257,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          admin?: boolean
           beta_access?: boolean | null
           created_at?: string | null
           id?: string

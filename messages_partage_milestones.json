@@ -1,0 +1,562 @@
+[
+  {
+    "id": 1,
+    "template": "À ce rythme là, tu vas vite dépasser *player_name*.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": true
+  },
+  {
+    "id": 2,
+    "template": "Une semaine de feu ! En route pour dépasser ton niveau actuel.",
+    "type": "sessions_per_week",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 3,
+    "template": "Lee Chong Wei faisait 2 séances par jour, tu t'en approche.",
+    "type": "sessions_per_week",
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 4,
+    "template": "En route pour devenir meilleur que *player_name*. (Objectif ambitieux, on va pas se mentir)",
+    "type": null,
+    "level": 1,
+    "hasPlayer": true
+  },
+  {
+    "id": 5,
+    "template": "À ce rythme, *player_name* commence à s'inquiéter.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": true
+  },
+  {
+    "id": 6,
+    "template": "Tu es officiellement un problème pour tes adversaires.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 7,
+    "template": "Bien joué. La régularité, c'est 80% du travail.",
+    "type": null,
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 8,
+    "template": "Chaque séance compte. Même les moins bonnes.",
+    "type": "low_session_rate",
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 9,
+    "template": "*player_name* a commencé quelque part, toi aussi.",
+    "type": null,
+    "level": 1,
+    "hasPlayer": true
+  },
+  {
+    "id": 10,
+    "template": "Un smash puissant se construit une séance à la fois.",
+    "type": null,
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 11,
+    "template": "Pas de grands joueurs sans petites séances.",
+    "type": "low_session_rate",
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 12,
+    "template": "*player_name* devrait commencer à prendre des notes.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": true
+  },
+  {
+    "id": 13,
+    "template": "Ta régularité ferait rougir bien des coachs.",
+    "type": "weeks_streak",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 14,
+    "template": "Cette semaine, tu n'as laissé aucune chance au canapé.",
+    "type": "sessions_per_week",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 15,
+    "template": "Tu accumules les séances comme d'autres accumulent les excuses.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 16,
+    "template": "Le terrain te connaît par ton prénom maintenant.",
+    "type": "weeks_streak",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 17,
+    "template": "Quelque part, un adversaire va le regretter.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 18,
+    "template": "Ta constance est ton arme secrète.",
+    "type": "weeks_streak",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 19,
+    "template": "Autant de séances cette semaine ? Même le volant n'en revient pas.",
+    "type": "sessions_per_week",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 20,
+    "template": "Tu es en train de devenir quelqu'un qu'on ne veut pas affronter.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 21,
+    "template": "Tes adversaires ont des doutes. Toi, tu as des séances à ton actif.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 22,
+    "template": "À ce niveau de régularité, le badminton devient une seconde nature.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 23,
+    "template": "Ton adversaire de demain ne sait pas encore ce qui l'attend.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 24,
+    "template": "Les légendes ne sont pas nées légendes. Elles ont enchaîné les séances comme toi.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 25,
+    "template": "Cette semaine était de haut niveau. *player_name* peut confirmer.",
+    "type": "sessions_per_week",
+    "level": 3,
+    "hasPlayer": true
+  },
+  {
+    "id": 26,
+    "template": "Tu empiles les semaines comme d'autres empilent des regrets.",
+    "type": "weeks_streak",
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 27,
+    "template": "Tes adversaires ont une chose en commun : ils ne savent pas encore ce que tu leur prépares.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 28,
+    "template": "*player_name* a appelé pour connaître ton secret.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": true
+  },
+  {
+    "id": 29,
+    "template": "Des séances comme ça, c'est ce qui sépare les joueurs des champions.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 30,
+    "template": "Tu as transformé la discipline en habitude. C'est irréversible.",
+    "type": "weeks_streak",
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 31,
+    "template": "Cette semaine restera dans tes annales personnelles.",
+    "type": "sessions_per_week",
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 32,
+    "template": "Les joueurs tremblent en voyant ton nom dans leur poule.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 33,
+    "template": "À ce stade, c'est de la dévotion. Gros respect.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 34,
+    "template": "Ton palmarès de séances dépasse celui de beaucoup de joueurs de club.",
+    "type": "milestones",
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 35,
+    "template": "La régularité à ce niveau, c'est un talent à part entière.",
+    "type": "weeks_streak",
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 36,
+    "template": "*player_name* a raccroché sa raquette en voyant tes stats.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": true
+  },
+  {
+    "id": 37,
+    "template": "Ce n'est plus de l'entraînement. C'est une philosophie de vie.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 38,
+    "template": "Quelqu'un devrait écrire un article sur toi.",
+    "type": "milestones",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 39,
+    "template": "Tu as joué plus de séances que la plupart des gens n'ont de bonnes résolutions.",
+    "type": "milestones",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 40,
+    "template": "À ce niveau, tu n'es plus un joueur de badminton. Tu es une institution.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 41,
+    "template": "*player_name* t'a mis en favori sur son téléphone pour te surveiller.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": true
+  },
+  {
+    "id": 42,
+    "template": "Là il faudrait songer à trouver un travail.",
+    "type": "sessions_per_week",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 43,
+    "template": "Aucune excuse, aucune pause, aucun compromis. Respect.",
+    "type": "weeks_streak",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 44,
+    "template": "Le volant ne ment pas sur la régularité. Et toi tu joues.",
+    "type": null,
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 45,
+    "template": "Pas de résultat sans séances. Tu coches la première case.",
+    "type": null,
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 46,
+    "template": "*player_name* aussi a eu des semaines difficiles. La constance l'a emporté.",
+    "type": "low_session_rate",
+    "level": 1,
+    "hasPlayer": true
+  },
+  {
+    "id": 47,
+    "template": "Le volant finit toujours par récompenser ceux qui reviennent.",
+    "type": "low_session_rate",
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 48,
+    "template": "Le service que tu rates aujourd'hui, tu le rentres demain.",
+    "type": "low_session_rate",
+    "level": 1,
+    "hasPlayer": false
+  },
+  {
+    "id": 49,
+    "template": "*player_name* n'a pas bâti son jeu différemment. Séance après séance.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": true
+  },
+  {
+    "id": 50,
+    "template": "Ce rythme sur la semaine ? Le terrain s'en souvient.",
+    "type": "sessions_per_week",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 51,
+    "template": "Chaque amorti bien placé vient de séances comme celle-là.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 52,
+    "template": "Deux mois de suite. L'effort finit par laisser des traces dans ton jeu.",
+    "type": "weeks_streak",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 53,
+    "template": "Ta régularité devient difficile à imiter pour tes adversaires.",
+    "type": "weeks_streak",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 54,
+    "template": "À ce rythme hebdomadaire, ton endurance n'est plus un problème.",
+    "type": "sessions_per_week",
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 55,
+    "template": "*player_name* confirme : la constance bat le talent la plupart du temps.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": true
+  },
+  {
+    "id": 56,
+    "template": "Ta défense finit par devenir un réflexe. C'est ça, l'entraînement.",
+    "type": null,
+    "level": 2,
+    "hasPlayer": false
+  },
+  {
+    "id": 57,
+    "template": "Ton smash a changé de statut. C'est une arme maintenant.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 58,
+    "template": "Cette semaine-là, même le volant était surpris.",
+    "type": "sessions_per_week",
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 59,
+    "template": "Le contre que tu travailles finit toujours par payer.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 60,
+    "template": "Ce milestone, c'est la preuve que l'effort était là depuis le début.",
+    "type": "milestones",
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 61,
+    "template": "Ton engagement sur chaque volant raconte quelque chose sur ta détermination.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 62,
+    "template": "Plusieurs mois sans interruption. Les adversaires commencent à le sentir.",
+    "type": "weeks_streak",
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 63,
+    "template": "À ce stade, chaque séance renforce ce que tu as déjà construit.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 64,
+    "template": "Pas besoin de mots, cette série de semaines consécutives parle d'elle même.",
+    "type": "weeks_streak",
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 65,
+    "template": "Le badminton ne pardonne pas l'irrégularité. Toi, tu l'as compris.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": false
+  },
+  {
+    "id": 66,
+    "template": "*player_name* s'entraîne avec une discipline acharnée. Maintenant toi aussi.",
+    "type": null,
+    "level": 3,
+    "hasPlayer": true
+  },
+  {
+    "id": 67,
+    "template": "*player_name* te proposerait volontiers un double.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": true
+  },
+  {
+    "id": 68,
+    "template": "Cette semaine de feu restera dans tes références personnelles.",
+    "type": "sessions_per_week",
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 69,
+    "template": "Ton smash à ce stade n'est plus un coup. C'est une signature.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 70,
+    "template": "Ton niveau de pratique force le respect.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 71,
+    "template": "*player_name* a eu ce genre de régularité. Et tu sais où ça l'a mené.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": true
+  },
+  {
+    "id": 72,
+    "template": "Ce que tu construis là, c'est difficile à défaire.",
+    "type": null,
+    "level": 4,
+    "hasPlayer": false
+  },
+  {
+    "id": 73,
+    "template": "*player_name* te mettrait dans sa liste d'adversaires à surveiller.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": true
+  },
+  {
+    "id": 74,
+    "template": "Ce volume de séances en si peu de temps, c'est exceptionnel.",
+    "type": "milestones",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 75,
+    "template": "Tu as trouvé ton rythme. Et ce rythme est redoutable.",
+    "type": "weeks_streak",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 76,
+    "template": "L'intensité de tes semaines parle d'elle-même. Plus besoin de commentaire.",
+    "type": "sessions_per_week",
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 77,
+    "template": "À ce stade, le dégagement, le smash, l'amorti: tu fais ce que tu veux du volant.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 78,
+    "template": "*player_name* en aurait fait un documentaire.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": true
+  },
+  {
+    "id": 79,
+    "template": "Tes adversaires ne savent pas encore ce qui les attend. Toi si.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": false
+  },
+  {
+    "id": 80,
+    "template": "*player_name* a un poster de toi dans sa chambre.",
+    "type": null,
+    "level": 5,
+    "hasPlayer": true
+  }
+]
