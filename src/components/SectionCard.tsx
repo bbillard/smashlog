@@ -1,9 +1,13 @@
 import { PropsWithChildren } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 
-export function SectionCard({ children }: PropsWithChildren) {
+interface SectionCardProps extends PropsWithChildren {
+  style?: StyleProp<ViewStyle>;
+}
+
+export function SectionCard({ children, style }: SectionCardProps) {
   const { theme } = useAppTheme();
 
   return (
@@ -15,6 +19,7 @@ export function SectionCard({ children }: PropsWithChildren) {
           borderColor: theme.border,
           shadowColor: theme.shadow,
         },
+        style,
       ])}
     >
       {children}

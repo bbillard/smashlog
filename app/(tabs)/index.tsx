@@ -64,7 +64,7 @@ export default function HomeScreen() {
         </View>
 
         {!isLoading ? (
-          <SectionCard>
+          <SectionCard style={styles.weekCard}>
             {streakWeeks > 0 ? (
               <StreakBanner weeks={streakWeeks} />
             ) : !hasCurrentWeekSession ? (
@@ -153,6 +153,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontFamily: fonts.displayExtraBold,
     letterSpacing: -0.5,
+  },
+  weekCard: {
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   emptyStreakText: {
     fontSize: 14,
