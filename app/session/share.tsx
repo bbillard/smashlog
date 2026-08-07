@@ -97,104 +97,99 @@ export default function ShareSessionScreen() {
       : Math.min(contentWidth, windowHeight - 420, 320);
   const sharePageWidth = Platform.OS === "web" ? shareCardSize : contentWidth;
   const sessionNumber = session ? sessions.length : 0;
-  const genericTemplates: ShareTemplate[] =
-    session && sessionNumber > 0
-      ? [
-          {
-            key: "generic",
-            render: () => (
-              <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
-            ),
-          },
-          ...(payload.winRateSnapshot != null
-            ? [
-                {
-                  key: "winrate-snapshot",
-                  render: () => (
-                    <WinRateShareCard
-                      snapshot={payload.winRateSnapshot!}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type === "match" && (session.matches ?? []).length === 1
-            ? [
-                {
-                  key: "match-result",
-                  render: () => (
-                    <MatchResultShareCard
-                      session={session}
-                      match={session.matches![0]}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type === "jeu_libre" && (session.matches ?? []).length >= 1
-            ? [
-                {
-                  key: "session-summary",
-                  render: () => (
-                    <SessionSummaryShareCard session={session} username={profile.username} />
-                  ),
-                },
-              ]
-            : []),
-          ...(session.type !== "match" && sessionExercises.length >= 2
-            ? [
-                {
-                  key: "exercises",
-                  render: () => (
-                    <ExercisesShareCard
-                      session={session}
-                      exercises={sessionExercises}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(sessionNumber >= 3
-            ? [
-                {
-                  key: "progress",
-                  render: () => (
-                    <ProgressShareCard
-                      sessionNumber={sessionNumber}
-                      sessions={sessions}
-                      username={profile.username}
-                    />
-                  ),
-                },
-              ]
-            : []),
-        ]
-      : [];
+  const hasSession = session && sessionNumber > 0;
 
   const specialTemplates: ShareTemplate[] = payload.specialCards.map((card, index) => ({
     key: `special-${card.cardType}-${card.value}-${index}`,
     render: () => <SpecialShareCard card={card} sessions={sessions} username={profile.username} />,
   }));
 
-  const fallbackTemplate: ShareTemplate | null =
-    session && sessionNumber > 0
+  const winRateTemplate: ShareTemplate | null =
+    hasSession && payload.winRateSnapshot != null
       ? {
-          key: "fallback",
+          key: "winrate-snapshot",
           render: () => (
-            <FallbackShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+            <WinRateShareCard snapshot={payload.winRateSnapshot!} username={profile.username} />
           ),
         }
       : null;
 
-  // Fallback en position 0 par défaut, en position 1 si une carte spéciale est présente
-  const templates: ShareTemplate[] = fallbackTemplate
-    ? specialTemplates.length > 0
-      ? [specialTemplates[0], fallbackTemplate, ...specialTemplates.slice(1), ...genericTemplates]
-      : [fallbackTemplate, ...genericTemplates]
-    : [...specialTemplates, ...genericTemplates];
+  const matchResultTemplate: ShareTemplate | null =
+    hasSession && session.type === "match" && (session.matches ?? []).length === 1
+      ? {
+          key: "match-result",
+          render: () => (
+            <MatchResultShareCard
+              session={session}
+              match={session.matches![0]}
+              username={profile.username}
+            />
+          ),
+        }
+      : null;
+
+  const sessionSummaryTemplate: ShareTemplate | null =
+    hasSession && session.type === "jeu_libre" && (session.matches ?? []).length >= 1
+      ? {
+          key: "session-summary",
+          render: () => <SessionSummaryShareCard session={session} username={profile.username} />,
+        }
+      : null;
+
+  const exercisesTemplate: ShareTemplate | null =
+    hasSession && session.type !== "match" && sessionExercises.length >= 2
+      ? {
+          key: "exercises",
+          render: () => (
+            <ExercisesShareCard
+              session={session}
+              exercises={sessionExercises}
+              username={profile.username}
+            />
+          ),
+        }
+      : null;
+
+  const fallbackTemplate: ShareTemplate | null = hasSession
+    ? {
+        key: "fallback",
+        render: () => (
+          <FallbackShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+        ),
+      }
+    : null;
+
+  const genericTemplate: ShareTemplate | null = hasSession
+    ? {
+        key: "generic",
+        render: () => (
+          <GenericShareCard session={session} sessionNumber={sessionNumber} username={profile.username} />
+        ),
+      }
+    : null;
+
+  const progressTemplate: ShareTemplate | null =
+    hasSession && sessionNumber >= 3
+      ? {
+          key: "progress",
+          render: () => (
+            <ProgressShareCard sessionNumber={sessionNumber} sessions={sessions} username={profile.username} />
+          ),
+        }
+      : null;
+
+  // Ordre d'affichage : cartes spéciales (paliers) → cartes de résultat/analyse
+  // (winrate, match, résumé, exercices) → fallback → générique → progression.
+  const templates: ShareTemplate[] = [
+    ...specialTemplates,
+    ...(winRateTemplate ? [winRateTemplate] : []),
+    ...(matchResultTemplate ? [matchResultTemplate] : []),
+    ...(sessionSummaryTemplate ? [sessionSummaryTemplate] : []),
+    ...(exercisesTemplate ? [exercisesTemplate] : []),
+    ...(fallbackTemplate ? [fallbackTemplate] : []),
+    ...(genericTemplate ? [genericTemplate] : []),
+    ...(progressTemplate ? [progressTemplate] : []),
+  ];
   const canGoPrevTemplate = activeTemplate > 0;
   const canGoNextTemplate = activeTemplate < templates.length - 1;
 
