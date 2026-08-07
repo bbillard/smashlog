@@ -19,6 +19,7 @@ import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
 import { pickDominantType } from "@/src/utils/dominantType";
 import { truncate } from "@/src/utils/format";
+import { groupSessionsByDay, toDayKey } from "@/src/utils/sessionCalendar";
 
 function StatBar({ label, value, total }: { label: string; value: number; total: number }) {
   const { theme } = useAppTheme();
@@ -35,10 +36,6 @@ function StatBar({ label, value, total }: { label: string; value: number; total:
       </View>
     </View>
   );
-}
-
-function toDayKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function buildMonthGrid(referenceDate: Date) {
@@ -106,20 +103,9 @@ export default function StatsScreen() {
   // Map dayKey → session types for that day (this month only), one entry per
   // session (duplicates preserved), ordered chronologically so the first
   // session of the day is first.
-  const sessionTypesByDay = new Map<string, string[]>();
-  sessions
-    .map((session) => ({ date: new Date(session.createdAt), type: session.type }))
-    .filter(
-      ({ date }) =>
-        date.getMonth() === calendarDate.getMonth() &&
-        date.getFullYear() === calendarDate.getFullYear(),
-    )
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .forEach(({ date, type }) => {
-      const key = toDayKey(date);
-      if (!sessionTypesByDay.has(key)) sessionTypesByDay.set(key, []);
-      sessionTypesByDay.get(key)!.push(type);
-    });
+  const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
+  const monthEndExclusive = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+  const sessionTypesByDay = groupSessionsByDay(sessions, { from: monthStart, to: monthEndExclusive });
 
   const SESSION_TYPE_ACCENT_MAP: Record<string, string> = Object.fromEntries(
     SESSION_TYPE_OPTIONS.map((o) => [o.value, o.accent]),

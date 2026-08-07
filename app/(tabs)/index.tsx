@@ -8,7 +8,10 @@ import { EmptyState } from "@/src/components/EmptyState";
 import { LoadingView } from "@/src/components/LoadingView";
 import { ProfileAvatar } from "@/src/components/ProfileAvatar";
 import { Screen } from "@/src/components/Screen";
+import { SectionCard } from "@/src/components/SectionCard";
 import { SessionCard } from "@/src/components/SessionCard";
+import { StreakBanner } from "@/src/components/StreakBanner";
+import { WeekView } from "@/src/components/WeekView";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useSidebarSwipe } from "@/src/hooks/useSidebarSwipe";
 import { getProfile } from "@/src/services/profile";
@@ -16,6 +19,7 @@ import { getSessions } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
+import { computeWeekStreak } from "@/src/utils/streak";
 
 const HOME_SESSIONS_LIMIT = 10;
 
@@ -29,6 +33,7 @@ export default function HomeScreen() {
   const visibleSessions = sessions.slice(0, HOME_SESSIONS_LIMIT);
   const hasMoreSessions = sessions.length > HOME_SESSIONS_LIMIT;
   const sidebarSwipe = useSidebarSwipe(() => setIsMenuOpen(true));
+  const { weeks: streakWeeks, hasCurrentWeekSession } = computeWeekStreak(sessions);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -58,16 +63,18 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.streakCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[styles.streakIcon, { backgroundColor: theme.primary }]}>
-            <Ionicons color={theme.buttonTextOnPrimary} name="flash-outline" size={18} />
-          </View>
-          <View style={styles.streakText}>
-            <Text style={[styles.streakTitle, { color: theme.text }]}>Série active</Text>
-            <Text style={[styles.streakSub, { color: theme.secondaryText }]}>Continue à logger tes séances</Text>
-          </View>
-          <Text style={[styles.streakNum, { color: theme.primary }]}>{sessions.length}</Text>
-        </View>
+        {!isLoading ? (
+          <SectionCard>
+            {streakWeeks > 0 ? (
+              <StreakBanner weeks={streakWeeks} />
+            ) : !hasCurrentWeekSession ? (
+              <Text style={[styles.emptyStreakText, { color: theme.secondaryText }]}>
+                Aucune séance cette semaine — c'est le moment !
+              </Text>
+            ) : null}
+            <WeekView sessions={sessions} />
+          </SectionCard>
+        ) : null}
 
         <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>Dernières séances</Text>
 
@@ -147,36 +154,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtraBold,
     letterSpacing: -0.5,
   },
-  streakCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  streakIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  streakText: {
-    flex: 1,
-  },
-  streakTitle: {
-    fontSize: 15,
-    fontFamily: fonts.displayBold,
-  },
-  streakSub: {
-    fontSize: 12,
-    fontFamily: fonts.bodyRegular,
-    marginTop: 2,
-  },
-  streakNum: {
-    fontSize: 26,
-    fontFamily: fonts.displayExtraBold,
+  emptyStreakText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
   },
   sectionLabel: {
     fontSize: 11,
