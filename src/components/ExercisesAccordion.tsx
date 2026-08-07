@@ -31,6 +31,13 @@ interface ExercisesAccordionProps {
   onOpenLibrary?: () => Promise<void>;
   /** Ouvre l'accordéon par défaut (utile en mode édition quand des exercices existent déjà) */
   defaultOpen?: boolean;
+  /**
+   * Filtre optionnel appliqué à la bibliothèque affichée dans la modale
+   * (ex: ne montrer que les exercices taggés "Renfo" pour une séance de
+   * renforcement). Un exercice qui possède le label en plus d'autres reste
+   * visible — le filtre n'est pas exclusif.
+   */
+  libraryFilter?: (exercise: Exercise) => boolean;
 }
 
 export function ExercisesAccordion({
@@ -41,6 +48,7 @@ export function ExercisesAccordion({
   onCreateNew,
   onOpenLibrary,
   defaultOpen = false,
+  libraryFilter,
 }: ExercisesAccordionProps) {
   const { theme } = useAppTheme();
   const [open, setOpen] = useState(defaultOpen);
@@ -55,15 +63,20 @@ export function ExercisesAccordion({
     [exerciseIds, allExercises],
   );
 
+  const filteredExercises = useMemo(
+    () => (libraryFilter ? allExercises.filter(libraryFilter) : allExercises),
+    [allExercises, libraryFilter],
+  );
+
   const available = useMemo(
     () =>
-      allExercises.filter(
+      filteredExercises.filter(
         (e) =>
           !exerciseIds.includes(e.id) &&
           (search.trim() === "" ||
             e.name.toLowerCase().includes(search.trim().toLowerCase())),
       ),
-    [allExercises, exerciseIds, search],
+    [filteredExercises, exerciseIds, search],
   );
 
   const headerLabel =
@@ -255,7 +268,9 @@ export function ExercisesAccordion({
                 <Text style={[styles.modalEmpty, { color: theme.secondaryText }]}>
                   {allExercises.length === 0
                     ? "Aucun exercice dans ta bibliothèque."
-                    : "Tous les exercices sont déjà ajoutés."}
+                    : filteredExercises.length === 0
+                      ? "Aucun exercice correspondant dans ta bibliothèque."
+                      : "Tous les exercices sont déjà ajoutés."}
                 </Text>
               ) : null}
               {available.map((ex) => (

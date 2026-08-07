@@ -14,6 +14,7 @@ import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
 import { SessionTypePicker } from "@/src/components/SessionTypePicker";
 import { WizardProgress } from "@/src/components/WizardProgress";
+import { RENFO_LABEL } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { rescheduleNotifications } from "@/src/services/notifications";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
@@ -356,10 +357,15 @@ export default function NewSessionScreen() {
             />
           ) : null}
 
-          {draft.type === "entrainement" ? (
+          {draft.type === "entrainement" || draft.type === "renforcement" ? (
             <ExercisesAccordion
               exerciseIds={draft.exerciseIds}
               allExercises={allExercises}
+              libraryFilter={
+                draft.type === "renforcement"
+                  ? (exercise) => exercise.labels.includes(RENFO_LABEL)
+                  : undefined
+              }
               onAdd={(id) =>
                 setDraft((current) => ({
                   ...current,
@@ -376,7 +382,7 @@ export default function NewSessionScreen() {
                 exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
                 router.push({
                   pathname: "/exercise/new",
-                  params: { fromWizard: "true" },
+                  params: { fromWizard: "true", sessionType: draft.type ?? "" },
                 });
               }}
               onOpenLibrary={async () => {
