@@ -307,9 +307,12 @@ export default function ShareSessionScreen() {
   return (
     <Screen scrollable={Platform.OS === "web"} nativeHeader>
       <View style={styles.shareTop}>
-        <Text style={[styles.shareCongrats, { color: theme.text }]}>
-          {sessionNumber === 1 ? "Félicitations 🎉" : "Séance notée 🏸"}
-        </Text>
+        <View style={styles.shareCongratsRow}>
+          <Text style={[styles.shareCongrats, { color: theme.text }]}>
+            {sessionNumber === 1 ? "Félicitations" : "Séance notée"}
+          </Text>
+          <Text style={styles.shareCongratsEmoji}>{sessionNumber === 1 ? "🎉" : "🏸"}</Text>
+        </View>
         <Text style={[styles.shareSub, { color: theme.secondaryText }]}>
           {sessionNumber === 1 ? "Ta première séance est enregistrée" : "Continue sur cette lancée"}
         </Text>
@@ -452,9 +455,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  shareCongratsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   shareCongrats: {
     fontSize: 20,
     fontFamily: fonts.displayExtraBold,
+  },
+  shareCongratsEmoji: {
+    fontSize: 20,
+    // Pas de fontFamily custom ici : élément frère (pas imbriqué dans le Text
+    // custom-font) pour garantir la police système, seule à couvrir les glyphes emoji.
   },
   shareSub: {
     fontSize: 12,

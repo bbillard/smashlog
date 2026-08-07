@@ -2,6 +2,7 @@ import { Stack, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
 import { MatchesAccordion } from "@/src/components/MatchesAccordion";
@@ -204,6 +205,11 @@ export default function NewSessionScreen() {
       }
 
       const sharingPayload = await computeSharingPayload(sessions, { currentSessionType: session.type });
+
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+
       router.push({
         pathname: "/session/share",
         params: {
