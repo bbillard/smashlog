@@ -44,7 +44,8 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
       | "/intentions"
       | "/players"
       | "/auth"
-      | "/help",
+      | "/help"
+      | "/about",
   ) {
     onClose();
     router.push(pathname);
@@ -149,7 +150,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
               v{Constants.expoConfig?.version ?? "—"}
             </Text>
             <Text style={[styles.footerDot, { color: theme.secondaryText }]}>·</Text>
-            <Pressable hitSlop={8} onPress={() => navigate("/settings")}>
+            <Pressable hitSlop={8} onPress={() => navigate("/about")}>
               <Text style={[styles.aboutLink, { color: theme.secondaryText }]}>À propos</Text>
             </Pressable>
           </View>

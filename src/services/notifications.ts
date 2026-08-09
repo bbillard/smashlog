@@ -33,6 +33,25 @@ export async function requestNotificationPermissions() {
   return next.granted;
 }
 
+export type NotificationPermissionStatus = {
+  granted: boolean;
+  canAskAgain: boolean;
+};
+
+/**
+ * Lit le statut système actuel sans jamais déclencher la popup de demande.
+ * Utile pour afficher un état persistant (ex. lien vers les réglages) sans
+ * effet de bord.
+ */
+export async function getNotificationPermissionStatus(): Promise<NotificationPermissionStatus> {
+  if (Platform.OS === "web") {
+    return { granted: false, canAskAgain: false };
+  }
+
+  const current = await Notifications.getPermissionsAsync();
+  return { granted: current.granted, canAskAgain: current.canAskAgain };
+}
+
 async function cancelAllScheduledNotifications() {
   if (Platform.OS === "web") {
     return;
@@ -131,6 +150,11 @@ export async function rescheduleNotifications(
   }
 
   await cancelAllScheduledNotifications();
+
+  if (!settings.fixedTimeEnabled && !settings.nextSessionReminderEnabled) {
+    // Aucun rappel n'est activé : inutile de solliciter la permission ici.
+    return { notificationIds: [] };
+  }
 
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) {

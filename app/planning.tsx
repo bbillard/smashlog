@@ -13,8 +13,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { NotificationPermissionPrimer } from "@/src/components/notifications/NotificationPermissionPrimer";
 import { getFamilyTokens } from "@/src/components/planning/PlanningEditor";
-import { requestNotificationPermissions, rescheduleNotifications } from "@/src/services/notifications";
+import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
+import { rescheduleNotifications } from "@/src/services/notifications";
 import {
   ScheduledSlot,
   createScheduledSlotId,
@@ -103,6 +105,7 @@ export default function PlanningScreen() {
     d.setHours(19, 0, 0, 0);
     return d;
   });
+  const { isPrimerVisible, requestWithPrimer, confirmPrimer, dismissPrimer } = useNotificationPermission();
 
   const loadSlots = useCallback(async () => {
     const nextSlots = await getScheduledSlots();
@@ -133,7 +136,7 @@ export default function PlanningScreen() {
         await saveNotificationSettings(nextSettings);
         if (slots.length > 0) {
           try {
-            await requestNotificationPermissions();
+            await requestWithPrimer();
           } catch {
             // do not block save
           }
@@ -398,6 +401,12 @@ export default function PlanningScreen() {
           </View>
         </View>
       </Modal>
+
+      <NotificationPermissionPrimer
+        onCancel={dismissPrimer}
+        onConfirm={confirmPrimer}
+        visible={isPrimerVisible}
+      />
     </View>
   );
 }

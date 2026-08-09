@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { OnboardingButton, OnboardingScaffold } from "@/src/components/onboarding/OnboardingScaffold";
+import { NotificationPermissionPrimer } from "@/src/components/notifications/NotificationPermissionPrimer";
 import { PlanningEditor } from "@/src/components/planning/PlanningEditor";
-import { requestNotificationPermissions } from "@/src/services/notifications";
+import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { ScheduledSlot, saveScheduledSlots } from "@/src/services/onboarding";
 import { applyPlanningToNotificationSettings, resetNotificationSettingsToDefault } from "@/src/services/settings";
 import { fonts } from "@/src/theme/typography";
@@ -12,12 +13,13 @@ import { fonts } from "@/src/theme/typography";
 export default function OnboardingPlanningScreen() {
   const router = useRouter();
   const [slots, setSlots] = useState<ScheduledSlot[]>([]);
+  const { isPrimerVisible, requestWithPrimer, confirmPrimer, dismissPrimer } = useNotificationPermission();
 
   async function handleEnableReminders() {
     await saveScheduledSlots(slots);
     await applyPlanningToNotificationSettings(slots);
     try {
-      await requestNotificationPermissions();
+      await requestWithPrimer();
     } catch {
       // continue silently
     }
@@ -49,6 +51,11 @@ export default function OnboardingPlanningScreen() {
       }
     >
       <PlanningEditor onSlotsChange={setSlots} slots={slots} />
+      <NotificationPermissionPrimer
+        onCancel={dismissPrimer}
+        onConfirm={confirmPrimer}
+        visible={isPrimerVisible}
+      />
     </OnboardingScaffold>
   );
 }

@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from "react-native";
 import { Svg, Circle } from "react-native-svg";
 
 import { fonts } from "@/src/theme/typography";
+
+const logoSource: ImageSourcePropType = require("../../img/smashlog-logo.png");
 
 export default function OnboardingSplashScreen() {
   const router = useRouter();
@@ -19,7 +21,7 @@ export default function OnboardingSplashScreen() {
       <View style={styles.center}>
         <View style={styles.logoWrap}>
           <View style={styles.logoSquare}>
-            <Text style={styles.logoS}>S</Text>
+            <Image resizeMode="cover" source={logoSource} style={styles.logoImage} />
           </View>
           <View style={styles.glow} />
         </View>
@@ -64,13 +66,11 @@ const styles = StyleSheet.create({
     borderColor: "rgba(206,255,0,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
-  logoS: {
-    fontSize: 52,
-    lineHeight: 52,
-    color: "#CEFF00",
-    fontFamily: fonts.displayExtraBold,
-    letterSpacing: -2,
+  logoImage: {
+    width: "100%",
+    height: "100%",
   },
   glow: {
     width: 60,

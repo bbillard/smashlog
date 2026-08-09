@@ -1,6 +1,6 @@
 import { Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, ImageSourcePropType, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { fonts } from "@/src/theme/typography";
+const logoSource: ImageSourcePropType = require("../img/smashlog-logo.png");
 
 const ENTER_DURATION = 300;
 const PAUSE_DURATION = 400;
@@ -62,7 +62,7 @@ export default function SplashAnimationScreen() {
   return (
     <View style={styles.overlay}>
       <Animated.View style={[styles.logoSquare, animatedStyle]}>
-        <Text style={styles.logoS}>S</Text>
+        <Image resizeMode="cover" source={logoSource} style={styles.logoImage} />
       </Animated.View>
     </View>
   );
@@ -84,12 +84,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(206,255,0,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
-  logoS: {
-    fontSize: 52,
-    lineHeight: 52,
-    color: "#CEFF00",
-    fontFamily: fonts.displayExtraBold,
-    letterSpacing: -2,
+  logoImage: {
+    width: "100%",
+    height: "100%",
   },
 });
