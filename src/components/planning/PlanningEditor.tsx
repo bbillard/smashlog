@@ -77,7 +77,7 @@ function getFamilyLabel(family: SlotFamily) {
   }
 
   if (family === "renforcement") {
-    return "Renforcement";
+    return "Renfo";
   }
 
   if (family === "autre") {
@@ -240,7 +240,7 @@ function SlotRow({
           <View style={styles.inlineEditorFamilyRow}>
             {([
               { value: "badminton" as const, label: "Badminton" },
-              { value: "renforcement" as const, label: "Renforcement" },
+              { value: "renforcement" as const, label: "Renfo" },
               { value: "cardio" as const, label: "Cardio" },
               { value: "autre" as const, label: "Autre" },
             ]).map(({ value, label }) => {
@@ -398,7 +398,7 @@ export function PlanningEditor({
       <View style={styles.familyRow}>
         {([
           { value: "badminton" as const, label: "Badminton" },
-          { value: "renforcement" as const, label: "Renforcement" },
+          { value: "renforcement" as const, label: "Renfo" },
           { value: "cardio" as const, label: "Cardio" },
           { value: "autre" as const, label: "Autre" },
         ]).map(({ value, label }) => {

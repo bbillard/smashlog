@@ -144,9 +144,15 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
           </View>
 
           <View style={styles.menuSwipeSpacer} />
-          <Text style={[styles.versionLabel, { color: theme.secondaryText }]}>
-            v{Constants.expoConfig?.version ?? "—"}
-          </Text>
+          <View style={styles.footerRow}>
+            <Text style={[styles.versionLabel, { color: theme.secondaryText }]}>
+              v{Constants.expoConfig?.version ?? "—"}
+            </Text>
+            <Text style={[styles.footerDot, { color: theme.secondaryText }]}>·</Text>
+            <Pressable hitSlop={8} onPress={() => navigate("/settings")}>
+              <Text style={[styles.aboutLink, { color: theme.secondaryText }]}>À propos</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -219,10 +225,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
   },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingBottom: 16,
+  },
   versionLabel: {
     fontSize: 11,
     fontFamily: fonts.bodyRegular,
-    textAlign: "center",
-    paddingBottom: 16,
+  },
+  footerDot: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+  },
+  aboutLink: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    textDecorationLine: "underline",
   },
 });

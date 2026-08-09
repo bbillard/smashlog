@@ -13,6 +13,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="concept" />
       <Stack.Screen name="planning" />
       <Stack.Screen name="pseudo" />
+      <Stack.Screen name="account" />
     </Stack>
   );
 }

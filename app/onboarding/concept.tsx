@@ -73,7 +73,7 @@ export default function OnboardingConceptScreen() {
           <Text style={styles.titleAccent}>Progresse.</Text>
         </Text>
       }
-      body="Smashlog transforme chaque séance en leçon. En 30 secondes, tu analyses ce qui s'est passé et tu prépares la suivante."
+      body="Smashlog transforme chaque séance en leçon. En 2 minutes, tu analyses ce qui s'est passé et tu prépares la suivante."
       footer={<OnboardingButton label="C'est parti →" onPress={() => router.push("/onboarding/planning")} />}
     >
       <View style={styles.steps}>

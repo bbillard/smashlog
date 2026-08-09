@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { OnboardingButton, OnboardingScaffold } from "@/src/components/onboarding/OnboardingScaffold";
-import { completeOnboarding } from "@/src/services/onboarding";
 import { fonts } from "@/src/theme/typography";
 
 function isValidUsername(value: string) {
@@ -33,13 +32,15 @@ export default function OnboardingPseudoScreen() {
     return "";
   }, [isValid, trimmed]);
 
-  async function handleContinue() {
+  function handleContinue() {
     if (!canContinue) {
       return;
     }
 
-    await completeOnboarding(trimmed);
-    router.replace("/(tabs)");
+    // La finalisation (sauvegarde du profil + flag onboarding terminé) est
+    // désormais faite par l'écran suivant, une fois la décision "compte
+    // cloud ou non" prise (cf. app/onboarding/account.tsx).
+    router.push({ pathname: "/onboarding/account", params: { username: trimmed } });
   }
 
   return (
@@ -92,10 +93,7 @@ export default function OnboardingPseudoScreen() {
         {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       </View>
 
-      <Text style={styles.hint}>
-        Visible uniquement sur tes cartes partagées.{"\n"}
-        <Text style={styles.hintStrong}>Modifiable à tout moment dans les réglages.</Text>
-      </Text>
+      <Text style={styles.hintStrong}>Modifiable à tout moment dans les réglages.</Text>
     </OnboardingScaffold>
   );
 }
@@ -219,13 +217,9 @@ const styles = StyleSheet.create({
     color: "#FF4D6D",
     fontFamily: fonts.bodyRegular,
   },
-  hint: {
+  hintStrong: {
     fontSize: 12,
     lineHeight: 18,
-    color: "#6b6b7a",
-    fontFamily: fonts.bodyRegular,
-  },
-  hintStrong: {
     color: "#9999aa",
     fontFamily: fonts.bodyMedium,
   },

@@ -92,8 +92,18 @@ export default function RootLayout() {
     }
 
     const inOnboarding = segments[0] === "onboarding";
+    // Écran transitoire (logo animé) emprunté en sortie d'onboarding avant
+    // d'atterrir sur les onglets (cf. app/onboarding/account.tsx et
+    // app/splash-animation.tsx). Il gère lui-même sa navigation vers sa
+    // cible après son délai d'animation : le garde-fou ci-dessous ne doit
+    // pas l'interrompre, sans quoi la re-lecture (async) de
+    // getOnboardingCompleted() ci-dessus — encore en cours juste après le
+    // router.replace("/splash-animation") — le fait rebondir vers
+    // "/onboarding/splash" avant même que l'animation ait eu le temps de se
+    // jouer.
+    const inSplashAnimation = segments[0] === "splash-animation";
 
-    if (needsOnboarding && !inOnboarding) {
+    if (needsOnboarding && !inOnboarding && !inSplashAnimation) {
       router.replace("/onboarding/splash");
       return;
     }
@@ -166,6 +176,10 @@ export default function RootLayout() {
           >
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="splash-animation"
+              options={{ headerShown: false, gestureEnabled: false, animation: "fade" }}
+            />
             <Stack.Screen
               name="session/new"
               options={{

@@ -4,8 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fonts } from "@/src/theme/typography";
 
+const TOTAL_STEPS = 4;
+
 interface OnboardingScaffoldProps extends PropsWithChildren {
-  progress?: 1 | 2 | 3;
+  progress?: 1 | 2 | 3 | 4;
   title?: ReactNode;
   body?: string;
   footer?: ReactNode;
@@ -22,7 +24,7 @@ export function OnboardingScaffold({
     <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
       {progress ? (
         <View style={styles.progressRow}>
-          {[1, 2, 3].map((step) => (
+          {Array.from({ length: TOTAL_STEPS }, (_, index) => index + 1).map((step) => (
             <View
               key={step}
               style={[

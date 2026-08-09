@@ -1,14 +1,17 @@
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, DevSettings, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, DevSettings, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import * as Sharing from "expo-sharing";
+import * as WebBrowser from "expo-web-browser";
 
 import { LabeledInput, ToggleRow } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { CONTACT_EMAIL, INSTAGRAM_HANDLE, INSTAGRAM_URL, PRIVACY_POLICY_URL, TERMS_URL } from "@/src/constants/legal";
 import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
@@ -29,8 +32,68 @@ import {
   saveNotificationSettings,
 } from "@/src/services/settings";
 import { getSessions, updateSession } from "@/src/services/storage";
+import { palette } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { NotificationSettings } from "@/src/types/session";
+
+async function openExternalLink(url: string) {
+  try {
+    await WebBrowser.openBrowserAsync(url);
+  } catch {
+    Alert.alert("Erreur", "Impossible d'ouvrir ce lien.");
+  }
+}
+
+async function openContactEmail(email: string) {
+  const mailUrl = `mailto:${email}`;
+  try {
+    const canOpen = await Linking.canOpenURL(mailUrl);
+    if (!canOpen) {
+      Alert.alert("Erreur", "Aucune application mail n'est configurée sur cet appareil.");
+      return;
+    }
+
+    await Linking.openURL(mailUrl);
+  } catch {
+    Alert.alert("Erreur", "Impossible d'ouvrir l'application mail.");
+  }
+}
+
+interface AboutRowProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  showDivider?: boolean;
+}
+
+function AboutRow({ icon, label, value, onPress, showDivider = true }: AboutRowProps) {
+  const { theme } = useAppTheme();
+
+  const row = (
+    <View
+      style={[
+        styles.aboutRow,
+        showDivider ? { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth } : null,
+      ]}
+    >
+      <Ionicons color={onPress ? theme.primary : theme.secondaryText} name={icon} size={18} />
+      <Text style={[styles.aboutRowLabel, { color: theme.text }]}>{label}</Text>
+      {value ? (
+        <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.aboutRowValue, { color: theme.secondaryText }]}>
+          {value}
+        </Text>
+      ) : null}
+      {onPress ? <Ionicons color={theme.secondaryText} name="chevron-forward" size={16} /> : null}
+    </View>
+  );
+
+  if (!onPress) {
+    return row;
+  }
+
+  return <Pressable onPress={onPress}>{row}</Pressable>;
+}
 
 function parseBoundedInteger(value: string, fallback: number, min: number, max: number) {
   const parsed = Number.parseInt(value, 10);
@@ -494,6 +557,42 @@ export default function SettingsScreen() {
           <PrimaryButton label="Ouvrir l'écran debug" onPress={() => router.push("/debug")} tone="secondary" />
         </SectionCard>
       ) : null}
+
+      <View style={[styles.aboutSeparator, { borderTopColor: theme.border }]} />
+
+      <SectionCard>
+        <Text style={styles.aboutSectionTitle}>À propos</Text>
+
+        <AboutRow icon="information-circle-outline" label="Version" value={Constants.expoConfig?.version ?? "—"} />
+
+        <Text style={[styles.aboutGroupTitle, { color: theme.secondaryText }]}>Nous contacter</Text>
+        <AboutRow
+          icon="logo-instagram"
+          label="Instagram"
+          onPress={() => openExternalLink(INSTAGRAM_URL)}
+          value={INSTAGRAM_HANDLE}
+        />
+        <AboutRow
+          icon="mail-outline"
+          label="Email"
+          onPress={() => openContactEmail(CONTACT_EMAIL)}
+          showDivider={false}
+          value={CONTACT_EMAIL}
+        />
+
+        <Text style={[styles.aboutGroupTitle, { color: theme.secondaryText }]}>Légal</Text>
+        <AboutRow
+          icon="document-text-outline"
+          label="Politique de confidentialité"
+          onPress={() => openExternalLink(PRIVACY_POLICY_URL)}
+        />
+        <AboutRow
+          icon="shield-checkmark-outline"
+          label="CGU"
+          onPress={() => openExternalLink(TERMS_URL)}
+          showDivider={false}
+        />
+      </SectionCard>
     </Screen>
   );
 }
@@ -589,5 +688,41 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontFamily: fonts.bodyRegular,
     marginTop: 10,
+  },
+  aboutSeparator: {
+    borderTopWidth: 1,
+    marginTop: 4,
+  },
+  aboutSectionTitle: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+    color: palette.textMuted,
+    marginBottom: 4,
+  },
+  aboutGroupTitle: {
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 12,
+    marginBottom: 2,
+  },
+  aboutRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  aboutRowLabel: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+    flex: 1,
+  },
+  aboutRowValue: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    maxWidth: 150,
+    textAlign: "right",
   },
 });
