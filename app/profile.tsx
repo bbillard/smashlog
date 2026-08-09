@@ -11,21 +11,27 @@ import { SectionCard } from "@/src/components/SectionCard";
 import { SyncStatusBadge } from "@/src/components/SyncStatusBadge";
 import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { resetLocalData } from "@/src/services/accountDeletion";
 import { setOnboardingUsername } from "@/src/services/onboarding";
 import { getProfile, saveProfile } from "@/src/services/profile";
 import { fonts } from "@/src/theme/typography";
 import { Profile } from "@/src/types/profile";
 
 const USERNAME_MAX_LENGTH = 20;
+const DANGER_COLOR = "#FF4D6D";
 
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showResetDataModal, setShowResetDataModal] = useState(false);
+  const [isResettingData, setIsResettingData] = useState(false);
 
   async function handleSignOut() {
     setIsSigningOut(true);
@@ -35,6 +41,35 @@ export default function ProfileScreen() {
       Alert.alert("Erreur", "Impossible de se déconnecter pour le moment.");
     } finally {
       setIsSigningOut(false);
+    }
+  }
+
+  async function handleConfirmDeleteAccount() {
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+      setShowDeleteAccountModal(false);
+      router.replace("/onboarding/splash");
+    } catch (error) {
+      Alert.alert(
+        "Suppression impossible",
+        error instanceof Error ? error.message : "Impossible de supprimer le compte pour le moment.",
+      );
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }
+
+  async function handleConfirmResetData() {
+    setIsResettingData(true);
+    try {
+      await resetLocalData();
+      setShowResetDataModal(false);
+      router.replace("/onboarding/splash");
+    } catch {
+      Alert.alert("Erreur", "Impossible de réinitialiser les données pour le moment.");
+    } finally {
+      setIsResettingData(false);
     }
   }
 
@@ -117,6 +152,9 @@ export default function ProfileScreen() {
                 {isSigningOut ? "Déconnexion..." : "Se déconnecter"}
               </Text>
             </Pressable>
+            <Pressable onPress={() => setShowDeleteAccountModal(true)} style={styles.dangerLink}>
+              <Text style={[styles.dangerLinkText, { color: DANGER_COLOR }]}>Supprimer mon compte</Text>
+            </Pressable>
           </>
         ) : (
           <>
@@ -139,6 +177,9 @@ export default function ProfileScreen() {
                 <Text style={[styles.accountCtaTextSecondary, { color: theme.text }]}>Se connecter</Text>
               </Pressable>
             </View>
+            <Pressable onPress={() => setShowResetDataModal(true)} style={styles.dangerLink}>
+              <Text style={[styles.dangerLinkText, { color: DANGER_COLOR }]}>Réinitialiser mes données</Text>
+            </Pressable>
           </>
         )}
       </SectionCard>
@@ -184,6 +225,75 @@ export default function ProfileScreen() {
             >
               <Text style={[styles.modalButtonText, { color: theme.buttonTextOnPrimary }]}>OK</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => (isDeletingAccount ? null : setShowDeleteAccountModal(false))}
+        transparent
+        visible={showDeleteAccountModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Supprimer mon compte</Text>
+            <Text style={[styles.modalText, { color: theme.secondaryText }]}>
+              Cette action est irréversible. Toutes tes données seront supprimées définitivement.
+            </Text>
+            <View style={styles.dangerModalActions}>
+              <Pressable
+                disabled={isDeletingAccount}
+                onPress={() => setShowDeleteAccountModal(false)}
+                style={[styles.dangerModalButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, borderWidth: 1 }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: theme.text }]}>Annuler</Text>
+              </Pressable>
+              <Pressable
+                disabled={isDeletingAccount}
+                onPress={handleConfirmDeleteAccount}
+                style={[styles.dangerModalButton, { backgroundColor: DANGER_COLOR }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: "#fff" }]}>
+                  {isDeletingAccount ? "Suppression..." : "Supprimer définitivement"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => (isResettingData ? null : setShowResetDataModal(false))}
+        transparent
+        visible={showResetDataModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Réinitialiser mes données</Text>
+            <Text style={[styles.modalText, { color: theme.secondaryText }]}>
+              Cette action est irréversible. Toutes tes données locales (séances, joueurs, exercices, planning,
+              profil) seront effacées de cet appareil.
+            </Text>
+            <View style={styles.dangerModalActions}>
+              <Pressable
+                disabled={isResettingData}
+                onPress={() => setShowResetDataModal(false)}
+                style={[styles.dangerModalButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, borderWidth: 1 }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: theme.text }]}>Annuler</Text>
+              </Pressable>
+              <Pressable
+                disabled={isResettingData}
+                onPress={handleConfirmResetData}
+                style={[styles.dangerModalButton, { backgroundColor: DANGER_COLOR }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: "#fff" }]}>
+                  {isResettingData ? "Réinitialisation..." : "Réinitialiser définitivement"}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -246,6 +356,32 @@ const styles = StyleSheet.create({
   accountCtaTextSecondary: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
+  },
+  dangerLink: {
+    marginTop: 14,
+    alignSelf: "flex-start",
+  },
+  dangerLinkText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+  },
+  dangerModalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  dangerModalButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  dangerModalButtonText: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    textAlign: "center",
   },
   modalOverlay: {
     flex: 1,

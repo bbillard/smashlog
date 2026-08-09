@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 import type { Session, User } from "@supabase/supabase-js";
 
 import { supabase } from "@/src/lib/supabase";
+import { deleteCloudAccount, resetLocalData } from "@/src/services/accountDeletion";
 import { ensureAuthProfile } from "@/src/services/authProfile";
 import { fetchFeatureFlags, getCachedFeatureFlags } from "@/src/services/featureFlags";
 import { isPremiumOrBeta } from "@/src/utils/premium";
@@ -44,6 +45,12 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Supprime définitivement le compte : données Supabase + auth.users, puis
+   * réinitialise l'app en local. Si la suppression cloud échoue, l'erreur
+   * remonte à l'appelant et rien n'est touché en local (cf. écran Profil).
+   */
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -249,6 +256,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // profil, planning...) restent intactes après déconnexion.
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+      },
+
+      async deleteAccount() {
+        // Si ça échoue (réseau, Edge Function down...), on s'arrête là :
+        // deleteCloudAccount() lève, rien n'est réinitialisé en local.
+        await deleteCloudAccount();
+        await resetLocalData();
+
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // Le compte n'existe déjà plus côté serveur à ce stade : signOut()
+          // peut légitimement échouer (session déjà invalidée par
+          // auth.admin.deleteUser). Sans conséquence, l'état local est de
+          // toute façon déjà réinitialisé au-dessus.
+        }
       },
     }),
     [session, userId, initializing, isAppleAuthAvailable, isBetaUser, isPremium, isAdmin],
