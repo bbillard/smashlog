@@ -76,6 +76,15 @@ export default function HomeScreen() {
           </SectionCard>
         ) : null}
 
+        {!isLoading && sessions.length > 0 ? (
+          <View style={styles.totalRow}>
+            <Text style={[styles.totalNum, { color: theme.primary }]}>{sessions.length}</Text>
+            <Text style={[styles.totalLabel, { color: theme.secondaryText }]}>
+              séance{sessions.length > 1 ? "s" : ""} enregistrée{sessions.length > 1 ? "s" : ""}
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>Dernières séances</Text>
 
         {isLoading ? <LoadingView /> : null}
@@ -161,6 +170,19 @@ const styles = StyleSheet.create({
   emptyStreakText: {
     fontSize: 14,
     fontFamily: fonts.bodyMedium,
+  },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+  },
+  totalNum: {
+    fontSize: 24,
+    fontFamily: fonts.displayExtraBold,
   },
   sectionLabel: {
     fontSize: 11,
