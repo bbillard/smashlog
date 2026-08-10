@@ -26,3 +26,13 @@ export async function saveProfile(profile: Profile): Promise<void> {
   await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   void syncProfileUpsert(profile.username);
 }
+
+/**
+ * Enregistre le profil localement SANS pousser vers Supabase — utilisé par
+ * la restauration cloud (src/services/cloudRestore.ts), qui vient justement
+ * de lire ce pseudo depuis Supabase : le repousser serait un aller-retour
+ * inutile.
+ */
+export async function saveProfileLocal(profile: Profile): Promise<void> {
+  await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}

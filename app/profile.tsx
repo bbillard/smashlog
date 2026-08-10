@@ -23,7 +23,7 @@ const DANGER_COLOR = "#FF4D6D";
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const { user, signOut, deleteAccount } = useAuth();
+  const { user, signOut, deleteAccount, restoreFromCloud } = useAuth();
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
@@ -32,6 +32,8 @@ export default function ProfileScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showResetDataModal, setShowResetDataModal] = useState(false);
   const [isResettingData, setIsResettingData] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   async function handleSignOut() {
     setIsSigningOut(true);
@@ -57,6 +59,27 @@ export default function ProfileScreen() {
       );
     } finally {
       setIsDeletingAccount(false);
+    }
+  }
+
+  async function handleConfirmRestore() {
+    setIsRestoring(true);
+    try {
+      const counts = await restoreFromCloud();
+      setShowRestoreModal(false);
+      const profileAfterRestore = await getProfile();
+      setProfile(profileAfterRestore);
+      Alert.alert(
+        "Restauration terminée",
+        `${counts.sessions} séance(s), ${counts.players} joueur(s), ${counts.exercises} exercice(s) et ${counts.planning} créneau(x) de planning récupérés depuis le cloud.`,
+      );
+    } catch (error) {
+      Alert.alert(
+        "Restauration impossible",
+        error instanceof Error ? error.message : "Impossible de restaurer les données pour le moment.",
+      );
+    } finally {
+      setIsRestoring(false);
     }
   }
 
@@ -152,6 +175,12 @@ export default function ProfileScreen() {
                 {isSigningOut ? "Déconnexion..." : "Se déconnecter"}
               </Text>
             </Pressable>
+            <Pressable
+              onPress={() => setShowRestoreModal(true)}
+              style={[styles.photoButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, marginTop: 8 }]}
+            >
+              <Text style={[styles.photoButtonText, { color: theme.text }]}>Restaurer mes données depuis le cloud</Text>
+            </Pressable>
             <Pressable onPress={() => setShowDeleteAccountModal(true)} style={styles.dangerLink}>
               <Text style={[styles.dangerLinkText, { color: DANGER_COLOR }]}>Supprimer mon compte</Text>
             </Pressable>
@@ -225,6 +254,42 @@ export default function ProfileScreen() {
             >
               <Text style={[styles.modalButtonText, { color: theme.buttonTextOnPrimary }]}>OK</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => (isRestoring ? null : setShowRestoreModal(false))}
+        transparent
+        visible={showRestoreModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Restaurer mes données</Text>
+            <Text style={[styles.modalText, { color: theme.secondaryText }]}>
+              Tes données locales (séances, joueurs, exercices, planning, pseudo) seront remplacées par ce qui
+              est enregistré dans le cloud pour ce compte. Utile si tu changes d'appareil ou en cas de problème
+              sur celui-ci.
+            </Text>
+            <View style={styles.dangerModalActions}>
+              <Pressable
+                disabled={isRestoring}
+                onPress={() => setShowRestoreModal(false)}
+                style={[styles.dangerModalButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, borderWidth: 1 }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: theme.text }]}>Annuler</Text>
+              </Pressable>
+              <Pressable
+                disabled={isRestoring}
+                onPress={handleConfirmRestore}
+                style={[styles.dangerModalButton, { backgroundColor: theme.primary }]}
+              >
+                <Text style={[styles.dangerModalButtonText, { color: theme.buttonTextOnPrimary }]}>
+                  {isRestoring ? "Restauration..." : "Restaurer"}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>

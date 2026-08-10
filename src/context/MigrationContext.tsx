@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from "react";
 
 import { useAuth } from "@/src/context/AuthContext";
+import { isLocalDataEmpty, restoreFromCloud } from "@/src/services/cloudRestore";
 import {
   resolveProfileConflict as resolveProfileConflictService,
   runMigration,
@@ -44,6 +45,21 @@ export function MigrationProvider({ children }: PropsWithChildren) {
 
   const startMigration = useCallback(async (userId: string) => {
     setStatus("syncing");
+
+    // Stockage local vide (nouvel appareil, réinstallation, ou stockage
+    // vidé après une suppression de compte) : on rapatrie ce qui existe déjà
+    // côté Supabase pour CE compte avant de lancer runMigration() (qui, sur
+    // un local vide, n'aurait de toute façon rien à pousser). Best-effort :
+    // un échec ici ne doit jamais bloquer la connexion, juste laisser
+    // l'appareil vide jusqu'à la prochaine tentative.
+    if (await isLocalDataEmpty()) {
+      try {
+        await restoreFromCloud(userId);
+      } catch (error) {
+        console.warn("[MigrationContext] Restauration depuis le cloud impossible :", error);
+      }
+    }
+
     const outcome = await runMigration(userId);
 
     if (outcome.status === "error") {

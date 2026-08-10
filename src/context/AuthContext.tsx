@@ -9,6 +9,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/src/lib/supabase";
 import { deleteCloudAccount, resetLocalData } from "@/src/services/accountDeletion";
 import { ensureAuthProfile } from "@/src/services/authProfile";
+import { restoreFromCloud as restoreFromCloudService, type RestoreCounts } from "@/src/services/cloudRestore";
 import { fetchFeatureFlags, getCachedFeatureFlags } from "@/src/services/featureFlags";
 import { isPremiumOrBeta } from "@/src/utils/premium";
 
@@ -51,6 +52,12 @@ interface AuthContextValue {
    * remonte à l'appelant et rien n'est touché en local (cf. écran Profil).
    */
   deleteAccount: () => Promise<void>;
+  /**
+   * Écrase les données locales par ce qui est trouvé côté Supabase pour le
+   * compte connecté (utile en cas de problème sur l'appareil). Lève si
+   * personne n'est connecté.
+   */
+  restoreFromCloud: () => Promise<RestoreCounts>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -256,6 +263,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // profil, planning...) restent intactes après déconnexion.
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+      },
+
+      async restoreFromCloud() {
+        if (!userId) {
+          throw new Error("Aucun compte connecté.");
+        }
+        return restoreFromCloudService(userId);
       },
 
       async deleteAccount() {

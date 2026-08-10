@@ -1,8 +1,8 @@
-import type { TablesInsert } from "@/src/lib/supabase";
+import type { Tables, TablesInsert } from "@/src/lib/supabase";
 import type { Json } from "@/src/types/supabase";
 import type { ScheduledSlot } from "@/src/services/onboarding";
 import { Exercise, Player } from "@/src/types/index";
-import { Match, Session } from "@/src/types/session";
+import { Match, Session, SessionType } from "@/src/types/session";
 import { deterministicId } from "@/src/utils/deterministicId";
 
 /**
@@ -118,5 +118,91 @@ export function toMatchRow(session: Session, match: Match, index: number, userId
     mode: match.mode,
     sets: match.sets as unknown as Json,
     comment: match.commentaire ?? null,
+  };
+}
+
+/**
+ * Convertit des lignes Supabase en modèles locaux — sens inverse des
+ * fonctions ci-dessus, utilisé par la restauration cloud
+ * (src/services/cloudRestore.ts) pour réhydrater AsyncStorage depuis
+ * Supabase (nouvel appareil, réinstallation, ou stockage local vidé).
+ *
+ * Deux choix volontaires :
+ * - notification_scheduled_at / notification_ids ne sont jamais restaurés :
+ *   ce sont des identifiants de notifications OS planifiées sur l'appareil
+ *   D'ORIGINE (expo-notifications), sans aucun sens sur un autre appareil ou
+ *   après un vidage local. L'app les replanifiera normalement.
+ * - photo_url n'est jamais lu : le profil ne synchronise que le pseudo (cf.
+ *   syncProfileUpsert), la photo reste un fichier local à chaque appareil.
+ */
+
+export function fromPlayerRow(row: Tables<"players">): Player {
+  return {
+    id: row.id,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    name: row.name,
+    ...(row.notes ? { notes: row.notes } : {}),
+  };
+}
+
+export function fromExerciseRow(row: Tables<"exercises">): Exercise {
+  return {
+    id: row.id,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    name: row.name,
+    description: row.description ?? "",
+    playersCount: (row.players_count ?? 2) as Exercise["playersCount"],
+    labels: ((row.labels as string[] | null) ?? []),
+    ...(row.duration_minutes !== null && row.duration_minutes !== undefined
+      ? { durationMinutes: row.duration_minutes }
+      : {}),
+    ...(row.level ? { level: row.level as Exercise["level"] } : {}),
+    ...(row.orientation ? { orientation: row.orientation as Exercise["orientation"] } : {}),
+    ...(row.attention_points ? { attentionPoints: row.attention_points } : {}),
+    ...(row.variant_easier ? { variantEasier: row.variant_easier } : {}),
+    ...(row.variant_harder ? { variantHarder: row.variant_harder } : {}),
+    ...(row.source ? { source: row.source } : {}),
+    ...(row.photos ? { photos: row.photos } : {}),
+  };
+}
+
+export function fromPlanningRow(row: Tables<"planning_slots">): ScheduledSlot {
+  return {
+    id: row.id,
+    dayOfWeek: row.day_of_week as ScheduledSlot["dayOfWeek"],
+    hour: row.hour,
+    minute: row.minute,
+    family: row.family as ScheduledSlot["family"],
+  };
+}
+
+export function fromMatchRow(row: Tables<"matches">): Match {
+  return {
+    adversaire: row.opponent ?? "",
+    ...(row.partner ? { partenaire: row.partner } : {}),
+    ...(row.opponent_id ? { adversaireId: row.opponent_id } : {}),
+    ...(row.opponent_ids ? { adversaireIds: row.opponent_ids } : {}),
+    ...(row.partner_id ? { partenaireId: row.partner_id } : {}),
+    ...(row.partner_ids ? { partenaireIds: row.partner_ids } : {}),
+    resultat: (row.result ?? "victoire") as Match["resultat"],
+    mode: (row.mode ?? "simple") as Match["mode"],
+    sets: (row.sets as Match["sets"] | null) ?? [],
+    ...(row.comment ? { commentaire: row.comment } : {}),
+  };
+}
+
+export function fromSessionRow(row: Tables<"sessions">, matches: Match[]): Session {
+  return {
+    id: row.id,
+    createdAt: row.created_at ?? row.date,
+    ...(row.title ? { title: row.title } : {}),
+    type: row.type as SessionType,
+    rating: row.rating ?? 0,
+    wentWell: row.went_well ?? "",
+    wentWrong: row.went_wrong ?? "",
+    nextIntention: row.next_intention ?? "",
+    ...(row.free_notes ? { freeNotes: row.free_notes } : {}),
+    ...(matches.length > 0 ? { matches } : {}),
+    ...(row.exercise_ids ? { exerciseIds: row.exercise_ids } : {}),
   };
 }

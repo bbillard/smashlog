@@ -61,6 +61,16 @@ export async function saveScheduledSlots(slots: ScheduledSlot[]) {
   void syncPlanningReplace(previous, slots);
 }
 
+/**
+ * Remplace intégralement le planning stocké SANS pousser vers Supabase —
+ * utilisé par la restauration cloud (src/services/cloudRestore.ts), qui vient
+ * justement de lire ces données depuis Supabase : les repousser serait un
+ * aller-retour inutile.
+ */
+export async function replaceScheduledSlotsLocal(slots: ScheduledSlot[]): Promise<void> {
+  await AsyncStorage.setItem(SCHEDULED_SLOTS_KEY, JSON.stringify(slots));
+}
+
 export async function completeOnboarding(username: string) {
   const profile = await getProfile();
   await setOnboardingUsername(username);
