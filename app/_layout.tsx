@@ -17,6 +17,7 @@ import { AuthProvider } from "@/src/context/AuthContext";
 import { MigrationProvider } from "@/src/context/MigrationContext";
 import { SyncProvider } from "@/src/context/SyncContext";
 import { MigrationOverlay } from "@/src/components/MigrationOverlay";
+import { SplashLogoAnimation } from "@/src/components/SplashLogoAnimation";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
 import {
@@ -43,6 +44,11 @@ export default function RootLayout() {
   });
   const [bootstrapped, setBootstrapped] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Rejoué à chaque démarrage à froid (process JS relancé) : reste à false
+  // tant que l'animation n'a pas fini de se jouer, une fois par montage de
+  // RootLayout — pas à chaque retour au premier plan depuis le background,
+  // qui ne remonte pas ce composant.
+  const [coldStartSplashDone, setColdStartSplashDone] = useState(false);
 
   useEffect(() => {
     if (!fontsLoaded) {
@@ -283,6 +289,14 @@ export default function RootLayout() {
               }}
             />
           </Stack>
+          {!coldStartSplashDone ? (
+            // Recouvre l'app le temps de l'animation à chaque démarrage à
+            // froid. Le Stack ci-dessus reste monté et résout déjà
+            // onboarding/onglets pendant ce temps (cf. l'effet de
+            // redirection plus haut) : une fois l'overlay retiré, l'écran
+            // du dessous est déjà le bon, sans flash de contenu erroné.
+            <SplashLogoAnimation onFinished={() => setColdStartSplashDone(true)} />
+          ) : null}
         </View>
       </ThemeProvider>
       </SafeAreaProvider>
