@@ -3,7 +3,7 @@
     "name": "Smashlog",
     "slug": "smashlog",
     "scheme": "smashlog",
-    "version": "1.2.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./img/smashlog-logo.png",
     "userInterfaceStyle": "automatic",
