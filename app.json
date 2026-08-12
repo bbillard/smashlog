@@ -25,14 +25,6 @@
           "savePhotosPermission": "Autorise Smashlog à enregistrer tes cartes de partage dans ta photothèque."
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "buildReactNativeFromSource": true
-          }
-        }
-      ],
       "expo-apple-authentication",
       "./app.plugin.js"
     ],

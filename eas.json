@@ -23,7 +23,12 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6766051980"
+        "appleId": "bapt.billard@hotmail.fr",
+        "ascAppId": "6766051980",
+        "appleTeamId": "QUNAJ26S6Z"
+      },
+      "android": {
+        "track": "production"
       }
     }
   }
