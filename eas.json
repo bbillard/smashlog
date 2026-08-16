@@ -28,7 +28,7 @@
         "appleTeamId": "QUNAJ26S6Z"
       },
       "android": {
-        "track": "production"
+        "track": "alpha"
       }
     }
   }
