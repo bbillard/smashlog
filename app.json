@@ -33,7 +33,7 @@
       "typedRoutes": true
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.smashlog.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
