@@ -6,6 +6,7 @@ import {
 import { Syne_700Bold, Syne_800ExtraBold } from "@expo-google-fonts/syne";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
+import * as Linking from "expo-linking";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -19,6 +20,7 @@ import { SyncProvider } from "@/src/context/SyncContext";
 import { MigrationOverlay } from "@/src/components/MigrationOverlay";
 import { SplashLogoAnimation } from "@/src/components/SplashLogoAnimation";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { handleAuthDeepLink } from "@/src/services/authDeepLink";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
 import {
   getForceOnboarding,
@@ -91,6 +93,25 @@ export default function RootLayout() {
       active = false;
     };
   }, [fontsLoaded, segments]);
+
+  // Deep links entrants liés à l'auth (confirmation email, réinitialisation
+  // de mot de passe — cf. src/services/authDeepLink.ts) : getInitialURL()
+  // couvre le cas où l'app est ouverte à froid via ce lien (l'event "url" ne
+  // se déclenche pas dans ce cas), l'event listener couvre le cas où l'app
+  // tournait déjà en arrière-plan.
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (url) void handleAuthDeepLink(url);
+    });
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void handleAuthDeepLink(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!bootstrapped) {

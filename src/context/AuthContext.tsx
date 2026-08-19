@@ -1,6 +1,5 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
-import * as QueryParams from "expo-auth-session/build/QueryParams";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { Platform } from "react-native";
@@ -16,6 +15,26 @@ import { isPremiumOrBeta } from "@/src/utils/premium";
 // Nécessaire pour que le WebBrowser ferme proprement l'onglet d'auth après
 // redirection (recommandé par la doc expo-auth-session).
 WebBrowser.maybeCompleteAuthSession();
+
+// Google Sign-In natif (flow id_token, cf. signInWithGoogle ci-dessous) :
+// trois Client IDs Google Cloud distincts, un par plateforme/type — PAS le
+// Client ID/Secret "Web application" configuré côté Supabase Dashboard pour
+// le flow signInWithOAuth (celui-ci reste utilisé pour rien d'autre
+// maintenant que Google est passé en id_token natif).
+//
+// ⚠️ Pour que signInWithIdToken accepte les jetons émis par ces clients, ils
+// doivent être renseignés côté Supabase Dashboard → Authentication →
+// Providers → Google → "Authorized Client IDs" (liste séparée par des
+// virgules), en plus du Client ID/Secret déjà configuré.
+const GOOGLE_IOS_CLIENT_ID = "548113509796-rjri47741vhqfh5ldtu3q5sout510p9u.apps.googleusercontent.com";
+const GOOGLE_ANDROID_CLIENT_ID = "548113509796-4ui0th35h3gvs7hiepnj4g03k8dlp94a.apps.googleusercontent.com";
+const GOOGLE_WEB_CLIENT_ID = "548113509796-4tv6o4odfb85cd0umorpm3nd294qu4km.apps.googleusercontent.com";
+
+const GOOGLE_DISCOVERY: AuthSession.DiscoveryDocument = {
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+  tokenEndpoint: "https://oauth2.googleapis.com/token",
+  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+};
 
 interface SignUpResult {
   /** true si Supabase attend une confirmation par email avant de connecter l'utilisateur. */
@@ -69,6 +88,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isBetaUser, setIsBetaUser] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Google Sign-In natif : responseType IdToken forcé explicitement sur
+  // toutes les plateformes (le provider `expo-auth-session/providers/google`
+  // est déprécié et, de toute façon, ne renvoie l'id_token qu'après un
+  // second rendu sur natif via un échange de code différé en interne — on
+  // passe par le hook générique pour que promptAsync() résolve directement
+  // avec le résultat final, sans ce délai).
+  const googleClientId = Platform.select({
+    ios: GOOGLE_IOS_CLIENT_ID,
+    android: GOOGLE_ANDROID_CLIENT_ID,
+    default: GOOGLE_WEB_CLIENT_ID,
+  });
+
+  const [googleRequest, , promptGoogleAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: googleClientId,
+      scopes: ["openid", "profile", "email"],
+      responseType: AuthSession.ResponseType.IdToken,
+      redirectUri: AuthSession.makeRedirectUri(),
+      // PKCE ne s'applique qu'au flow "code" ; il doit être désactivé pour
+      // le flow implicite id_token (même règle que GoogleAuthRequest en
+      // interne, cf. node_modules/expo-auth-session/build/providers/Google.js).
+      usePKCE: false,
+    },
+    GOOGLE_DISCOVERY,
+  );
 
   useEffect(() => {
     let active = true;
@@ -211,38 +256,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
 
       async signInWithGoogle() {
-        const redirectTo = AuthSession.makeRedirectUri();
-
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo, skipBrowserRedirect: true },
-        });
-        if (error) throw error;
-        if (!data.url) {
-          throw new Error("Supabase n'a pas renvoyé d'URL d'autorisation Google.");
+        if (!googleRequest) {
+          throw new Error("La connexion Google n'est pas encore prête, réessaie dans un instant.");
         }
 
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-        if (result.type !== "success" || !result.url) {
-          // Annulé par l'utilisateur : pas d'erreur à remonter.
+        const result = await promptGoogleAsync();
+        if (result.type !== "success") {
+          // Annulé par l'utilisateur (ou popup fermée) : pas d'erreur à remonter.
           return;
         }
 
-        const { params, errorCode } = QueryParams.getQueryParams(result.url);
-        if (errorCode) {
-          throw new Error(errorCode);
+        const idToken = result.params.id_token;
+        if (!idToken) {
+          throw new Error("Google n'a pas renvoyé de jeton d'identité.");
         }
 
-        const code = params.code;
-        if (!code) {
-          throw new Error("Code d'autorisation Google manquant dans la redirection.");
-        }
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: idToken,
+        });
+        if (error) throw error;
 
-        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) throw exchangeError;
-
-        if (sessionData.user) {
-          await ensureAuthProfile(sessionData.user.id);
+        if (data.user) {
+          await ensureAuthProfile(data.user.id);
         }
       },
 
@@ -288,7 +324,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
       },
     }),
-    [session, userId, initializing, isAppleAuthAvailable, isBetaUser, isPremium, isAdmin],
+    [
+      session,
+      userId,
+      initializing,
+      isAppleAuthAvailable,
+      isBetaUser,
+      isPremium,
+      isAdmin,
+      googleRequest,
+      promptGoogleAsync,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
