@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from "react-native";
 import { Svg, Circle } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fonts } from "@/src/theme/typography";
 
@@ -8,9 +9,13 @@ const logoSource: ImageSourcePropType = require("../../img/smashlog-logo.png");
 
 export default function OnboardingSplashScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <Pressable style={styles.container} onPress={() => router.replace("/onboarding/concept")}>
+    <Pressable
+      style={[styles.container, { paddingBottom: 40 + insets.bottom }]}
+      onPress={() => router.replace("/onboarding/concept")}
+    >
       <View style={styles.background} pointerEvents="none">
         <Svg height="100%" style={StyleSheet.absoluteFill} width="100%">
           <Circle cx="42" cy="120" r="130" stroke="rgba(206,255,0,0.07)" strokeWidth="1" fill="none" />
@@ -44,7 +49,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-    paddingBottom: 40,
   },
   background: {
     ...StyleSheet.absoluteFillObject,

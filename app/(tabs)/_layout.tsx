@@ -8,7 +8,10 @@ import { fonts } from "@/src/theme/typography";
 export default function TabLayout() {
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 10);
+  // +8 de marge de sécurité en plus de l'inset système : sur certains
+  // appareils Android (build preview testé), l'inset seul laissait la tab
+  // bar arriver pile au ras de la barre de navigation système.
+  const bottomInset = Math.max(insets.bottom, 10) + 8;
 
   return (
     <Tabs

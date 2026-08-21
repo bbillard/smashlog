@@ -1,10 +1,9 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
-import * as QueryParams from "expo-auth-session/build/QueryParams";
-import * as WebBrowser from "expo-web-browser";
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { Platform } from "react-native";
 import type { Session, User } from "@supabase/supabase-js";
+import { GoogleSignin, isCancelledResponse } from "@react-native-google-signin/google-signin";
 
 import { supabase } from "@/src/lib/supabase";
 import { deleteCloudAccount, resetLocalData } from "@/src/services/accountDeletion";
@@ -13,9 +12,19 @@ import { restoreFromCloud as restoreFromCloudService, type RestoreCounts } from 
 import { fetchFeatureFlags, getCachedFeatureFlags } from "@/src/services/featureFlags";
 import { isPremiumOrBeta } from "@/src/utils/premium";
 
-// Nécessaire pour que le WebBrowser ferme proprement l'onglet d'auth après
-// redirection (recommandé par la doc expo-auth-session).
-WebBrowser.maybeCompleteAuthSession();
+// Client "Web application" côté Google Cloud (le même que celui déjà
+// enregistré côté Supabase pour la vérification de l'id_token) et client
+// "iOS" (nécessaire pour que le SDK natif s'authentifie sur iOS — cf.
+// iosUrlScheme dans app.json, dérivé de ce même Client ID). Le Client ID
+// Android n'est pas utilisé ici : il est résolu automatiquement via le nom
+// de package + l'empreinte SHA-1 enregistrés côté Google Cloud.
+const GOOGLE_WEB_CLIENT_ID = "548113509796-4tv6o4odfb85cd0umorpm3nd294qu4km.apps.googleusercontent.com";
+const GOOGLE_IOS_CLIENT_ID = "548113509796-rjri47741vhqfh5ldtu3q5sout510p9u.apps.googleusercontent.com";
+
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+  iosClientId: GOOGLE_IOS_CLIENT_ID,
+});
 
 interface SignUpResult {
   /** true si Supabase attend une confirmation par email avant de connecter l'utilisateur. */
@@ -228,55 +237,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
 
       async signInWithGoogle() {
-        // Redirection hébergée par Supabase (client "Web application" côté
-        // Dashboard) : Google ne voit jamais notre scheme smashlog://, donc
-        // aucun conflit avec la validation stricte des redirect_uri de
-        // Google pour les clients iOS/Android. Nécessite les intentFilters
-        // Android (cf. app.json) pour que l'OS relaie bien la redirection
-        // finale vers l'app — c'était le vrai blocage sur Android, pas ce
-        // flow en lui-même (cf. analyse des logs Supabase).
-        const redirectTo = AuthSession.makeRedirectUri();
-
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo, skipBrowserRedirect: true },
-        });
-        if (error) throw error;
-        if (!data.url) {
-          throw new Error("Supabase n'a pas renvoyé d'URL d'autorisation Google.");
-        }
-
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-        if (result.type !== "success" || !result.url) {
+        // SDK natif (Google Play Services sur Android, GIDSignIn sur iOS) :
+        // aucun navigateur ne s'ouvre, donc aucune URL (ni Supabase, ni
+        // Google) n'est jamais visible par l'utilisateur — contrairement à
+        // l'ancien flow signInWithOAuth (hébergé par Supabase), qui passait
+        // par un aller-retour navigateur exposant xxx.supabase.co/auth/v1/callback.
+        // showPlayServicesUpdateDialog est ignoré sur iOS (toujours true là-bas).
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const response = await GoogleSignin.signIn();
+        if (isCancelledResponse(response)) {
           // Annulé par l'utilisateur : pas d'erreur à remonter.
           return;
         }
 
-        const { params, errorCode } = QueryParams.getQueryParams(result.url);
-        if (errorCode) {
-          throw new Error(errorCode);
+        const idToken = response.data.idToken;
+        if (!idToken) {
+          throw new Error("Google n'a pas renvoyé de jeton d'identité.");
         }
 
-        const code = params.code;
-        if (!code) {
-          throw new Error("Code d'autorisation Google manquant dans la redirection.");
-        }
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: idToken,
+        });
+        if (error) throw error;
 
-        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) throw exchangeError;
-
-        if (sessionData.user) {
-          await ensureAuthProfile(sessionData.user.id);
+        if (data.user) {
+          await ensureAuthProfile(data.user.id);
         }
       },
 
       async sendPasswordReset(email) {
-        // Renvoie vers l'écran d'auth existant : après avoir cliqué le lien
-        // reçu par email, Supabase authentifie une session "recovery" ;
-        // il ne reste qu'à définir un nouveau mot de passe via
-        // supabase.auth.updateUser({ password }) — non couvert par ce
-        // ticket (pas dans les critères d'acceptation), à faire dans un
-        // futur écran dédié si besoin.
+        // Après avoir cliqué le lien reçu par email, Supabase authentifie
+        // une session "recovery" ; authDeepLink.ts capte le retour et
+        // déclenche l'event PASSWORD_RECOVERY (cf. isPasswordRecovery
+        // ci-dessus), qui affiche PasswordResetOverlay par-dessus l'app
+        // pour définir le nouveau mot de passe.
         const redirectTo = AuthSession.makeRedirectUri({ path: "auth" });
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
         if (error) throw error;
@@ -300,6 +295,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // profil, planning...) restent intactes après déconnexion.
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+
+        try {
+          // Termine aussi la session native Google, sinon un prochain
+          // "Continuer avec Google" resélectionne silencieusement le même
+          // compte sans passer par le sélecteur natif.
+          await GoogleSignin.signOut();
+        } catch {
+          // Pas de session Google active : sans conséquence.
+        }
       },
 
       async restoreFromCloud() {
@@ -322,6 +326,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
           // peut légitimement échouer (session déjà invalidée par
           // auth.admin.deleteUser). Sans conséquence, l'état local est de
           // toute façon déjà réinitialisé au-dessus.
+        }
+
+        try {
+          await GoogleSignin.signOut();
+        } catch {
+          // Pas de session Google active : sans conséquence.
         }
       },
     }),
