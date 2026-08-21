@@ -90,7 +90,9 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
                 style={[styles.menuItem, styles.menuItemAccent, { borderColor: theme.primary }]}
               >
                 <Ionicons color={theme.primary} name="cloud-upload-outline" size={20} />
-                <Text style={[styles.menuItemText, { color: theme.primary }]}>Créer un compte / Se connecter</Text>
+                <Text style={[styles.menuItemText, styles.menuItemTextWrap, { color: theme.primary }]}>
+                  Créer un compte / Se connecter
+                </Text>
               </Pressable>
             ) : null}
 
@@ -232,6 +234,14 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
+  },
+  // Pour le bouton "Créer un compte / Se connecter" (le seul avec un texte
+  // long) : flexShrink permet au texte de se réduire jusqu'à la largeur
+  // disponible dans le bouton au lieu de la dépasser, ce qui le fait passer
+  // sur deux lignes plutôt que déborder du cadre.
+  menuItemTextWrap: {
+    flexShrink: 1,
+    lineHeight: 19,
   },
   footerRow: {
     flexDirection: "row",
