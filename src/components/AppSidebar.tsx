@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -21,6 +22,12 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
   const router = useRouter();
   const { theme } = useAppTheme();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  // Même logique que la tab bar (app/(tabs)/_layout.tsx) : on garantit au
+  // moins 10 de marge, et on s'aligne sur la zone système (barre de gestes /
+  // boutons Android) quand elle est plus grande, pour que le pied de page
+  // (version + À propos) ne se retrouve pas caché derrière.
+  const bottomInset = Math.max(insets.bottom, 10);
   const closeSwipe = useMemo(
     () =>
       PanResponder.create({
@@ -145,7 +152,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
           </View>
 
           <View style={styles.menuSwipeSpacer} />
-          <View style={styles.footerRow}>
+          <View style={[styles.footerRow, { paddingBottom: 16 + bottomInset }]}>
             <Text style={[styles.versionLabel, { color: theme.secondaryText }]}>
               v{Constants.expoConfig?.version ?? "—"}
             </Text>
@@ -231,7 +238,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingBottom: 16,
   },
   versionLabel: {
     fontSize: 11,

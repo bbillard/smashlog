@@ -17,6 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { MigrationProvider } from "@/src/context/MigrationContext";
 import { SyncProvider } from "@/src/context/SyncContext";
+import { PasswordResetOverlay } from "@/src/components/auth/PasswordResetOverlay";
 import { MigrationOverlay } from "@/src/components/MigrationOverlay";
 import { SplashLogoAnimation } from "@/src/components/SplashLogoAnimation";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -182,6 +183,7 @@ export default function RootLayout() {
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         <View style={{ flex: 1, backgroundColor: theme.background }}>
           <MigrationOverlay />
+          <PasswordResetOverlay />
           <Stack
             screenOptions={{
               animation: "fade",
