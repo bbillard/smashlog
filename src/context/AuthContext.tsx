@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type PropsWith
 import { Platform } from "react-native";
 import type { Session, User } from "@supabase/supabase-js";
 import { GoogleSignin, isCancelledResponse } from "@react-native-google-signin/google-signin";
+import { jwtDecode } from "jwt-decode";
 
 import { supabase } from "@/src/lib/supabase";
 import { deleteCloudAccount, resetLocalData } from "@/src/services/accountDeletion";
@@ -255,9 +256,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw new Error("Google n'a pas renvoyé de jeton d'identité.");
         }
 
+        // Le SDK natif de Google sur iOS inclut systématiquement un nonce
+        // dans l'id_token (comportement propre à iOS, absent sur Android).
+        // Supabase exige alors qu'on lui repasse ce même nonce, sinon
+        // signInWithIdToken échoue avec "Passed nonce and nonce in id_token
+        // should either both exist or not". On l'extrait donc du jeton s'il
+        // est présent ; sur Android, où il n'y en a pas, nonce vaut
+        // undefined et signInWithIdToken gère les deux cas normalement.
+        const { nonce } = jwtDecode<{ nonce?: string }>(idToken);
+
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: idToken,
+          nonce,
         });
         if (error) throw error;
 
