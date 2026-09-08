@@ -108,12 +108,8 @@ export default function ProfileScreen() {
   );
 
   async function handlePickImage() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Permission requise", "Autorise l'acces a la phototheque pour choisir une photo.");
-      return;
-    }
-
+    // Le sélecteur système Android (Photo Picker) est utilisé directement :
+    // aucune permission d'accès à la galerie n'est nécessaire pour cet usage.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,

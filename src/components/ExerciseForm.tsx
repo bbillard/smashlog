@@ -241,14 +241,8 @@ export function ExerciseForm({
 
   async function handleAddPhoto() {
     if (photos.length >= 3) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission requise",
-        "L'accès à la galerie est nécessaire pour ajouter des photos.",
-      );
-      return;
-    }
+    // Le sélecteur système Android (Photo Picker) est utilisé directement :
+    // aucune permission d'accès à la galerie n'est nécessaire pour cet usage.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.8,
