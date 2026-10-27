@@ -23,6 +23,14 @@ import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
 import { formatDate } from "@/src/utils/format";
+import {
+  computeResultCounts,
+  formatWinRate,
+  MATCH_MODE_LABELS,
+  MATCH_RESULT_BG,
+  MATCH_RESULT_COLORS,
+  MATCH_RESULT_LABELS,
+} from "@/src/utils/matchResult";
 
 interface EditableSession {
   createdAt: Date;
@@ -42,24 +50,13 @@ function formatMatchScore(sets: Match["sets"]): string {
   return sets.map((s) => `${s.scoreNous}-${s.scoreEux}`).join(", ");
 }
 
-const MATCH_MODE_LABELS: Record<Match["mode"], string> = {
-  simple: "Simple",
-  double: "Double",
-  mixte: "Mixte",
-};
-
-const MATCH_RESULT_LABELS: Record<Match["resultat"], string> = {
-  victoire: "Victoire",
-  defaite: "Défaite",
-};
 
 // ── Carte match (vue lecture) ─────────────────────────────────────────────────
 
 function MatchDetailCard({ match }: { match: Match }) {
   const router = useRouter();
   const { theme } = useAppTheme();
-  const isWin = match.resultat === "victoire";
-  const barColor = isWin ? "#CEFF00" : "#FF4D6D";
+  const barColor = MATCH_RESULT_COLORS[match.resultat];
   const score = formatMatchScore(match.sets);
 
   const navigateToPlayer = (playerId: string) =>
@@ -78,10 +75,10 @@ function MatchDetailCard({ match }: { match: Match }) {
           <View
             style={[
               matchStyles.resultBadge,
-              { backgroundColor: isWin ? "rgba(206,255,0,0.1)" : "rgba(255,77,109,0.1)" },
+              { backgroundColor: MATCH_RESULT_BG[match.resultat] },
             ]}
           >
-            <Text style={[matchStyles.resultBadgeText, { color: isWin ? "#CEFF00" : "#FF4D6D" }]}>
+            <Text style={[matchStyles.resultBadgeText, { color: MATCH_RESULT_COLORS[match.resultat] }]}>
               {MATCH_RESULT_LABELS[match.resultat]}
             </Text>
           </View>
@@ -139,9 +136,8 @@ function MatchesSection({ matches }: { matches: Match[] }) {
   const { theme } = useAppTheme();
   if (matches.length === 0) return null;
 
-  const wins = matches.filter((m) => m.resultat === "victoire").length;
-  const losses = matches.filter((m) => m.resultat === "defaite").length;
-  const winRate = Math.round((wins / matches.length) * 100);
+  // Nuls comptés dans « joués », exclus du win rate
+  const { wins, losses, draws, winRate } = computeResultCounts(matches);
 
   return (
     <SectionCard>
@@ -163,8 +159,16 @@ function MatchesSection({ matches }: { matches: Match[] }) {
             Défaite{losses > 1 ? "s" : ""}
           </Text>
         </View>
+        {draws > 0 ? (
+          <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+            <Text style={[styles.statValue, { color: MATCH_RESULT_COLORS.nul }]}>{draws}</Text>
+            <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
+              Nul{draws > 1 ? "s" : ""}
+            </Text>
+          </View>
+        ) : null}
         <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[styles.statValue, { color: theme.tertiaryText }]}>{winRate}%</Text>
+          <Text style={[styles.statValue, { color: theme.tertiaryText }]}>{formatWinRate(winRate)}</Text>
           <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Win rate</Text>
         </View>
       </View>

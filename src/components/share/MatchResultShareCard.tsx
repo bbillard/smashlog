@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { fonts } from "@/src/theme/typography";
 import { Match, Session } from "@/src/types/session";
+import { MATCH_RESULT_COLORS, MATCH_RESULT_LABELS } from "@/src/utils/matchResult";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,18 @@ const DEFEAT_ACCENT: AccentColors = {
   main: "#FF4D6D",
   bg: "rgba(255,77,109,0.1)",
   border: "rgba(255,77,109,0.35)",
+};
+
+const DRAW_ACCENT: AccentColors = {
+  main: MATCH_RESULT_COLORS.nul,
+  bg: "rgba(153,153,170,0.1)",
+  border: "rgba(153,153,170,0.35)",
+};
+
+const RESULT_ACCENTS: Record<Match["resultat"], AccentColors> = {
+  victoire: VICTORY_ACCENT,
+  defaite: DEFEAT_ACCENT,
+  nul: DRAW_ACCENT,
 };
 
 const MODE_LABELS: Record<Match["mode"], string> = {
@@ -63,9 +76,8 @@ export function MatchResultShareCard({
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
   const date = formatSessionDate(session.createdAt);
 
-  const isVictory = match.resultat === "victoire";
-  const accent = isVictory ? VICTORY_ACCENT : DEFEAT_ACCENT;
-  const resultLabel = isVictory ? "Victoire" : "Défaite";
+  const accent = RESULT_ACCENTS[match.resultat];
+  const resultLabel = MATCH_RESULT_LABELS[match.resultat];
   const modeLabel = MODE_LABELS[match.mode];
   const scoreDetail = formatSetScores(match);
 

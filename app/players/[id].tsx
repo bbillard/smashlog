@@ -19,20 +19,22 @@ import {
   MatchRecord,
   PlayerStats,
 } from "@/src/utils/playerStats";
+import {
+  computeResultCounts,
+  formatWinRate,
+  MATCH_RESULT_BG,
+  MATCH_RESULT_COLORS,
+  MATCH_RESULT_LABELS,
+  MatchResult,
+} from "@/src/utils/matchResult";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
 
-function ResultBadge({ resultat }: { resultat: "victoire" | "defaite" }) {
-  const isWin = resultat === "victoire";
+function ResultBadge({ resultat }: { resultat: MatchResult }) {
   return (
-    <View
-      style={[
-        badgeStyles.wrap,
-        { backgroundColor: isWin ? "rgba(206,255,0,0.1)" : "rgba(255,77,109,0.1)" },
-      ]}
-    >
-      <Text style={[badgeStyles.text, { color: isWin ? "#CEFF00" : "#FF4D6D" }]}>
-        {isWin ? "Victoire" : "Défaite"}
+    <View style={[badgeStyles.wrap, { backgroundColor: MATCH_RESULT_BG[resultat] }]}>
+      <Text style={[badgeStyles.text, { color: MATCH_RESULT_COLORS[resultat] }]}>
+        {MATCH_RESULT_LABELS[resultat]}
       </Text>
     </View>
   );
@@ -265,13 +267,14 @@ export default function PlayerDetailScreen() {
   const advRecords = stats.records.filter((r) => r.isAdversaire);
   const partRecords = stats.records.filter((r) => r.isPartenaire);
 
-  const advWins = advRecords.filter((r) => r.resultat === "victoire").length;
-  const advWinRate = advRecords.length > 0 ? Math.round((advWins / advRecords.length) * 100) : 0;
-  const advWrColor = advWinRate >= 50 ? "#CEFF00" : "#FF4D6D";
+  // Nuls exclus des taux, mais comptés dans le nombre de matchs
+  const adv = computeResultCounts(advRecords);
+  const advWrColor =
+    adv.winRate === null ? MATCH_RESULT_COLORS.nul : adv.winRate >= 50 ? "#CEFF00" : "#FF4D6D";
 
-  const partWins = partRecords.filter((r) => r.resultat === "victoire").length;
-  const partWinRate = partRecords.length > 0 ? Math.round((partWins / partRecords.length) * 100) : 0;
-  const partWrColor = partWinRate >= 50 ? "#00E5FF" : "#FF4D6D";
+  const part = computeResultCounts(partRecords);
+  const partWrColor =
+    part.winRate === null ? MATCH_RESULT_COLORS.nul : part.winRate >= 50 ? "#00E5FF" : "#FF4D6D";
 
   return (
     <>
@@ -347,12 +350,15 @@ export default function PlayerDetailScreen() {
               </Text>
             </View>
             <View style={styles.statsRow}>
-              <StatBox value={String(advWins)} label="Victoires" color="#CEFF00" />
-              <StatBox value={String(advRecords.length - advWins)} label="Défaites" color="#FF4D6D" />
+              <StatBox value={String(adv.wins)} label="Victoires" color="#CEFF00" />
+              <StatBox value={String(adv.losses)} label="Défaites" color="#FF4D6D" />
+              {adv.draws > 0 ? (
+                <StatBox value={String(adv.draws)} label="Nuls" color={MATCH_RESULT_COLORS.nul} />
+              ) : null}
               <View style={[statStyles.box, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <View style={styles.wrValueRow}>
                   <Text style={[statStyles.value, styles.wrValueText, { color: advWrColor }]}>
-                    {advWinRate}%
+                    {formatWinRate(adv.winRate)}
                   </Text>
                   <Ionicons name="trophy-outline" size={12} color={advWrColor} />
                 </View>
@@ -372,12 +378,15 @@ export default function PlayerDetailScreen() {
               </Text>
             </View>
             <View style={styles.statsRow}>
-              <StatBox value={String(partWins)} label="Victoires" color="#CEFF00" />
-              <StatBox value={String(partRecords.length - partWins)} label="Défaites" color="#FF4D6D" />
+              <StatBox value={String(part.wins)} label="Victoires" color="#CEFF00" />
+              <StatBox value={String(part.losses)} label="Défaites" color="#FF4D6D" />
+              {part.draws > 0 ? (
+                <StatBox value={String(part.draws)} label="Nuls" color={MATCH_RESULT_COLORS.nul} />
+              ) : null}
               <View style={[statStyles.box, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <View style={styles.wrValueRow}>
                   <Text style={[statStyles.value, styles.wrValueText, { color: partWrColor }]}>
-                    {partWinRate}%
+                    {formatWinRate(part.winRate)}
                   </Text>
                   <Ionicons name="people-outline" size={12} color={partWrColor} />
                 </View>

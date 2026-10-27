@@ -3,12 +3,14 @@ import { StyleSheet, Text, View } from "react-native";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
 import { fonts } from "@/src/theme/typography";
 import { Match, Session } from "@/src/types/session";
+import { computeResultCounts, MATCH_RESULT_COLORS } from "@/src/utils/matchResult";
 
 // ── Types internes ─────────────────────────────────────────────────────────────
 
 interface WinRate {
   victories: number;
   defeats: number;
+  draws: number;
   total: number;
 }
 
@@ -21,9 +23,8 @@ interface ModeDistribution {
 // ── Helpers de calcul ──────────────────────────────────────────────────────────
 
 function computeWinRate(matches: Match[]): WinRate {
-  const victories = matches.filter((m) => m.resultat === "victoire").length;
-  const defeats = matches.filter((m) => m.resultat === "defaite").length;
-  return { victories, defeats, total: matches.length };
+  const counts = computeResultCounts(matches);
+  return { victories: counts.wins, defeats: counts.losses, draws: counts.draws, total: counts.total };
 }
 
 function computeModeDistribution(matches: Match[]): ModeDistribution {
@@ -107,6 +108,14 @@ export function SessionSummaryShareCard({
             {winRate.defeats > 1 ? "défaites" : "défaite"}
           </Text>
         </View>
+        {winRate.draws > 0 ? (
+          <View style={styles.winRateRow}>
+            <Text style={styles.winRateNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {winRate.draws}
+            </Text>
+            <Text style={styles.draws}>{winRate.draws > 1 ? "nuls" : "nul"}</Text>
+          </View>
+        ) : null}
         <Text style={styles.matchCount}>
           {winRate.total} {matchWord}
         </Text>
@@ -213,6 +222,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 22,
     color: "#FF4D6D",
+  },
+  draws: {
+    fontFamily: fonts.displayExtraBold,
+    fontSize: 20,
+    lineHeight: 22,
+    color: MATCH_RESULT_COLORS.nul,
   },
   matchCount: {
     fontFamily: fonts.bodyRegular,

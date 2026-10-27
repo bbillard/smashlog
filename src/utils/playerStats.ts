@@ -1,5 +1,6 @@
 import { Player } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
+import { computeResultCounts } from "@/src/utils/matchResult";
 
 // ── Couleurs avatar (déterministes par nom) ───────────────────────────────────
 
@@ -44,6 +45,8 @@ export function normalizeStr(str: string): string {
 
 export interface MatchRecord {
   sessionId: string;
+  /** Position du match dans session.matches (identité positionnelle, cf. schéma Supabase). */
+  matchIndex: number;
   sessionDate: string;
   resultat: Match["resultat"];
   sets: Match["sets"];
@@ -56,7 +59,8 @@ export interface PlayerStats {
   total: number;
   wins: number;
   losses: number;
-  winRate: number;            // 0–100
+  draws: number;
+  winRate: number | null;     // 0–100, null si aucun match décisif (nuls exclus)
   lastMatchDate: string | null;
   firstMatchDate: string | null;
   isAdversaire: boolean;      // a été adversaire au moins une fois
@@ -96,13 +100,14 @@ export function computePlayerStats(player: Player, sessions: Session[]): PlayerS
   const records: MatchRecord[] = [];
 
   for (const session of sessions) {
-    for (const match of session.matches ?? []) {
+    (session.matches ?? []).forEach((match, matchIndex) => {
       const isAdv = isMatchAdversaire(match, player);
       const isPart = !isAdv && isMatchPartenaire(match, player);
 
       if (isAdv || isPart) {
         records.push({
           sessionId: session.id,
+          matchIndex,
           sessionDate: session.createdAt,
           resultat: match.resultat,
           sets: match.sets,
@@ -111,7 +116,7 @@ export function computePlayerStats(player: Player, sessions: Session[]): PlayerS
           isPartenaire: isPart,
         });
       }
-    }
+    });
   }
 
   // Tri décroissant par date de séance
@@ -119,10 +124,7 @@ export function computePlayerStats(player: Player, sessions: Session[]): PlayerS
     (a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime(),
   );
 
-  const total = records.length;
-  const wins = records.filter((r) => r.resultat === "victoire").length;
-  const losses = total - wins;
-  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+  const { total, wins, losses, draws, winRate } = computeResultCounts(records);
   const lastMatchDate = records[0]?.sessionDate ?? null;
   const firstMatchDate = records[records.length - 1]?.sessionDate ?? null;
   const isAdversaire = records.some((r) => r.isAdversaire);
@@ -132,6 +134,7 @@ export function computePlayerStats(player: Player, sessions: Session[]): PlayerS
     total,
     wins,
     losses,
+    draws,
     winRate,
     lastMatchDate,
     firstMatchDate,

@@ -13,6 +13,7 @@ import { addPlayer, getPlayerById, getPlayers, getSessions } from '@/src/service
 import { palette } from '@/src/theme/colors';
 import { Player } from '@/src/types/index';
 import { createId } from '@/src/utils/id';
+import { Match } from '@/src/types/session';
 
 // ─── Couleurs avatar ─────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ interface PlayerStats {
   total: number;
   wins: number;
   losses: number;
+  draws: number;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -88,8 +90,15 @@ export default function PlayerAutocomplete({
     // Calcul des stats par joueur à partir des sessions
     const map: Record<string, PlayerStats> = {};
 
+    const countResult = (id: string, resultat: Match['resultat']) => {
+      map[id].total++;
+      if (resultat === 'victoire') map[id].wins++;
+      else if (resultat === 'defaite') map[id].losses++;
+      else map[id].draws++;
+    };
+
     const ensureEntry = (id: string) => {
-      if (!map[id]) map[id] = { total: 0, wins: 0, losses: 0 };
+      if (!map[id]) map[id] = { total: 0, wins: 0, losses: 0, draws: 0 };
     };
 
     for (const session of sessions) {
@@ -103,9 +112,7 @@ export default function PlayerAutocomplete({
 
         if (advId) {
           ensureEntry(advId);
-          map[advId].total++;
-          if (match.resultat === 'victoire') map[advId].wins++;
-          else map[advId].losses++;
+          countResult(advId, match.resultat);
         }
 
         // Résoudre le partenaire (double/mixte)
@@ -117,18 +124,14 @@ export default function PlayerAutocomplete({
 
         if (partId && partId !== advId) {
           ensureEntry(partId);
-          map[partId].total++;
-          if (match.resultat === 'victoire') map[partId].wins++;
-          else map[partId].losses++;
+          countResult(partId, match.resultat);
         }
 
         // partenaireIds (double avec plusieurs partenaires)
         for (const pid of match.partenaireIds ?? []) {
           if (pid !== advId && pid !== partId) {
             ensureEntry(pid);
-            map[pid].total++;
-            if (match.resultat === 'victoire') map[pid].wins++;
-            else map[pid].losses++;
+            countResult(pid, match.resultat);
           }
         }
       }
@@ -230,7 +233,7 @@ export default function PlayerAutocomplete({
     }
     return (
       <Text style={styles.sugStats}>
-        {s.total} match{s.total > 1 ? 's' : ''} · {s.wins}V {s.losses}D
+        {s.total} match{s.total > 1 ? 's' : ''} · {s.wins}V {s.losses}D{s.draws > 0 ? ` ${s.draws}N` : ''}
       </Text>
     );
   };

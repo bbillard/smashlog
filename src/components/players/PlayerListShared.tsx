@@ -14,6 +14,7 @@ import {
   PlayerStats,
   relativeDate,
 } from "@/src/utils/playerStats";
+import { computeResultCounts, formatWinRate, MATCH_RESULT_COLORS } from "@/src/utils/matchResult";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,16 +27,19 @@ export interface PlayerWithStats extends Player {
 export function roleWRStats(
   records: PlayerStats["records"],
   role: "adversaire" | "partenaire",
-): { total: number; wins: number; winRate: number; color: string } {
+): { total: number; wins: number; winRate: number | null; winRateLabel: string; color: string } {
   const filtered = records.filter((r) =>
     role === "adversaire" ? r.isAdversaire : r.isPartenaire,
   );
-  const wins = filtered.filter((r) => r.resultat === "victoire").length;
-  const total = filtered.length;
-  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+  // Nuls exclus du taux, mais comptés dans le total de matchs joués
+  const { total, wins, winRate } = computeResultCounts(filtered);
   const color =
-    winRate >= 50 ? (role === "adversaire" ? "#CEFF00" : "#00E5FF") : "#FF4D6D";
-  return { total, wins, winRate, color };
+    winRate === null
+      ? MATCH_RESULT_COLORS.nul
+      : winRate >= 50
+        ? (role === "adversaire" ? "#CEFF00" : "#00E5FF")
+        : "#FF4D6D";
+  return { total, wins, winRate, winRateLabel: formatWinRate(winRate), color };
 }
 
 // ── Carte joueur (grille 2 colonnes) ─────────────────────────────────────────
@@ -78,7 +82,7 @@ export function PlayerCard({
       </Text>
       {wr.total > 0 ? (
         <View style={sharedStyles.cardWRRow}>
-          <Text style={[sharedStyles.cardWR, { color: wr.color }]}>{wr.winRate}%</Text>
+          <Text style={[sharedStyles.cardWR, { color: wr.color }]}>{wr.winRateLabel}</Text>
           <Ionicons name={wrIcon as any} size={11} color={wr.color} />
         </View>
       ) : null}
@@ -158,7 +162,7 @@ export function PlayerRow({
       </View>
       {wr.total > 0 ? (
         <View style={sharedStyles.rowWRRow}>
-          <Text style={[sharedStyles.rowWR, { color: wr.color }]}>{wr.winRate}%</Text>
+          <Text style={[sharedStyles.rowWR, { color: wr.color }]}>{wr.winRateLabel}</Text>
           <Ionicons name={wrIcon as any} size={11} color={wr.color} />
         </View>
       ) : null}

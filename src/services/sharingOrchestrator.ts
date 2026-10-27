@@ -12,6 +12,7 @@ import { generateMessage, updateRecentMessageIds } from './sharingMessage';
 import type { TriggeredCard } from './sharingTrigger';
 import type { GeneratedMessage } from './sharingMessage';
 import type { Match, SessionType } from '../types/session';
+import { computeResultCounts } from '@/src/utils/matchResult';
 
 // ── Clés AsyncStorage ─────────────────────────────────────────────────────────
 
@@ -105,10 +106,14 @@ function collectMatchesInWindow(
   return result;
 }
 
-function computeWinRatePercent(matches: Match[]): number {
-  if (matches.length === 0) return 0;
-  const victories = matches.filter((m) => m.resultat === 'victoire').length;
-  return Math.round((victories / matches.length) * 100);
+/** Win rate des matchs décisifs (nuls exclus). null si aucun match décisif. */
+function computeWinRatePercent(matches: Match[]): number | null {
+  return computeResultCounts(matches).winRate;
+}
+
+/** Nombre de matchs décisifs (victoires + défaites) — base de calcul du taux. */
+function countDecisive(matches: Match[]): number {
+  return computeResultCounts(matches).decisive;
 }
 
 /**
@@ -126,16 +131,18 @@ export function computeWinRateSnapshotData(
   sixtyDaysAgo.setDate(now.getDate() - 60);
 
   const currentMatches = collectMatchesInWindow(sessions, thirtyDaysAgo, now);
-  if (currentMatches.length < WINRATE_MIN_MATCHES) return null;
+  // Le seuil porte sur les matchs décisifs : un taux calculé sur des nuls n'a pas de sens
+  if (countDecisive(currentMatches) < WINRATE_MIN_MATCHES) return null;
 
   const previousMatches = collectMatchesInWindow(sessions, sixtyDaysAgo, thirtyDaysAgo);
   const currentRate = computeWinRatePercent(currentMatches);
+  if (currentRate === null) return null;
 
   let trendPercent: number | null = null;
   let trendDirection: TrendDirection = null;
 
-  if (previousMatches.length >= WINRATE_MIN_PREVIOUS) {
-    const previousRate = computeWinRatePercent(previousMatches);
+  const previousRate = computeWinRatePercent(previousMatches);
+  if (countDecisive(previousMatches) >= WINRATE_MIN_PREVIOUS && previousRate !== null) {
     trendPercent = currentRate - previousRate;
     if (Math.abs(trendPercent) < WINRATE_STABLE_THRESHOLD) {
       trendDirection = 'stable';

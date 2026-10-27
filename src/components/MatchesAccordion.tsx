@@ -7,6 +7,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
 import { getPlayers } from "@/src/services/storage";
 import { Match } from "@/src/types/session";
+import { MATCH_RESULT_BG, MATCH_RESULT_COLORS, MATCH_RESULT_LABELS } from "@/src/utils/matchResult";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,10 +22,7 @@ const MODE_LABELS: Record<Match["mode"], string> = {
   mixte: "Mixte",
 };
 
-const RESULT_LABELS: Record<Match["resultat"], string> = {
-  victoire: "Victoire",
-  defaite: "Défaite",
-};
+const RESULT_LABELS = MATCH_RESULT_LABELS;
 
 const MAX_SETS = 5;
 
@@ -83,8 +81,7 @@ function MatchCard({
   onDelete: () => void;
 }) {
   const { theme } = useAppTheme();
-  const isWin = match.resultat === "victoire";
-  const barColor = isWin ? "#CEFF00" : "#FF4D6D";
+  const barColor = MATCH_RESULT_COLORS[match.resultat];
 
   return (
     <View style={[styles.matchCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
@@ -95,10 +92,10 @@ function MatchCard({
           <View
             style={[
               styles.matchResultBadge,
-              { backgroundColor: isWin ? "rgba(206,255,0,0.1)" : "rgba(255,77,109,0.1)" },
+              { backgroundColor: MATCH_RESULT_BG[match.resultat] },
             ]}
           >
-            <Text style={[styles.matchResultBadgeText, { color: isWin ? "#CEFF00" : "#FF4D6D" }]}>
+            <Text style={[styles.matchResultBadgeText, { color: MATCH_RESULT_COLORS[match.resultat] }]}>
               {RESULT_LABELS[match.resultat]}
             </Text>
           </View>

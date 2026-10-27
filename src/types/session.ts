@@ -16,7 +16,7 @@ export interface Match {
   partenaireId?: string;       // référence Player.id — partenaire (double/mixte)
   partenaireIds?: string[];    // conservé pour rétrocompatibilité
   // Reste des champs existants
-  resultat: "victoire" | "defaite";
+  resultat: "victoire" | "defaite" | "nul";
   mode: "simple" | "double" | "mixte";
   sets: { scoreNous: number; scoreEux: number }[];
   commentaire?: string;

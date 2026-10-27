@@ -4,6 +4,7 @@ import type { ScheduledSlot } from "@/src/services/onboarding";
 import { Exercise, Player } from "@/src/types/index";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { deterministicId } from "@/src/utils/deterministicId";
+import { isMatchResult } from "@/src/utils/matchResult";
 
 /**
  * Convertit les modèles locaux (AsyncStorage) en lignes Supabase.
@@ -184,7 +185,10 @@ export function fromMatchRow(row: Tables<"matches">): Match {
     ...(row.opponent_ids ? { adversaireIds: row.opponent_ids } : {}),
     ...(row.partner_id ? { partenaireId: row.partner_id } : {}),
     ...(row.partner_ids ? { partenaireIds: row.partner_ids } : {}),
-    resultat: (row.result ?? "victoire") as Match["resultat"],
+    // Pas de défaut "victoire" (biais silencieux sur les stats). Valeur absente ou
+    // inconnue → "nul", seul résultat exclu des taux (cas théorique : la colonne
+    // est toujours renseignée par l'app).
+    resultat: isMatchResult(row.result) ? row.result : "nul",
     mode: (row.mode ?? "simple") as Match["mode"],
     sets: (row.sets as Match["sets"] | null) ?? [],
     ...(row.comment ? { commentaire: row.comment } : {}),
