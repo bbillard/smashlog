@@ -286,6 +286,14 @@ export default function RootLayout() {
             <Stack.Screen name="players/[id]" options={{ title: "Joueur" }} />
             <Stack.Screen name="players/adversaires" options={{ title: "Adversaires" }} />
             <Stack.Screen name="players/partenaires" options={{ title: "Partenaires" }} />
+            <Stack.Screen
+              name="matches"
+              options={{ title: "Mes matchs", headerBackVisible: false, headerLeft: headerBackToHome }}
+            />
+            <Stack.Screen
+              name="match/edit"
+              options={{ title: "Modifier le match", presentation: "card" }}
+            />
             {/* exercise/* : headerLeft géré inline dans chaque écran via router.back() */}
             <Stack.Screen
               name="exercise/new"

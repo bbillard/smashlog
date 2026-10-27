@@ -53,7 +53,15 @@ function formatMatchScore(sets: Match["sets"]): string {
 
 // ── Carte match (vue lecture) ─────────────────────────────────────────────────
 
-function MatchDetailCard({ match }: { match: Match }) {
+function MatchDetailCard({
+  match,
+  sessionId,
+  index,
+}: {
+  match: Match;
+  sessionId: string;
+  index: number;
+}) {
   const router = useRouter();
   const { theme } = useAppTheme();
   const barColor = MATCH_RESULT_COLORS[match.resultat];
@@ -62,11 +70,20 @@ function MatchDetailCard({ match }: { match: Match }) {
   const navigateToPlayer = (playerId: string) =>
     router.push({ pathname: "/players/[id]", params: { id: playerId } });
 
+  const openEdit = () =>
+    router.push({
+      pathname: "/match/edit",
+      params: { sessionId, index: String(index), from: "session" },
+    });
+
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityLabel={`Modifier le match ${index + 1}`}
+      onPress={openEdit}
+      style={({ pressed }) => [
         matchStyles.card,
         { borderColor: theme.border },
+        pressed && { opacity: 0.85 },
       ]}
     >
       <View style={[matchStyles.bar, { backgroundColor: barColor }]} />
@@ -90,6 +107,14 @@ function MatchDetailCard({ match }: { match: Match }) {
           {score ? (
             <Text style={[matchStyles.score, { color: theme.text }]}>{score}</Text>
           ) : null}
+          <Pressable
+            accessibilityLabel="Modifier ce match"
+            hitSlop={10}
+            onPress={openEdit}
+            style={score ? matchStyles.editBtnAfterScore : matchStyles.editBtn}
+          >
+            <Ionicons color={theme.secondaryText} name="pencil-outline" size={13} />
+          </Pressable>
         </View>
 
         {/* Adversaire — cliquable si adversaireId est renseigné */}
@@ -126,13 +151,13 @@ function MatchDetailCard({ match }: { match: Match }) {
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 // ── Section matchs ────────────────────────────────────────────────────────────
 
-function MatchesSection({ matches }: { matches: Match[] }) {
+function MatchesSection({ matches, sessionId }: { matches: Match[]; sessionId: string }) {
   const { theme } = useAppTheme();
   if (matches.length === 0) return null;
 
@@ -176,7 +201,7 @@ function MatchesSection({ matches }: { matches: Match[] }) {
       {/* Cartes match */}
       <View style={styles.matchList}>
         {matches.map((match, index) => (
-          <MatchDetailCard key={index} match={match} />
+          <MatchDetailCard key={index} index={index} match={match} sessionId={sessionId} />
         ))}
       </View>
     </SectionCard>
@@ -604,7 +629,7 @@ export default function SessionDetailScreen() {
           <Field label="Intention pour la prochaine séance" value={session.nextIntention} />
           {session.freeNotes ? <Field label="Notes libres" value={session.freeNotes} /> : null}
           {session.matches && session.matches.length > 0 ? (
-            <MatchesSection matches={session.matches} />
+            <MatchesSection matches={session.matches} sessionId={session.id} />
           ) : null}
           {linkedExercises.length > 0 ? (
             <LinkedExercisesSection exercises={linkedExercises} />
@@ -621,6 +646,12 @@ export default function SessionDetailScreen() {
 // ── Styles matchs (locaux au module) ─────────────────────────────────────────
 
 const matchStyles = StyleSheet.create({
+  editBtn: {
+    marginLeft: "auto",
+  },
+  editBtnAfterScore: {
+    marginLeft: 10,
+  },
   card: {
     flexDirection: "row",
     borderRadius: 12,
