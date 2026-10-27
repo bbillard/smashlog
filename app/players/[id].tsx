@@ -55,14 +55,20 @@ const badgeStyles = StyleSheet.create({
 
 // ── Ligne d'historique ────────────────────────────────────────────────────────
 
-function HistoryRow({ record }: { record: MatchRecord }) {
+function HistoryRow({ record, onPress }: { record: MatchRecord; onPress: () => void }) {
   const { theme } = useAppTheme();
   const score = formatMatchScore(record.sets);
   const context = record.isAdversaire ? "vs." : "avec";
 
   return (
-    <View
-      style={[histStyles.row, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+    <Pressable
+      accessibilityLabel="Ouvrir le match"
+      onPress={onPress}
+      style={({ pressed }) => [
+        histStyles.row,
+        { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+        pressed && { opacity: 0.8 },
+      ]}
     >
       <ResultBadge resultat={record.resultat} />
       <Text style={[histStyles.context, { color: theme.secondaryText }]}>{context}</Text>
@@ -72,7 +78,8 @@ function HistoryRow({ record }: { record: MatchRecord }) {
       {score ? (
         <Text style={[histStyles.score, { color: theme.text }]}>{score}</Text>
       ) : null}
-    </View>
+      <Ionicons color={theme.secondaryText} name="chevron-forward" size={13} />
+    </Pressable>
   );
 }
 
@@ -404,7 +411,17 @@ export default function PlayerDetailScreen() {
             </Text>
             <View style={styles.historyList}>
               {stats.records.map((record, idx) => (
-                <HistoryRow key={idx} record={record} />
+                <HistoryRow
+                  key={`${record.sessionId}-${record.matchIndex}-${idx}`}
+                  record={record}
+                  onPress={() =>
+                    // Retour natif sur la fiche joueur, rechargée au focus
+                    router.push({
+                      pathname: "/match/edit",
+                      params: { sessionId: record.sessionId, index: String(record.matchIndex) },
+                    })
+                  }
+                />
               ))}
             </View>
           </SectionCard>
