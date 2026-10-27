@@ -50,6 +50,7 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
       | "/settings"
       | "/intentions"
       | "/players"
+      | "/matches"
       | "/auth"
       | "/help"
       | "/about",
@@ -126,6 +127,14 @@ export function AppSidebar({ open, onClose, profile }: AppSidebarProps) {
             >
               <Ionicons color={theme.text} name="people-outline" size={20} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Mes joueurs</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigate("/matches")}
+              style={[styles.menuItem, { borderColor: theme.border }]}
+            >
+              <Ionicons color={theme.text} name="trophy-outline" size={20} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Mes matchs</Text>
             </Pressable>
 
             <Pressable
