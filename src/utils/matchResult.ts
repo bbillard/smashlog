@@ -92,6 +92,49 @@ export function formatResultCounts(counts: ResultCounts): string {
   return parts.join(" · ");
 }
 
+// ── Couleur d'un win rate ─────────────────────────────────────────────────────
+
+/**
+ * Échelle unique de couleur d'un win rate, utilisée partout (stats, joueurs,
+ * détail de séance, cartes de partage). Décision produit v1.4.1 :
+ * - > 75 %      → élevé  (cyan)
+ * - 40 → 75 %   → moyen  (lime)
+ * - < 40 %      → faible (rouge)
+ * - null (« — ») → aucun match comptabilisé (gris)
+ * Ne pas coder ces seuils ailleurs : passer par winRateTier / winRateColor.
+ */
+export const WIN_RATE_HIGH_THRESHOLD = 75;
+export const WIN_RATE_LOW_THRESHOLD = 40;
+
+export type WinRateTier = "high" | "medium" | "low" | "none";
+
+export function winRateTier(rate: number | null): WinRateTier {
+  if (rate === null) return "none";
+  if (rate > WIN_RATE_HIGH_THRESHOLD) return "high";
+  if (rate < WIN_RATE_LOW_THRESHOLD) return "low";
+  return "medium";
+}
+
+export interface WinRateAccent {
+  /** Couleur pleine (chiffre). */
+  main: string;
+  /** Version atténuée (unité « % », sous-texte). */
+  dim: string;
+  /** Fond teinté (badge). */
+  bg: string;
+}
+
+export const WIN_RATE_ACCENTS: Record<WinRateTier, WinRateAccent> = {
+  high: { main: "#00E5FF", dim: "rgba(0,229,255,0.5)", bg: "rgba(0,229,255,0.1)" },
+  medium: { main: "#CEFF00", dim: "rgba(206,255,0,0.5)", bg: "rgba(206,255,0,0.1)" },
+  low: { main: "#FF4D6D", dim: "rgba(255,77,109,0.5)", bg: "rgba(255,77,109,0.1)" },
+  none: { main: "#9999AA", dim: "rgba(153,153,170,0.5)", bg: "rgba(153,153,170,0.12)" },
+};
+
+export function winRateColor(rate: number | null): string {
+  return WIN_RATE_ACCENTS[winRateTier(rate)].main;
+}
+
 // ── Déduction depuis le score ─────────────────────────────────────────────────
 
 /**

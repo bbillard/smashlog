@@ -163,14 +163,6 @@ export function relativeDate(isoDate: string): string {
   return `Il y a ${years} an${years > 1 ? "s" : ""}`;
 }
 
-// ── Couleur win rate ──────────────────────────────────────────────────────────
-
-export function winRateColor(rate: number): string {
-  if (rate > 50) return "#CEFF00";
-  if (rate < 50) return "#FF4D6D";
-  return "#6B6B7A";
-}
-
 // ── Format score ──────────────────────────────────────────────────────────────
 
 export function formatMatchScore(sets: Match["sets"]): string {

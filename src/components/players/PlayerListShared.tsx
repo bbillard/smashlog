@@ -14,7 +14,7 @@ import {
   PlayerStats,
   relativeDate,
 } from "@/src/utils/playerStats";
-import { computeResultCounts, formatWinRate, MATCH_RESULT_COLORS } from "@/src/utils/matchResult";
+import { computeResultCounts, formatWinRate, winRateColor } from "@/src/utils/matchResult";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,12 +33,8 @@ export function roleWRStats(
   );
   // Nuls exclus du taux, mais comptés dans le total de matchs joués
   const { total, wins, winRate } = computeResultCounts(filtered);
-  const color =
-    winRate === null
-      ? MATCH_RESULT_COLORS.nul
-      : winRate >= 50
-        ? (role === "adversaire" ? "#CEFF00" : "#00E5FF")
-        : "#FF4D6D";
+  // Échelle commune (cf. winRateColor) ; le rôle reste porté par le trait de la carte
+  const color = winRateColor(winRate);
   return { total, wins, winRate, winRateLabel: formatWinRate(winRate), color };
 }
 

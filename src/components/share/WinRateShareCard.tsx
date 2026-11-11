@@ -2,36 +2,9 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { fonts } from "@/src/theme/typography";
 import type { TrendDirection, WinRateSnapshot } from "@/src/services/sharingOrchestrator";
+import { WIN_RATE_ACCENTS, winRateTier } from "@/src/utils/matchResult";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-interface AccentColors {
-  main: string;       // couleur pleine
-  dim: string;        // version atténuée pour le "%"
-  bg: string;         // fond du badge
-}
-
-function getAccentColors(winRatePercent: number): AccentColors {
-  if (winRatePercent > 70) {
-    return {
-      main: '#00E5FF',
-      dim: 'rgba(0,229,255,0.5)',
-      bg: 'rgba(0,229,255,0.1)',
-    };
-  }
-  if (winRatePercent < 30) {
-    return {
-      main: '#FF4D6D',
-      dim: 'rgba(255,77,109,0.5)',
-      bg: 'rgba(255,77,109,0.1)',
-    };
-  }
-  return {
-    main: '#CEFF00',
-    dim: 'rgba(206,255,0,0.5)',
-    bg: 'rgba(206,255,0,0.1)',
-  };
-}
 
 interface TrendDisplay {
   label: string;
@@ -79,7 +52,8 @@ export function WinRateShareCard({
   username: string;
 }) {
   const shareUsername = username.trim().startsWith("@") ? username.trim() : `@${username.trim()}`;
-  const accent = getAccentColors(snapshot.winRatePercent);
+  // Échelle commune de l'app (cyan > 75 %, lime 40–75 %, rouge < 40 %)
+  const accent = WIN_RATE_ACCENTS[winRateTier(snapshot.winRatePercent)];
   const hasTrend = snapshot.trendPercent !== null && snapshot.trendDirection !== null;
   const trend =
     hasTrend && snapshot.trendPercent !== null && snapshot.trendDirection !== null

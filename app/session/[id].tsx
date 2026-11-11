@@ -30,6 +30,7 @@ import {
   MATCH_RESULT_BG,
   MATCH_RESULT_COLORS,
   MATCH_RESULT_LABELS,
+  winRateColor,
 } from "@/src/utils/matchResult";
 
 interface EditableSession {
@@ -193,7 +194,7 @@ function MatchesSection({ matches, sessionId }: { matches: Match[]; sessionId: s
           </View>
         ) : null}
         <View style={[styles.statBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[styles.statValue, { color: theme.tertiaryText }]}>{formatWinRate(winRate)}</Text>
+          <Text style={[styles.statValue, { color: winRateColor(winRate) }]}>{formatWinRate(winRate)}</Text>
           <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Win rate</Text>
         </View>
       </View>

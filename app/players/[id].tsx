@@ -26,6 +26,7 @@ import {
   MATCH_RESULT_COLORS,
   MATCH_RESULT_LABELS,
   MatchResult,
+  winRateColor,
 } from "@/src/utils/matchResult";
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -276,12 +277,12 @@ export default function PlayerDetailScreen() {
 
   // Nuls exclus des taux, mais comptés dans le nombre de matchs
   const adv = computeResultCounts(advRecords);
-  const advWrColor =
-    adv.winRate === null ? MATCH_RESULT_COLORS.nul : adv.winRate >= 50 ? "#CEFF00" : "#FF4D6D";
+  const advWrColor = winRateColor(adv.winRate);
 
   const part = computeResultCounts(partRecords);
-  const partWrColor =
-    part.winRate === null ? MATCH_RESULT_COLORS.nul : part.winRate >= 50 ? "#00E5FF" : "#FF4D6D";
+  // Même échelle que les adversaires : le rôle partenaire reste identifiable par
+  // son bloc et son icône, plus par la couleur du taux
+  const partWrColor = winRateColor(part.winRate);
 
   return (
     <>

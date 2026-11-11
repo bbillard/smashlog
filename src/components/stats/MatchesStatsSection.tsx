@@ -13,6 +13,7 @@ import {
   formatWinRate,
   MATCH_MODE_LABELS,
   MATCH_RESULT_COLORS,
+  winRateColor,
 } from "@/src/utils/matchResult";
 import {
   collectDatedMatches,
@@ -25,13 +26,6 @@ import {
 const MODES = ["simple", "double", "mixte"] as const;
 const CHART_HEIGHT = 96;
 
-/** Même code couleur que la fiche joueur : ≥ 50 % lime, < 50 % rouge, sans taux gris. */
-function rateColor(rate: number | null): string {
-  if (rate === null) return MATCH_RESULT_COLORS.nul;
-  return rate >= 50
-    ? MATCH_RESULT_COLORS.victoire
-    : MATCH_RESULT_COLORS.defaite;
-}
 
 function formatPointLabel(date: Date, granularity: Evolution["granularity"]): string {
   return new Intl.DateTimeFormat(
@@ -101,7 +95,7 @@ export function MatchesStatsSection({
       {/* ── Chiffres clés ─────────────────────────────────────────────── */}
       <View style={styles.keyRow}>
         <View style={styles.keyMain}>
-          <Text style={[styles.metric, { color: rateColor(counts.winRate) }]}>
+          <Text style={[styles.metric, { color: winRateColor(counts.winRate) }]}>
             {formatWinRate(counts.winRate)}
           </Text>
           <Text style={[styles.caption, { color: theme.secondaryText }]}>
@@ -163,7 +157,7 @@ export function MatchesStatsSection({
               <Text style={[styles.boxLabel, { color: theme.secondaryText }]}>
                 {MATCH_MODE_LABELS[mode]}
               </Text>
-              <Text style={[styles.boxValue, { color: rateColor(c.winRate) }]}>
+              <Text style={[styles.boxValue, { color: winRateColor(c.winRate) }]}>
                 {formatWinRate(c.winRate)}
               </Text>
               <Text style={[styles.boxSub, { color: theme.tertiaryText }]}>
@@ -183,7 +177,7 @@ export function MatchesStatsSection({
             <Text
               style={[
                 styles.subTitleRate,
-                { color: rateColor(evolutionCounts.winRate) },
+                { color: winRateColor(evolutionCounts.winRate) },
               ]}
             >
               {formatWinRate(evolutionCounts.winRate)}
@@ -238,7 +232,7 @@ export function MatchesStatsSection({
                           {
                             // 4 px minimum pour qu'une semaine à 0 % reste visible
                             height: Math.max(4, (rate / 100) * CHART_HEIGHT),
-                            backgroundColor: rateColor(rate),
+                            backgroundColor: winRateColor(rate),
                           },
                         ]}
                       />
