@@ -226,8 +226,25 @@ export function MatchForm({
     return { colorNous: theme.border, colorEux: theme.border };
   }
 
-  // Le résultat est le seul champ obligatoire
-  const canSubmit = isReady && draft.resultat !== null;
+  // Un joueur ne peut occuper qu'une place dans le match : chaque champ exclut
+  // les joueurs sélectionnés dans les autres champs actifs
+  const isDoubles = draft.mode !== "simple";
+  const slotIds = {
+    partenaire: isDoubles ? draft.partenaireId : null,
+    adversaire1: draft.adversaireId,
+    adversaire2: isDoubles ? draft.adversaire2Id : null,
+  };
+  const othersThan = (slot: keyof typeof slotIds): string[] =>
+    (Object.keys(slotIds) as (keyof typeof slotIds)[])
+      .filter((k) => k !== slot)
+      .map((k) => slotIds[k])
+      .filter((id): id is string => id !== null);
+  const selectedIds = Object.values(slotIds).filter((id): id is string => id !== null);
+  // Possible uniquement avec un ancien match enregistré avant cette règle
+  const hasDuplicatePlayer = new Set(selectedIds).size !== selectedIds.length;
+
+  // Le résultat est le seul champ obligatoire ; un doublon de joueur bloque aussi
+  const canSubmit = isReady && draft.resultat !== null && !hasDuplicatePlayer;
 
   async function handleSubmit() {
     if (!canSubmit || draft.resultat === null) return;
@@ -237,8 +254,6 @@ export function MatchForm({
     const allPlayers = await getPlayers();
     const resolveName = (id: string | null, legacyText: string): string =>
       id ? (allPlayers.find((p) => p.id === id)?.name ?? "") : legacyText.trim();
-
-    const isDoubles = draft.mode !== "simple";
 
     // Chaîne adversaire pour rétrocompatibilité (affichage + anciennes versions)
     const adversaireValue = [
@@ -360,6 +375,7 @@ export function MatchForm({
             onChange={(id) => setDraft((p) => ({ ...p, partenaireId: id, partenaireDefaultText: "" }))}
             placeholder="Prénom ou pseudo..."
             defaultText={draft.partenaireDefaultText}
+            excludedPlayerIds={othersThan("partenaire")}
           />
         </View>
       ) : null}
@@ -407,6 +423,7 @@ export function MatchForm({
           onChange={(id) => setDraft((p) => ({ ...p, adversaireId: id, adversaireDefaultText: "" }))}
           placeholder="Prénom ou pseudo..."
           defaultText={draft.adversaireDefaultText}
+          excludedPlayerIds={othersThan("adversaire1")}
         />
       </View>
 
@@ -419,6 +436,7 @@ export function MatchForm({
             onChange={(id) => setDraft((p) => ({ ...p, adversaire2Id: id, adversaire2DefaultText: "" }))}
             placeholder="2e adversaire..."
             defaultText={draft.adversaire2DefaultText}
+            excludedPlayerIds={othersThan("adversaire2")}
           />
         </View>
       ) : null}
@@ -509,6 +527,11 @@ export function MatchForm({
         />
         <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>{submitLabel}</Text>
       </Pressable>
+      {hasDuplicatePlayer ? (
+        <Text style={[styles.hint, styles.hintError]}>
+          Un même joueur est sélectionné à deux places : corrige le partenaire ou les adversaires.
+        </Text>
+      ) : null}
       {draft.resultat === null ? (
         <Text style={[styles.hint, { color: theme.secondaryText }]}>
           Choisis un résultat (ou saisis le score) pour enregistrer le match.
@@ -683,6 +706,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.bodyRegular,
     textAlign: "center",
+  },
+  hintError: {
+    color: "#FF4D6D",
   },
   deleteBtn: {
     flexDirection: "row",

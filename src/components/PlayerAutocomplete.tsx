@@ -59,6 +59,11 @@ export interface PlayerAutocompleteProps {
   placeholder?: string;
   /** Texte pré-rempli dans le champ quand value est null (mode édition, donnée legacy). */
   defaultText?: string;
+  /**
+   * Joueurs déjà placés ailleurs dans le même match : ni proposés, ni recréables
+   * sous le même nom. Absent = aucun filtre.
+   */
+  excludedPlayerIds?: readonly string[];
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -69,6 +74,7 @@ export default function PlayerAutocomplete({
   onChange,
   placeholder = 'Nom du joueur...',
   defaultText,
+  excludedPlayerIds,
 }: PlayerAutocompleteProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [statsMap, setStatsMap] = useState<Record<string, PlayerStats>>({});
@@ -159,8 +165,20 @@ export default function PlayerAutocomplete({
   const filtered = useMemo(() => {
     const q = normalize(inputText);
     if (!q) return [];
-    return players.filter((p) => normalize(p.name).includes(q));
-  }, [players, inputText]);
+    return players.filter(
+      (p) => normalize(p.name).includes(q) && !excludedPlayerIds?.includes(p.id),
+    );
+  }, [players, inputText, excludedPlayerIds]);
+
+  // Joueur exclu dont le nom correspond exactement à la saisie : on ne propose
+  // pas de le recréer (doublon), on explique pourquoi il n'apparaît pas
+  const excludedExactMatch = useMemo(() => {
+    const q = normalize(inputText);
+    if (!q || !excludedPlayerIds?.length) return null;
+    return (
+      players.find((p) => excludedPlayerIds.includes(p.id) && normalize(p.name) === q) ?? null
+    );
+  }, [players, inputText, excludedPlayerIds]);
 
   const showDropdown = isFocused && inputText.trim().length > 0;
 
@@ -177,7 +195,7 @@ export default function PlayerAutocomplete({
   const handleCreate = async () => {
     isPressingSuggestion.current = false;
     const name = inputText.trim();
-    if (!name) return;
+    if (!name || excludedExactMatch) return;
 
     const newPlayer: Player = {
       id: createId(),
@@ -343,7 +361,18 @@ export default function PlayerAutocomplete({
               </>
             )}
 
-            {/* Option "Créer comme nouveau joueur" — toujours visible */}
+            {excludedExactMatch ? (
+              <View style={styles.createRow}>
+                <View style={styles.createIcon}>
+                  <Ionicons name="information" size={13} color="#6B6B7A" />
+                </View>
+                <Text style={[styles.createText, styles.excludedText]}>
+                  <Text style={styles.createTextBold}>{excludedExactMatch.name}</Text>
+                  {' '}est déjà dans ce match
+                </Text>
+              </View>
+            ) : (
+            /* Option "Créer comme nouveau joueur" */
             <Pressable
               style={({ pressed }) => [
                 styles.createRow,
@@ -366,6 +395,7 @@ export default function PlayerAutocomplete({
                 {' '}comme nouveau joueur
               </Text>
             </Pressable>
+            )}
           </View>
         )}
       </View>
@@ -544,6 +574,10 @@ const styles = StyleSheet.create({
     color: '#FF4D6D',
     fontWeight: '500',
     fontFamily: 'DMSans_500Medium',
+  },
+
+  excludedText: {
+    color: '#9999AA',
   },
 
   createTextBold: {
