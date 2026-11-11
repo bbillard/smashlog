@@ -44,6 +44,7 @@ interface DraftSession {
 }
 
 function makeInitialDraft(start: Date = new Date(), type: SessionType | null = null): DraftSession {
+  start.setSeconds(0, 0);
   return { ...INITIAL_DRAFT_FIELDS, createdAt: start, type, endedAt: defaultEndFor(start, type) };
 }
 

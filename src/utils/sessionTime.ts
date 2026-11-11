@@ -30,7 +30,10 @@ export function isEndAfterStart(start: Date, end: Date | null): boolean {
 
 /** Durée en minutes entre début et fin (null si incohérente). */
 export function durationMinutes(startIso: string, endIso: string): number | null {
-  const minutes = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000);
+  // À la minute près : les secondes du début (heure « maintenant ») ne doivent
+  // pas transformer 11:51 → 12:51 en « 59 min »
+  const toMinute = (iso: string) => Math.floor(new Date(iso).getTime() / 60000);
+  const minutes = toMinute(endIso) - toMinute(startIso);
   return minutes > 0 ? minutes : null;
 }
 

@@ -5,7 +5,6 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { formatDate } from "@/src/utils/format";
 
 export function DateTimeField({
   label,
@@ -129,8 +128,6 @@ export function DateTimeField({
         </Pressable>
       </View>
 
-      <Text style={[styles.preview, { color: theme.tertiaryText }]}>{formatDate(value.toISOString())}</Text>
-
       {showDatePicker ? (
         <View style={styles.pickerContainer}>
           {Platform.OS === "ios" ? (
@@ -197,10 +194,6 @@ const styles = StyleSheet.create({
   triggerText: {
     fontSize: 14,
     fontFamily: fonts.bodyMedium,
-  },
-  preview: {
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
   },
   webGroup: {
     gap: 8,
