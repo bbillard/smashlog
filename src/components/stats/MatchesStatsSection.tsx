@@ -27,11 +27,16 @@ const CHART_HEIGHT = 96;
 /** Même code couleur que la fiche joueur : ≥ 50 % lime, < 50 % rouge, sans taux gris. */
 function rateColor(rate: number | null): string {
   if (rate === null) return MATCH_RESULT_COLORS.nul;
-  return rate >= 50 ? MATCH_RESULT_COLORS.victoire : MATCH_RESULT_COLORS.defaite;
+  return rate >= 50
+    ? MATCH_RESULT_COLORS.victoire
+    : MATCH_RESULT_COLORS.defaite;
 }
 
 function formatWeekLabel(date: Date): string {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
 }
 
 /**
@@ -52,7 +57,9 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
       byMode: computeModeBreakdown(entries),
       evolution: weekly,
       // Bilan agrégé sur la fenêtre du graphe (~3 mois)
-      evolutionCounts: computeResultCounts(entries.filter((e) => e.date >= since).map((e) => e.match)),
+      evolutionCounts: computeResultCounts(
+        entries.filter((e) => e.date >= since).map((e) => e.match),
+      ),
     };
   }, [sessions]);
 
@@ -61,9 +68,17 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
   return (
     <SectionCard>
       <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Mes matchs</Text>
-        <Pressable hitSlop={8} onPress={() => router.push("/matches")} style={styles.seeAll}>
-          <Text style={[styles.seeAllText, { color: theme.accent3 }]}>Tout voir</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Mes matchs
+        </Text>
+        <Pressable
+          hitSlop={8}
+          onPress={() => router.push("/matches")}
+          style={styles.seeAll}
+        >
+          <Text style={[styles.seeAllText, { color: theme.accent3 }]}>
+            Tout voir
+          </Text>
           <Ionicons color={theme.accent3} name="chevron-forward" size={13} />
         </Pressable>
       </View>
@@ -71,13 +86,18 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
       {/* ── Chiffres clés ─────────────────────────────────────────────── */}
       <View style={styles.keyRow}>
         <View style={styles.keyMain}>
-          <Text style={[styles.metric, { color: rateColor(counts.winRate) }]}>{formatWinRate(counts.winRate)}</Text>
+          <Text style={[styles.metric, { color: rateColor(counts.winRate) }]}>
+            {formatWinRate(counts.winRate)}
+          </Text>
           <Text style={[styles.caption, { color: theme.secondaryText }]}>
-            Win rate · {counts.decisive} match{counts.decisive > 1 ? "s" : ""} décisif{counts.decisive > 1 ? "s" : ""}
+            Win rate · {counts.decisive} match{counts.decisive > 1 ? "s" : ""}{" "}
+            comptabilisé{counts.decisive > 1 ? "s" : ""}
           </Text>
         </View>
         <View style={styles.keySide}>
-          <Text style={[styles.totalValue, { color: theme.text }]}>{counts.total}</Text>
+          <Text style={[styles.totalValue, { color: theme.text }]}>
+            {counts.total}
+          </Text>
           <Text style={[styles.caption, { color: theme.secondaryText }]}>
             joué{counts.total > 1 ? "s" : ""}
           </Text>
@@ -92,22 +112,45 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
             ["Nuls", counts.draws, MATCH_RESULT_COLORS.nul],
           ] as const
         ).map(([label, value, color]) => (
-          <View key={label} style={[styles.box, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+          <View
+            key={label}
+            style={[
+              styles.box,
+              { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+            ]}
+          >
             <Text style={[styles.boxValue, { color }]}>{value}</Text>
-            <Text style={[styles.boxLabel, { color: theme.secondaryText }]}>{label}</Text>
+            <Text style={[styles.boxLabel, { color: theme.secondaryText }]}>
+              {label}
+            </Text>
           </View>
         ))}
       </View>
 
       {/* ── Par mode ──────────────────────────────────────────────────── */}
-      <Text style={[styles.subTitle, { color: theme.secondaryText }]}>Par mode</Text>
+      <Text style={[styles.subTitle, { color: theme.secondaryText }]}>
+        Par mode
+      </Text>
       <View style={styles.boxRow}>
         {MODES.map((mode) => {
           const c = byMode[mode];
           return (
-            <View key={mode} style={[styles.box, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-              <Text style={[styles.boxLabel, { color: theme.secondaryText }]}>{MATCH_MODE_LABELS[mode]}</Text>
-              <Text style={[styles.boxValue, { color: rateColor(c.winRate) }]}>{formatWinRate(c.winRate)}</Text>
+            <View
+              key={mode}
+              style={[
+                styles.box,
+                {
+                  backgroundColor: theme.surfaceAlt,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={[styles.boxLabel, { color: theme.secondaryText }]}>
+                {MATCH_MODE_LABELS[mode]}
+              </Text>
+              <Text style={[styles.boxValue, { color: rateColor(c.winRate) }]}>
+                {formatWinRate(c.winRate)}
+              </Text>
               <Text style={[styles.boxSub, { color: theme.tertiaryText }]}>
                 {c.total === 0 ? "Aucun match" : formatResultCounts(c)}
               </Text>
@@ -118,47 +161,88 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
 
       {/* ── Évolution ─────────────────────────────────────────────────── */}
       <Text style={[styles.subTitle, { color: theme.secondaryText }]}>
-        Évolution · 3 derniers mois{evolutionCounts.winRate !== null ? ` · ${formatWinRate(evolutionCounts.winRate)}` : ""}
+        Évolution · 3 derniers mois
+        {evolutionCounts.winRate !== null ? (
+          <>
+            {" · "}
+            <Text
+              style={[
+                styles.subTitleRate,
+                { color: rateColor(evolutionCounts.winRate) },
+              ]}
+            >
+              {formatWinRate(evolutionCounts.winRate)}
+            </Text>
+          </>
+        ) : null}
       </Text>
       {evolutionCounts.decisive === 0 ? (
         <Text style={[styles.caption, { color: theme.secondaryText }]}>
-          Aucun match décisif sur les 3 derniers mois.
+          Aucun match comptabilisé sur les 3 derniers mois.
         </Text>
       ) : (
         <View>
-          <View style={[styles.chart, { height: CHART_HEIGHT }]}>
-            {/* Repère 50 % */}
-            <View style={[styles.midLine, { top: CHART_HEIGHT / 2, borderColor: theme.border }]} />
-            {evolution.map((point) => {
-              const rate = point.counts.winRate;
-              return (
-                <View key={point.weekStart.toISOString()} style={styles.barSlot}>
-                  {rate === null ? (
-                    <View style={[styles.emptyTick, { backgroundColor: theme.border }]} />
-                  ) : (
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          // 4 px minimum pour qu'une semaine à 0 % reste visible
-                          height: Math.max(4, (rate / 100) * CHART_HEIGHT),
-                          backgroundColor: rateColor(rate),
-                        },
-                      ]}
-                    />
-                  )}
-                </View>
-              );
-            })}
+          <View style={styles.chartRow}>
+            {/* Graduation du repère 50 %, alignée sur le trait central */}
+            <View style={[styles.yAxis, { height: CHART_HEIGHT }]}>
+              <Text
+                style={[
+                  styles.yAxisLabel,
+                  { top: CHART_HEIGHT / 2 - 7, color: theme.tertiaryText },
+                ]}
+              >
+                50%
+              </Text>
+            </View>
+            <View style={[styles.chart, { height: CHART_HEIGHT }]}>
+              {/* Repère 50 % */}
+              <View
+                style={[
+                  styles.midLine,
+                  { top: CHART_HEIGHT / 2, borderColor: theme.border },
+                ]}
+              />
+              {evolution.map((point) => {
+                const rate = point.counts.winRate;
+                return (
+                  <View
+                    key={point.weekStart.toISOString()}
+                    style={styles.barSlot}
+                  >
+                    {rate === null ? (
+                      <View
+                        style={[
+                          styles.emptyTick,
+                          { backgroundColor: theme.border },
+                        ]}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.bar,
+                          {
+                            // 4 px minimum pour qu'une semaine à 0 % reste visible
+                            height: Math.max(4, (rate / 100) * CHART_HEIGHT),
+                            backgroundColor: rateColor(rate),
+                          },
+                        ]}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
           <View style={styles.axisRow}>
             <Text style={[styles.axisLabel, { color: theme.tertiaryText }]}>
               {formatWeekLabel(evolution[0].weekStart)}
             </Text>
-            <Text style={[styles.axisLabel, { color: theme.tertiaryText }]}>Cette semaine</Text>
+            <Text style={[styles.axisLabel, { color: theme.tertiaryText }]}>
+              Cette semaine
+            </Text>
           </View>
           <Text style={[styles.legend, { color: theme.tertiaryText }]}>
-            Win rate par semaine ({EVOLUTION_WEEKS} sem.) — nuls exclus, trait central à 50 %.
+            Win rate par semaine ({EVOLUTION_WEEKS} sem.) — nuls exclus.
           </Text>
         </View>
       )}
@@ -245,11 +329,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.bodyRegular,
   },
+  subTitleRate: {
+    fontFamily: fonts.displayExtraBold,
+    fontSize: 13,
+    letterSpacing: 0,
+  },
+  chartRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 4,
+  },
+  yAxis: {
+    width: 28,
+  },
+  yAxisLabel: {
+    position: "absolute",
+    right: 0,
+    fontSize: 10,
+    lineHeight: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
   chart: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 4,
-    marginTop: 4,
   },
   midLine: {
     position: "absolute",
@@ -277,6 +381,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 6,
+    // Aligné sur la zone des barres (largeur de la graduation + gap)
+    paddingLeft: 34,
   },
   axisLabel: {
     fontSize: 10,
