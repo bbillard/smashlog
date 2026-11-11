@@ -5,14 +5,17 @@ function ensureFileUri(uri: string) {
   return uri.startsWith("file://") ? uri : `file://${uri}`;
 }
 
-export async function shareImageAsync(uri: string) {
+export async function shareImageAsync(
+  uri: string,
+  dialogTitle: string = "Partager ta carte Smashlog",
+) {
   const isAvailable = await Sharing.isAvailableAsync();
   if (!isAvailable) {
     throw new Error("sharing_unavailable");
   }
 
   await Sharing.shareAsync(ensureFileUri(uri), {
-    dialogTitle: "Partager ta carte Smashlog",
+    dialogTitle,
     mimeType: "image/png",
     UTI: "public.png",
   });

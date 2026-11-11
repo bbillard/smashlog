@@ -23,3 +23,11 @@ export const SEQUENCE_PLAYER_COLORS_BG: Record<SequencePlayer, string> = {
 
 /** Couleur du texte posé sur une pastille joueur (toutes les teintes sont claires). */
 export const SEQUENCE_PLAYER_ON_COLOR = "#0D0D0F";
+
+/** Couleurs fixes du schéma terrain (identiques à l'écran et dans l'export PNG). */
+export const COURT_DIAGRAM_COLORS = {
+  background: "#0D0D0F",
+  surface: "#0A1628",
+  lines: "rgba(255,255,255,0.75)",
+  net: "#F2F2F5",
+} as const;
