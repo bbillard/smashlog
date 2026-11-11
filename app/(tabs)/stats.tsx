@@ -1,5 +1,5 @@
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -9,6 +9,8 @@ import { LoadingView } from "@/src/components/LoadingView";
 import { ProfileAvatar } from "@/src/components/ProfileAvatar";
 import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
+import { DaySessionsSheet } from "@/src/components/stats/DaySessionsSheet";
+import { MatchesStatsSection } from "@/src/components/stats/MatchesStatsSection";
 import { SESSION_TYPE_LABELS, SESSION_TYPE_OPTIONS } from "@/src/constants/sessionOptions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useSidebarSwipe } from "@/src/hooks/useSidebarSwipe";
@@ -56,7 +58,10 @@ function buildMonthGrid(referenceDate: Date) {
 }
 
 export default function StatsScreen() {
+  const router = useRouter();
   const { theme } = useAppTheme();
+  // Jour sélectionné dans le calendrier quand il compte plusieurs séances
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +117,33 @@ export default function StatsScreen() {
   );
 
   const todayKey = toDayKey(new Date());
+
+  // Séances complètes par jour (en plus de la logique d'affichage du calendrier,
+  // inchangée) : sert uniquement à l'ouverture des séances au tap sur un jour.
+  const sessionsByDay = useMemo(() => {
+    const byDay = new Map<string, Session[]>();
+    [...sessions]
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .forEach((session) => {
+        const key = toDayKey(new Date(session.createdAt));
+        const list = byDay.get(key);
+        if (list) list.push(session);
+        else byDay.set(key, [session]);
+      });
+    return byDay;
+  }, [sessions]);
+
+  const openSession = (session: Session) =>
+    router.push({ pathname: "/session/[id]", params: { id: session.id, from: "stats" } });
+
+  function handleDayPress(dayKey: string) {
+    const daySessions = sessionsByDay.get(dayKey) ?? [];
+    if (daySessions.length === 1) openSession(daySessions[0]);
+    else if (daySessions.length > 1) setSelectedDayKey(dayKey);
+  }
+
+  const selectedDaySessions = selectedDayKey ? (sessionsByDay.get(selectedDayKey) ?? []) : [];
+  const selectedDayDate = selectedDaySessions[0] ? new Date(selectedDaySessions[0].createdAt) : null;
 
   return (
     <Screen scrollable>
@@ -196,7 +228,13 @@ export default function StatsScreen() {
                   const isToday = dayKey === todayKey;
 
                   return (
-                    <View key={dayKey} style={styles.dayCell}>
+                    <Pressable
+                      accessibilityLabel={hasSession ? `Voir les séances du ${date.getDate()}` : undefined}
+                      disabled={!hasSession}
+                      key={dayKey}
+                      onPress={() => handleDayPress(dayKey)}
+                      style={({ pressed }) => [styles.dayCell, pressed && { opacity: 0.7 }]}
+                    >
                       <View
                         style={[
                           styles.dayCellInner,
@@ -232,17 +270,28 @@ export default function StatsScreen() {
                           </View>
                         ) : null}
                       </View>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
               <Text style={[styles.calendarLegend, { color: theme.tertiaryText }]}>
-                La couleur de chaque jour correspond au type de séance enregistrée.
+                La couleur de chaque jour correspond au type de séance enregistrée. Touche un jour pour ouvrir ses séances.
               </Text>
             </SectionCard>
+
+            <MatchesStatsSection sessions={sessions} />
           </>
         ) : null}
       </View>
+      <DaySessionsSheet
+        date={selectedDayDate}
+        onClose={() => setSelectedDayKey(null)}
+        onSelect={(session) => {
+          setSelectedDayKey(null);
+          openSession(session);
+        }}
+        sessions={selectedDaySessions}
+      />
       <AppSidebar onClose={() => setIsMenuOpen(false)} open={isMenuOpen} profile={profile} />
     </Screen>
   );

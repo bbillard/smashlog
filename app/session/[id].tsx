@@ -313,6 +313,24 @@ export default function SessionDetailScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const exerciseSnapshotRef = useRef<Set<string> | null>(null);
 
+  // Surcharge du bouton retour quand on vient des Stats (calendrier) : retour
+  // sur l'onglet Stats plutôt que sur l'Accueil
+  useEffect(() => {
+    if (from !== "stats") return;
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/stats"))}
+          style={styles.headerBack}
+        >
+          <Ionicons color="#9999AA" name="chevron-back" size={18} />
+          <Text style={[styles.headerBackText, { color: "#9999AA" }]}>Stats</Text>
+        </Pressable>
+      ),
+    });
+  }, [from, navigation, router]);
+
   // Surcharge du bouton retour quand on vient de "Mes intentions"
   useEffect(() => {
     if (from !== "intentions") return;
