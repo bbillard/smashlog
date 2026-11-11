@@ -21,6 +21,7 @@ import { PasswordResetOverlay } from "@/src/components/auth/PasswordResetOverlay
 import { MigrationOverlay } from "@/src/components/MigrationOverlay";
 import { SplashLogoAnimation } from "@/src/components/SplashLogoAnimation";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { usePostSessionNotificationRouting } from "@/src/hooks/usePostSessionNotificationRouting";
 import { handleAuthDeepLink } from "@/src/services/authDeepLink";
 import { DEFAULT_PROFILE, getProfile } from "@/src/services/profile";
 import {
@@ -140,6 +141,10 @@ export default function RootLayout() {
       router.replace("/(tabs)");
     }
   }, [bootstrapped, needsOnboarding, router, segments]);
+
+  // Tap sur la notification post-séance → wizard pré-rempli (une fois la
+  // navigation montée et l'onboarding terminé)
+  usePostSessionNotificationRouting(fontsLoaded && bootstrapped && !needsOnboarding);
 
   if (!fontsLoaded || !bootstrapped) {
     return (

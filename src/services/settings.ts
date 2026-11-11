@@ -13,6 +13,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   nextSessionAt: null,
   nextSessionFamily: null,
   nextSessionLeadMinutes: 30,
+  postSessionReminderEnabled: true,
 };
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {

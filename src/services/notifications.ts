@@ -3,6 +3,12 @@ import { Platform } from "react-native";
 
 import { pickMotivationMessage } from "@/src/data/notificationMessages";
 import { getScheduledSlots } from "@/src/services/onboarding";
+import {
+  buildPostSessionContent,
+  getUpcomingPostSessionEntries,
+  POST_SESSION_KIND,
+  PostSessionPayload,
+} from "@/src/services/postSessionNotification";
 import { getUpcomingReminderEntries } from "@/src/services/settings";
 import { getSessions } from "@/src/services/storage";
 import { NotificationSettings, Session } from "@/src/types/session";
@@ -151,7 +157,11 @@ export async function rescheduleNotifications(
 
   await cancelAllScheduledNotifications();
 
-  if (!settings.fixedTimeEnabled && !settings.nextSessionReminderEnabled) {
+  if (
+    !settings.fixedTimeEnabled &&
+    !settings.nextSessionReminderEnabled &&
+    !settings.postSessionReminderEnabled
+  ) {
     // Aucun rappel n'est activé : inutile de solliciter la permission ici.
     return { notificationIds: [] };
   }
@@ -205,6 +215,29 @@ export async function rescheduleNotifications(
       });
       notificationIds.push(notificationId);
       scheduledDates.push(reminderEntry.reminderDate.toISOString());
+    }
+  }
+
+  // Post-séance : 2 h après le début de chaque créneau, sautée si une séance a
+  // déjà été enregistrée. Toutes les notifications étant annulées puis
+  // replanifiées ici, supprimer un créneau supprime aussi ses deux notifications.
+  if (settings.postSessionReminderEnabled) {
+    const slots = await getScheduledSlots();
+    for (const entry of getUpcomingPostSessionEntries(slots, storedSessions)) {
+      const data: PostSessionPayload = {
+        kind: POST_SESSION_KIND,
+        family: entry.slot.family,
+        startAt: entry.startAt.toISOString(),
+      };
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: { ...buildPostSessionContent(entry.slot.family), data: { ...data } },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: entry.fireAt,
+        },
+      });
+      notificationIds.push(notificationId);
+      scheduledDates.push(entry.fireAt.toISOString());
     }
   }
 

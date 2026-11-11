@@ -340,7 +340,11 @@ export default function SettingsScreen() {
 
     async function persistSettings() {
       try {
-        if (nextSettings.fixedTimeEnabled || nextSettings.nextSessionReminderEnabled) {
+        if (
+          nextSettings.fixedTimeEnabled ||
+          nextSettings.nextSessionReminderEnabled ||
+          (nextSettings.postSessionReminderEnabled && hasPlanning)
+        ) {
           const outcome = await requestWithPrimer();
           if (!cancelled) {
             setPermissionStatus(await getNotificationPermissionStatus());
@@ -475,6 +479,20 @@ export default function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
+        <ToggleRow
+          label="Rappel après la séance (2 h après le début)"
+          onToggle={() => {
+            if (!hasPlanning) {
+              Alert.alert("Planning requis", "Remplis d'abord ton planning pour activer ce rappel.");
+              return;
+            }
+            setSettings((current) => ({
+              ...current,
+              postSessionReminderEnabled: !current.postSessionReminderEnabled,
+            }));
+          }}
+          value={settings.postSessionReminderEnabled && hasPlanning}
+        />
         <LabeledInput
           label="Temps avant le début (minutes)"
           onChangeText={(value) => {

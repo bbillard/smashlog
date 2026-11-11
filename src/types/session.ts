@@ -51,4 +51,6 @@ export interface NotificationSettings {
   nextSessionAt: string | null;
   nextSessionFamily: "badminton" | "renforcement" | "cardio" | null;
   nextSessionLeadMinutes: number;
+  /** Notification « Comment s'est passée ta séance ? » 2 h après chaque créneau du planning. */
+  postSessionReminderEnabled: boolean;
 }
