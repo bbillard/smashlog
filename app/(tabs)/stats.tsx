@@ -21,6 +21,7 @@ import { Profile } from "@/src/types/profile";
 import { Session } from "@/src/types/session";
 import { pickDominantType } from "@/src/utils/dominantType";
 import { truncate } from "@/src/utils/format";
+import { filterSessionsByPeriod, STATS_PERIOD_LABELS, StatsPeriod } from "@/src/utils/matchStats";
 import { groupSessionsByDay, toDayKey } from "@/src/utils/sessionCalendar";
 
 function StatBar({ label, value, total }: { label: string; value: number; total: number }) {
@@ -62,6 +63,8 @@ export default function StatsScreen() {
   const { theme } = useAppTheme();
   // Jour sélectionné dans le calendrier quand il compte plusieurs séances
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  // Période des stats (non persistée) — le calendrier et la dernière intention n'en dépendent pas
+  const [period, setPeriod] = useState<StatsPeriod>("all");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [profile, setProfile] = useState<Profile>({ username: "Joueur Badlog", photoUri: null });
   const [isLoading, setIsLoading] = useState(true);
@@ -100,8 +103,11 @@ export default function StatsScreen() {
     calendarDate.getMonth() === today.getMonth() &&
     calendarDate.getFullYear() === today.getFullYear();
 
+  const periodSessions = useMemo(() => filterSessionsByPeriod(sessions, period), [sessions, period]);
   const averageRating =
-    sessions.length === 0 ? 0 : sessions.reduce((sum, session) => sum + session.rating, 0) / sessions.length;
+    periodSessions.length === 0
+      ? 0
+      : periodSessions.reduce((sum, session) => sum + session.rating, 0) / periodSessions.length;
   const latestIntention = sessions[0]?.nextIntention;
   const calendarDays = buildMonthGrid(calendarDate);
 
@@ -171,32 +177,68 @@ export default function StatsScreen() {
 
         {!isLoading && sessions.length > 0 ? (
           <>
-            <SectionCard>
-              <Text style={[styles.cardLabel, { color: theme.secondaryText }]}>Séances totales</Text>
-              <Text style={[styles.metric, { color: theme.text }]}>{sessions.length}</Text>
-            </SectionCard>
+            {/* ─── Sélecteur de période ─── */}
+            <View style={styles.periodRow}>
+              {(Object.keys(STATS_PERIOD_LABELS) as StatsPeriod[]).map((value) => {
+                const active = period === value;
+                return (
+                  <Pressable
+                    accessibilityState={{ selected: active }}
+                    key={value}
+                    onPress={() => setPeriod(value)}
+                    style={[
+                      styles.periodChip,
+                      {
+                        backgroundColor: active ? theme.primaryMuted : theme.surface,
+                        borderColor: active ? theme.primary : theme.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.periodChipText, { color: active ? theme.primary : theme.secondaryText }]}>
+                      {STATS_PERIOD_LABELS[value]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-            <SectionCard>
-              <Text style={[styles.cardLabel, { color: theme.secondaryText }]}>Note moyenne</Text>
-              <Text style={[styles.metric, { color: theme.text }]}>{averageRating.toFixed(1)} / 5</Text>
-            </SectionCard>
+            {periodSessions.length === 0 ? (
+              <EmptyState
+                title="Aucune séance sur cette période"
+                description="Choisis une période plus large pour retrouver tes statistiques."
+              />
+            ) : (
+              <>
+                <SectionCard>
+                  <Text style={[styles.cardLabel, { color: theme.secondaryText }]}>Séances totales</Text>
+                  <Text style={[styles.metric, { color: theme.text }]}>{periodSessions.length}</Text>
+                </SectionCard>
+
+                <SectionCard>
+                  <Text style={[styles.cardLabel, { color: theme.secondaryText }]}>Note moyenne</Text>
+                  <Text style={[styles.metric, { color: theme.text }]}>{averageRating.toFixed(1)} / 5</Text>
+                </SectionCard>
+              </>
+            )}
 
             <SectionCard>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Dernière intention</Text>
               <Text style={[styles.latestIntention, { color: theme.text }]}>{truncate(latestIntention ?? "", 160)}</Text>
             </SectionCard>
 
-            <SectionCard>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Répartition par type</Text>
-              {SESSION_TYPE_OPTIONS.map((option) => (
-                <StatBar
-                  key={option.value}
-                  label={SESSION_TYPE_LABELS[option.value]}
-                  total={sessions.length}
-                  value={sessions.filter((session) => session.type === option.value).length}
-                />
-              ))}
-            </SectionCard>
+            {periodSessions.length > 0 ? (
+              <SectionCard>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Répartition par type</Text>
+                {SESSION_TYPE_OPTIONS.map((option) => (
+                  <StatBar
+                    key={option.value}
+                    label={SESSION_TYPE_LABELS[option.value]}
+                    total={periodSessions.length}
+                    value={periodSessions.filter((session) => session.type === option.value).length}
+                  />
+                ))}
+              </SectionCard>
+            ) : null}
 
             <SectionCard>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendrier</Text>
@@ -279,7 +321,7 @@ export default function StatsScreen() {
               </Text>
             </SectionCard>
 
-            <MatchesStatsSection sessions={sessions} />
+            <MatchesStatsSection period={period} sessions={periodSessions} />
           </>
         ) : null}
       </View>
@@ -300,6 +342,22 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: 16,
+  },
+  periodRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  periodChip: {
+    height: 30,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  periodChipText: {
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
   },
   header: {
     flexDirection: "row",

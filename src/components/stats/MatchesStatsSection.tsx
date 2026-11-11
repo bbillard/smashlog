@@ -17,8 +17,9 @@ import {
 import {
   collectDatedMatches,
   computeModeBreakdown,
-  computeWeeklyEvolution,
-  EVOLUTION_WEEKS,
+  computeEvolution,
+  Evolution,
+  StatsPeriod,
 } from "@/src/utils/matchStats";
 
 const MODES = ["simple", "double", "mixte"] as const;
@@ -32,36 +33,50 @@ function rateColor(rate: number | null): string {
     : MATCH_RESULT_COLORS.defaite;
 }
 
-function formatWeekLabel(date: Date): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-  }).format(date);
+function formatPointLabel(date: Date, granularity: Evolution["granularity"]): string {
+  return new Intl.DateTimeFormat(
+    "fr-FR",
+    granularity === "week" ? { day: "numeric", month: "short" } : { month: "short", year: "numeric" },
+  ).format(date);
 }
+
+/** Libellé de la fenêtre du graphe, selon la période sélectionnée. */
+const EVOLUTION_WINDOW_LABELS: Record<StatsPeriod, string> = {
+  month: "ce mois",
+  "3months": "3 derniers mois",
+  all: "12 derniers mois",
+};
 
 /**
  * Section « Mes matchs » de l'écran Stats : chiffres clés, win rate par mode et
- * évolution hebdomadaire sur ~3 mois. Les nuls sont exclus des taux.
- * Non rendue tant qu'aucun match n'a été saisi.
+ * évolution du win rate. Les nuls sont exclus des taux.
+ * `sessions` est déjà filtré sur la période sélectionnée ; le graphe s'adapte à
+ * la période (par semaine pour Ce mois / 3 mois, par mois pour Tout).
+ * Non rendue tant qu'aucun match n'est saisi sur la période.
  */
-export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
+export function MatchesStatsSection({
+  sessions,
+  period,
+}: {
+  sessions: Session[];
+  period: StatsPeriod;
+}) {
   const { theme } = useAppTheme();
   const router = useRouter();
 
   const { counts, byMode, evolution, evolutionCounts } = useMemo(() => {
     const entries = collectDatedMatches(sessions);
-    const weekly = computeWeeklyEvolution(entries);
-    const since = weekly[0].weekStart;
+    const evo = computeEvolution(entries, period);
     return {
       counts: computeResultCounts(entries.map((e) => e.match)),
       byMode: computeModeBreakdown(entries),
-      evolution: weekly,
-      // Bilan agrégé sur la fenêtre du graphe (~3 mois)
+      evolution: evo,
+      // Bilan agrégé sur la fenêtre du graphe (12 mois pour « Tout »)
       evolutionCounts: computeResultCounts(
-        entries.filter((e) => e.date >= since).map((e) => e.match),
+        entries.filter((e) => e.date >= evo.points[0].start).map((e) => e.match),
       ),
     };
-  }, [sessions]);
+  }, [sessions, period]);
 
   if (counts.total === 0) return null;
 
@@ -161,7 +176,7 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
 
       {/* ── Évolution ─────────────────────────────────────────────────── */}
       <Text style={[styles.subTitle, { color: theme.secondaryText }]}>
-        Évolution · 3 derniers mois
+        Évolution · {EVOLUTION_WINDOW_LABELS[period]}
         {evolutionCounts.winRate !== null ? (
           <>
             {" · "}
@@ -178,7 +193,7 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
       </Text>
       {evolutionCounts.decisive === 0 ? (
         <Text style={[styles.caption, { color: theme.secondaryText }]}>
-          Aucun match comptabilisé sur les 3 derniers mois.
+          Aucun match comptabilisé sur cette période.
         </Text>
       ) : (
         <View>
@@ -202,11 +217,11 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
                   { top: CHART_HEIGHT / 2, borderColor: theme.border },
                 ]}
               />
-              {evolution.map((point) => {
+              {evolution.points.map((point) => {
                 const rate = point.counts.winRate;
                 return (
                   <View
-                    key={point.weekStart.toISOString()}
+                    key={point.start.toISOString()}
                     style={styles.barSlot}
                   >
                     {rate === null ? (
@@ -235,14 +250,14 @@ export function MatchesStatsSection({ sessions }: { sessions: Session[] }) {
           </View>
           <View style={styles.axisRow}>
             <Text style={[styles.axisLabel, { color: theme.tertiaryText }]}>
-              {formatWeekLabel(evolution[0].weekStart)}
+              {formatPointLabel(evolution.points[0].start, evolution.granularity)}
             </Text>
             <Text style={[styles.axisLabel, { color: theme.tertiaryText }]}>
-              Cette semaine
+              {evolution.granularity === "week" ? "Cette semaine" : "Ce mois"}
             </Text>
           </View>
           <Text style={[styles.legend, { color: theme.tertiaryText }]}>
-            Win rate par semaine ({EVOLUTION_WEEKS} sem.) — nuls exclus.
+            Win rate par {evolution.granularity === "week" ? "semaine" : "mois"} — nuls exclus.
           </Text>
         </View>
       )}
