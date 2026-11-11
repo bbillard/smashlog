@@ -25,6 +25,11 @@ export interface Match {
 export interface Session {
   id: string;
   createdAt: string;
+  /**
+   * Heure de fin (ISO), optionnelle — même jour que createdAt, qui porte la
+   * date et l'heure de début. Absente sur les séances antérieures à la v1.4.1.
+   */
+  endedAt?: string;
   title?: string;
   type: SessionType;
   rating: number;

@@ -87,6 +87,7 @@ export function toSessionRow(session: Session, userId: string): TablesInsert<"se
     // app/session/new.tsx).
     date: session.createdAt,
     created_at: session.createdAt,
+    ended_at: session.endedAt ?? null,
     title: session.title ?? null,
     type: session.type,
     rating: session.rating ?? null,
@@ -199,6 +200,7 @@ export function fromSessionRow(row: Tables<"sessions">, matches: Match[]): Sessi
   return {
     id: row.id,
     createdAt: row.created_at ?? row.date,
+    ...(row.ended_at ? { endedAt: row.ended_at } : {}),
     ...(row.title ? { title: row.title } : {}),
     type: row.type as SessionType,
     rating: row.rating ?? 0,

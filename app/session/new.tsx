@@ -1,4 +1,4 @@
-import { Stack, router, useFocusEffect } from "expo-router";
+import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,7 @@ import * as Haptics from "expo-haptics";
 import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
 import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
+import { EndTimeField } from "@/src/components/EndTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { RatingPicker } from "@/src/components/RatingPicker";
@@ -17,6 +18,7 @@ import { WizardProgress } from "@/src/components/WizardProgress";
 import { RENFO_LABEL } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { rescheduleNotifications } from "@/src/services/notifications";
+import { isPostSessionPayload, resolveSessionTypeForFamily } from "@/src/services/postSessionNotification";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
 import { addSession, getExercises, getSessions, updateSession } from "@/src/services/storage";
@@ -24,9 +26,12 @@ import { Exercise } from "@/src/types/index";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
 import { createId } from "@/src/utils/id";
+import { defaultEndFor, isEndAfterStart, withDayOf } from "@/src/utils/sessionTime";
 
 interface DraftSession {
   createdAt: Date;
+  /** Heure de fin optionnelle (même jour que createdAt). */
+  endedAt: Date | null;
   title: string;
   type: SessionType | null;
   rating: number;
@@ -38,10 +43,12 @@ interface DraftSession {
   exerciseIds: string[];
 }
 
-const INITIAL_DRAFT: DraftSession = {
-  createdAt: new Date(),
+function makeInitialDraft(start: Date = new Date(), type: SessionType | null = null): DraftSession {
+  return { ...INITIAL_DRAFT_FIELDS, createdAt: start, type, endedAt: defaultEndFor(start, type) };
+}
+
+const INITIAL_DRAFT_FIELDS: Omit<DraftSession, "createdAt" | "endedAt" | "type"> = {
   title: "",
-  type: null,
   rating: 0,
   wentWell: "",
   wentWrong: "",
@@ -123,8 +130,52 @@ const FIELD_COPY: Record<
 
 export default function NewSessionScreen() {
   const { theme } = useAppTheme();
+  // Ouverture depuis la notification post-séance : famille du créneau + début
+  const { family, startAt } = useLocalSearchParams<{ family?: string; startAt?: string }>();
   const [step, setStep] = useState(1);
-  const [draft, setDraft] = useState<DraftSession>(INITIAL_DRAFT);
+  const [draft, setDraft] = useState<DraftSession>(() => {
+    const parsedStart = startAt ? new Date(startAt) : null;
+    return makeInitialDraft(parsedStart && !Number.isNaN(parsedStart.getTime()) ? parsedStart : new Date());
+  });
+  // Tant que l'heure de fin n'a pas été touchée, elle suit le début et le type
+  const [endTouched, setEndTouched] = useState(false);
+
+  // Type pré-sélectionné depuis la notification (résolu après lecture des séances
+  // pour la famille badminton, cf. resolveSessionTypeForFamily)
+  useEffect(() => {
+    if (!startAt || !family) return;
+    const payload = { kind: "post_session", family, startAt };
+    if (!isPostSessionPayload(payload)) return;
+    let active = true;
+    getSessions().then((sessions) => {
+      if (!active) return;
+      const type = resolveSessionTypeForFamily(payload.family, sessions);
+      setDraft((current) =>
+        current.type !== null ? current : { ...current, type, endedAt: defaultEndFor(current.createdAt, type) },
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [family, startAt]);
+
+  function handleStartChange(createdAt: Date) {
+    setDraft((current) => ({
+      ...current,
+      createdAt,
+      endedAt: endTouched
+        ? current.endedAt && withDayOf(createdAt, current.endedAt)
+        : defaultEndFor(createdAt, current.type),
+    }));
+  }
+
+  function handleTypeChange(type: SessionType) {
+    setDraft((current) => ({
+      ...current,
+      type,
+      endedAt: endTouched ? current.endedAt : defaultEndFor(current.createdAt, type),
+    }));
+  }
   const [isSaving, setIsSaving] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   // Snapshot pris juste avant de naviguer vers la création d'exercice
@@ -165,7 +216,10 @@ export default function NewSessionScreen() {
     draft.nextIntention.trim().length > 0 ||
     draft.freeNotes.trim().length > 0;
 
-  const canGoToStepTwo = draft.type !== null;
+  const endError = isEndAfterStart(draft.createdAt, draft.endedAt)
+    ? null
+    : "L'heure de fin doit être après l'heure de début.";
+  const canGoToStepTwo = draft.type !== null && endError === null;
   const intentionRequired = draft.type === "match" || draft.type === "entrainement" || draft.type === "jeu_libre";
   const canSaveQuestions =
     draft.rating > 0 &&
@@ -175,7 +229,7 @@ export default function NewSessionScreen() {
   const copy = draft.type ? FIELD_COPY[draft.type] : null;
 
   async function handleSave() {
-    if (!draft.type || !canSaveQuestions || isSaving) {
+    if (!draft.type || !canSaveQuestions || endError !== null || isSaving) {
       return;
     }
 
@@ -184,6 +238,7 @@ export default function NewSessionScreen() {
     const session: Session = {
       id: createId(),
       createdAt: draft.createdAt.toISOString(),
+      endedAt: draft.endedAt?.toISOString(),
       title: draft.title.trim() || undefined,
       type: draft.type,
       rating: draft.rating,
@@ -304,8 +359,18 @@ export default function NewSessionScreen() {
           </Text>
           <DateTimeField
             label="Date de la séance"
-            onChange={(createdAt) => setDraft((current) => ({ ...current, createdAt }))}
+            onChange={handleStartChange}
             value={draft.createdAt}
+          />
+          <EndTimeField
+            error={endError}
+            onChange={(endedAt) => {
+              setEndTouched(true);
+              setDraft((current) => ({ ...current, endedAt }));
+            }}
+            start={draft.createdAt}
+            suggested={defaultEndFor(draft.createdAt, draft.type)}
+            value={draft.endedAt}
           />
           <LabeledInput
             label="Titre de la séance"
@@ -313,10 +378,7 @@ export default function NewSessionScreen() {
             placeholder="Ex : Match interclub contre Lyon"
             value={draft.title}
           />
-          <SessionTypePicker
-            onChange={(type) => setDraft((current) => ({ ...current, type }))}
-            value={draft.type}
-          />
+          <SessionTypePicker onChange={handleTypeChange} value={draft.type} />
         </View>
       ) : null}
 

@@ -7,6 +7,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native
 import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
 import { MatchesAccordion } from "@/src/components/MatchesAccordion";
 import { DateTimeField } from "@/src/components/DateTimeField";
+import { EndTimeField } from "@/src/components/EndTimeField";
 import { LabeledInput } from "@/src/components/Form";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { LoadingView } from "@/src/components/LoadingView";
@@ -24,6 +25,14 @@ import { Exercise } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
 import { formatDate } from "@/src/utils/format";
 import {
+  defaultEndFor,
+  durationMinutes,
+  formatDuration,
+  formatTime,
+  isEndAfterStart,
+  withDayOf,
+} from "@/src/utils/sessionTime";
+import {
   computeResultCounts,
   formatWinRate,
   MATCH_MODE_LABELS,
@@ -35,6 +44,8 @@ import {
 
 interface EditableSession {
   createdAt: Date;
+  /** Heure de fin optionnelle (même jour que createdAt). */
+  endedAt: Date | null;
   title: string;
   type: Session["type"];
   rating: number;
@@ -42,6 +53,29 @@ interface EditableSession {
   wentWrong: string;
   nextIntention: string;
   freeNotes: string;
+}
+
+function toEditableSession(session: Session): EditableSession {
+  return {
+    createdAt: new Date(session.createdAt),
+    endedAt: session.endedAt ? new Date(session.endedAt) : null,
+    title: session.title ?? "",
+    type: session.type,
+    rating: session.rating,
+    wentWell: session.wentWell,
+    wentWrong: session.wentWrong,
+    nextIntention: session.nextIntention,
+    freeNotes: session.freeNotes ?? "",
+  };
+}
+
+/** « 19:00 – 20:30 · 1h30 » quand l'heure de fin est renseignée. */
+function formatTimeRange(session: Session): string | null {
+  if (!session.endedAt) return null;
+  const start = new Date(session.createdAt);
+  const range = `${formatTime(start)} – ${formatTime(new Date(session.endedAt))}`;
+  const minutes = durationMinutes(session.createdAt, session.endedAt);
+  return minutes ? `${range} · ${formatDuration(minutes)}` : range;
 }
 
 // ── Helpers matchs ────────────────────────────────────────────────────────────
@@ -361,16 +395,7 @@ export default function SessionDetailScreen() {
     setSession(nextSession);
     setDraft(
       nextSession
-        ? {
-            createdAt: new Date(nextSession.createdAt),
-            title: nextSession.title ?? "",
-            type: nextSession.type,
-            rating: nextSession.rating,
-            wentWell: nextSession.wentWell,
-            wentWrong: nextSession.wentWrong,
-            nextIntention: nextSession.nextIntention,
-            freeNotes: nextSession.freeNotes ?? "",
-          }
+        ? toEditableSession(nextSession)
         : null,
     );
     if (nextSession?.exerciseIds?.length) {
@@ -450,6 +475,11 @@ export default function SessionDetailScreen() {
       return;
     }
 
+    if (!isEndAfterStart(draft.createdAt, draft.endedAt)) {
+      Alert.alert("Heure de fin invalide", "L'heure de fin doit être après l'heure de début.");
+      return;
+    }
+
     if (
       draft.rating < 1 ||
       draft.wentWell.trim().length === 0 ||
@@ -465,6 +495,7 @@ export default function SessionDetailScreen() {
     try {
       await updateSession(session.id, {
         createdAt: draft.createdAt.toISOString(),
+        endedAt: draft.endedAt?.toISOString(),
         title: draft.title.trim() || undefined,
         type: draft.type,
         rating: draft.rating,
@@ -515,16 +546,7 @@ export default function SessionDetailScreen() {
         setIsEditing(false);
         setEditingExerciseIds(session.exerciseIds ?? []);
         setEditingMatches(session.matches ?? []);
-        setDraft({
-          createdAt: new Date(session.createdAt),
-          title: session.title ?? "",
-          type: session.type,
-          rating: session.rating,
-          wentWell: session.wentWell,
-          wentWrong: session.wentWrong,
-          nextIntention: session.nextIntention,
-          freeNotes: session.freeNotes ?? "",
-        });
+        setDraft(toEditableSession(session));
       }} tone="secondary" />
       <PrimaryButton label={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} />
     </View>
@@ -565,8 +587,31 @@ export default function SessionDetailScreen() {
         <>
           <DateTimeField
             label="Date de la séance"
-            onChange={(createdAt) => setDraft((current) => (current ? { ...current, createdAt } : current))}
+            onChange={(createdAt) =>
+              setDraft((current) =>
+                current
+                  ? {
+                      ...current,
+                      createdAt,
+                      // L'heure de fin suit le jour du début
+                      endedAt: current.endedAt && withDayOf(createdAt, current.endedAt),
+                    }
+                  : current,
+              )
+            }
             value={draft.createdAt}
+          />
+          {/* En édition, pas de pré-remplissage silencieux : vide reste vide */}
+          <EndTimeField
+            error={
+              isEndAfterStart(draft.createdAt, draft.endedAt)
+                ? null
+                : "L'heure de fin doit être après l'heure de début."
+            }
+            onChange={(endedAt) => setDraft((current) => (current ? { ...current, endedAt } : current))}
+            start={draft.createdAt}
+            suggested={defaultEndFor(draft.createdAt, draft.type)}
+            value={draft.endedAt}
           />
           <LabeledInput
             label="Titre de la séance"
@@ -643,6 +688,7 @@ export default function SessionDetailScreen() {
         <>
           {session.title ? <Field label="Titre de la séance" value={session.title} /> : null}
           <Field label="Date de la séance" value={formatDate(session.createdAt)} />
+          {formatTimeRange(session) ? <Field label="Horaire" value={formatTimeRange(session) ?? ""} /> : null}
           <Field label="Ce qui a bien fonctionné" value={session.wentWell} />
           <Field label="Ce qui a posé problème" value={session.wentWrong} />
           <Field label="Intention pour la prochaine séance" value={session.nextIntention} />
