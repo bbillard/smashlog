@@ -479,20 +479,6 @@ export default function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
-        <ToggleRow
-          label="Rappel après la séance (2 h après le début)"
-          onToggle={() => {
-            if (!hasPlanning) {
-              Alert.alert("Planning requis", "Remplis d'abord ton planning pour activer ce rappel.");
-              return;
-            }
-            setSettings((current) => ({
-              ...current,
-              postSessionReminderEnabled: !current.postSessionReminderEnabled,
-            }));
-          }}
-          value={settings.postSessionReminderEnabled && hasPlanning}
-        />
         <LabeledInput
           label="Temps avant le début (minutes)"
           onChangeText={(value) => {
@@ -508,6 +494,20 @@ export default function SettingsScreen() {
             }));
           }}
           value={leadMinutesInput}
+        />
+        <ToggleRow
+          label="Rappel après la séance (2 h après le début)"
+          onToggle={() => {
+            if (!hasPlanning) {
+              Alert.alert("Planning requis", "Remplis d'abord ton planning pour activer ce rappel.");
+              return;
+            }
+            setSettings((current) => ({
+              ...current,
+              postSessionReminderEnabled: !current.postSessionReminderEnabled,
+            }));
+          }}
+          value={settings.postSessionReminderEnabled && hasPlanning}
         />
       </SectionCard>
 
