@@ -88,7 +88,7 @@ export function MatchesStatsSection({
         </Text>
         <Pressable
           hitSlop={8}
-          onPress={() => router.push("/matches")}
+          onPress={() => router.push({ pathname: "/matches", params: { from: "stats" } })}
           style={styles.seeAll}
         >
           <Text style={[styles.seeAllText, { color: theme.accent3 }]}>

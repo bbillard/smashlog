@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -94,6 +94,9 @@ function MatchRow({ entry, onPress }: { entry: MatchEntry; onPress: () => void }
 export default function MatchesScreen() {
   const router = useRouter();
   const { theme } = useAppTheme();
+  // Ouvert depuis « Tout voir » des Stats : le retour ramène aux Stats (sinon,
+  // retour Accueil par défaut, défini dans app/_layout.tsx)
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [entries, setEntries] = useState<MatchEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedResults, setSelectedResults] = useState<MatchResult[]>([]);
@@ -159,6 +162,22 @@ export default function MatchesScreen() {
 
   return (
     <Screen scrollable nativeHeader>
+      {from === "stats" ? (
+        <Stack.Screen
+          options={{
+            headerLeft: () => (
+              <Pressable
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/stats"))}
+                style={styles.headerBack}
+              >
+                <Ionicons color="#9999AA" name="chevron-back" size={18} />
+                <Text style={[styles.headerBackText, { color: "#9999AA" }]}>Stats</Text>
+              </Pressable>
+            ),
+          }}
+        />
+      ) : null}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Mes matchs</Text>
         <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
@@ -242,6 +261,16 @@ export default function MatchesScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBack: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingRight: 8,
+  },
+  headerBackText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+  },
   header: {
     gap: 4,
   },
