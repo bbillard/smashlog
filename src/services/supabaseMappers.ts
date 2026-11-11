@@ -4,6 +4,7 @@ import type { ScheduledSlot } from "@/src/services/onboarding";
 import { Exercise, Player } from "@/src/types/index";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { deterministicId } from "@/src/utils/deterministicId";
+import { parseExerciseSequence } from "@/src/utils/exerciseSequence";
 import { isMatchResult } from "@/src/utils/matchResult";
 
 /**
@@ -43,6 +44,8 @@ export function toExerciseRow(exercise: Exercise, userId: string): TablesInsert<
     variant_harder: exercise.variantHarder ?? null,
     source: exercise.source ?? null,
     photos: exercise.photos ?? null,
+    // null explicite quand la séquence est retirée : l'upsert doit vider la colonne.
+    sequence: (exercise.sequence ?? null) as unknown as Json,
     created_at: exercise.createdAt,
   };
 }
@@ -148,6 +151,7 @@ export function fromPlayerRow(row: Tables<"players">): Player {
 }
 
 export function fromExerciseRow(row: Tables<"exercises">): Exercise {
+  const sequence = parseExerciseSequence(row.sequence);
   return {
     id: row.id,
     createdAt: row.created_at ?? new Date().toISOString(),
@@ -165,6 +169,7 @@ export function fromExerciseRow(row: Tables<"exercises">): Exercise {
     ...(row.variant_harder ? { variantHarder: row.variant_harder } : {}),
     ...(row.source ? { source: row.source } : {}),
     ...(row.photos ? { photos: row.photos } : {}),
+    ...(sequence ? { sequence } : {}),
   };
 }
 

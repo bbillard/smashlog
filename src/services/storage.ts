@@ -10,6 +10,7 @@ import {
 } from "@/src/services/entitySync";
 import { Session } from "@/src/types/session";
 import { Exercise, Player } from "@/src/types/index";
+import { parseExerciseSequence } from "@/src/utils/exerciseSequence";
 import { createId } from "@/src/utils/id";
 
 export const SESSIONS_KEY = "badminton_journal_sessions";
@@ -106,7 +107,14 @@ function migrateExercise(raw: Partial<Exercise>): Exercise {
     ...(raw.variantHarder !== undefined && { variantHarder: raw.variantHarder }),
     ...(raw.source !== undefined && { source: raw.source }),
     ...(raw.photos !== undefined && { photos: raw.photos }),
+    ...withSequence(raw.sequence),
   };
+}
+
+/** Séquence relue défensivement : une séquence corrompue est ignorée, pas fatale. */
+function withSequence(value: unknown): Pick<Exercise, "sequence"> {
+  const sequence = parseExerciseSequence(value);
+  return sequence ? { sequence } : {};
 }
 
 async function persistExercises(exercises: Exercise[]): Promise<void> {

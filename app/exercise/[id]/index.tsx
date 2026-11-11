@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import { SequenceTimeline } from "@/src/components/exercise/SequenceTimeline";
 import { LoadingView } from "@/src/components/LoadingView";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { Screen } from "@/src/components/Screen";
@@ -251,6 +252,10 @@ export default function ExerciseDetailScreen() {
             ) : null}
           </View>
         </SectionCard>
+
+        {exercise.sequence ? (
+          <SequenceTimeline sequence={exercise.sequence} playersCount={exercise.playersCount} />
+        ) : null}
 
         <Field label="Description" value={exercise.description} />
 

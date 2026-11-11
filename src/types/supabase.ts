@@ -28,6 +28,7 @@ export type Database = {
           orientation: string | null
           photos: string[] | null
           players_count: number | null
+          sequence: Json | null
           source: string | null
           user_id: string | null
           variant_easier: string | null
@@ -46,6 +47,7 @@ export type Database = {
           orientation?: string | null
           photos?: string[] | null
           players_count?: number | null
+          sequence?: Json | null
           source?: string | null
           user_id?: string | null
           variant_easier?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           orientation?: string | null
           photos?: string[] | null
           players_count?: number | null
+          sequence?: Json | null
           source?: string | null
           user_id?: string | null
           variant_easier?: string | null
