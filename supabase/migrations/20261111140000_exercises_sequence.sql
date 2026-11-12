@@ -1,10 +1,11 @@
--- Séquence de jeu structurée d'un exercice (ticket v1.4.1 « Wizard exercice —
--- étape Séquence de jeu (constructeur de coups) »).
+-- Séquence de coups structurée d'un exercice (ticket v1.4.1 « Formulaire
+-- exercice — Saisie express (séquence de coups) »).
 --
 -- jsonb nullable : les exercices existants n'ont pas de séquence et restent
--- valides. Côté app : Exercise.sequence ({ roles, distribution, steps, ending,
--- repetitions? }), mappé par src/services/supabaseMappers.ts (toExerciseRow /
--- fromExerciseRow, relu via parseExerciseSequence). Le schéma terrain est
+-- valides. Côté app : Exercise.sequence ({ kind: "sequence", distribution,
+-- shuttlesPerRound?, ending?, steps, generatedText? }), mappé par
+-- src/services/supabaseMappers.ts (toExerciseRow / fromExerciseRow, relu via
+-- parseExerciseSequence). Le schéma terrain est
 -- recalculé à l'affichage et n'est jamais stocké ici.
 --
 -- ⚠️ À coller dans le SQL Editor Supabase AVANT de publier une version de

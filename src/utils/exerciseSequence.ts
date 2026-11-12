@@ -5,23 +5,29 @@ import {
   SequenceDistribution,
   SequenceEnding,
   SequencePlayer,
-  SequenceRole,
   SequenceStep,
   ShotDirection,
   ShotId,
 } from "@/src/types/index";
 
 /**
- * Règles pures de la séquence de jeu d'un exercice (ticket v1.4.1 « Wizard
- * exercice — étape Séquence de jeu »). Aucune dépendance UI : grisage des
- * coups, alternance des joueurs, aperçu texte, validation et relecture d'une
- * séquence venue du stockage (AsyncStorage, Supabase, import de sauvegarde).
+ * Règles pures de la « Saisie express » (ticket v1.4.1 « Formulaire exercice
+ * — Saisie express (séquence de coups) »). Aucune dépendance UI : grisage des
+ * coups, alternance des joueurs, position latérale du frappeur et libellés de
+ * direction, génération / remplacement du texte de description, validation et
+ * relecture d'une séquence venue du stockage.
+ *
+ * Repère : deux coups consécutifs sont toujours joués depuis des camps
+ * opposés ; le coup n°1 part du camp du haut (portrait). Les couloirs
+ * latéraux (« lanes ») sont absolus, vus du dessus du terrain en portrait :
+ * left = x petit, right = x grand.
  */
 
 export const SEQUENCE_PLAYERS: readonly SequencePlayer[] = ["A", "B", "C", "D"];
 
-/** Nombre max de répétitions saisissable pour « × N fois ». */
-export const MAX_SEQUENCE_REPETITIONS = 99;
+export const DEFAULT_SHUTTLES_PER_ROUND = 15;
+export const MIN_SHUTTLES_PER_ROUND = 1;
+export const MAX_SHUTTLES_PER_ROUND = 50;
 
 /** Joueurs présents selon le nombre de joueurs de l'exercice. */
 export function sequencePlayers(playersCount: number): SequencePlayer[] {
@@ -29,89 +35,85 @@ export function sequencePlayers(playersCount: number): SequencePlayer[] {
   return SEQUENCE_PLAYERS.slice(0, count);
 }
 
-/** Rôles par défaut : A travaille, les autres relancent. */
-export function defaultRoles(playersCount: number): Partial<Record<SequencePlayer, SequenceRole>> {
-  return Object.fromEntries(
-    sequencePlayers(playersCount).map((p) => [p, p === "A" ? "travaille" : "relance"]),
-  ) as Partial<Record<SequencePlayer, SequenceRole>>;
+export function createEmptySequence(): ExerciseSequence {
+  return { kind: "sequence", distribution: "volant_continu", ending: "boucle", steps: [] };
+}
+
+/** Change la distribution en gardant des champs cohérents (fin OU volants par passage). */
+export function withDistribution(
+  sequence: ExerciseSequence,
+  distribution: SequenceDistribution,
+): ExerciseSequence {
+  const { ending, shuttlesPerRound, ...rest } = sequence;
+  return distribution === "multivolant"
+    ? { ...rest, distribution, shuttlesPerRound: shuttlesPerRound ?? DEFAULT_SHUTTLES_PER_ROUND }
+    : { ...rest, distribution, ending: ending ?? "boucle" };
+}
+
+export function clampShuttles(n: number): number {
+  return Math.max(MIN_SHUTTLES_PER_ROUND, Math.min(MAX_SHUTTLES_PER_ROUND, Math.round(n)));
+}
+
+// ─── Camps et alternance ─────────────────────────────────────────────────────
+
+/** Camp d'un coup : 1 = haut (coups pairs : 1er, 3e…), 0 = bas. */
+export function stepHalf(index: number): 0 | 1 {
+  return index % 2 === 0 ? 1 : 0;
 }
 
 /**
- * Rôles restreints aux joueurs présents, complétés par les valeurs par défaut
- * (utile quand le nombre de joueurs change après coup dans le wizard).
- */
-export function normalizeRoles(
-  roles: Partial<Record<SequencePlayer, SequenceRole>>,
-  playersCount: number,
-): Partial<Record<SequencePlayer, SequenceRole>> {
-  const defaults = defaultRoles(playersCount);
-  return Object.fromEntries(
-    sequencePlayers(playersCount).map((p) => [p, roles[p] ?? defaults[p]]),
-  ) as Partial<Record<SequencePlayer, SequenceRole>>;
-}
-
-export function createEmptySequence(playersCount: number): ExerciseSequence {
-  return {
-    roles: defaultRoles(playersCount),
-    distribution: "echange",
-    steps: [],
-    ending: "boucle",
-  };
-}
-
-/**
- * Demi-terrain de chaque joueur : 0 = travailleurs, 1 = relanceurs.
- * Si tout le monde a le même rôle, on répartit A/C d'un côté et B/D de
- * l'autre pour garder deux camps (alternance et schéma restent lisibles).
- */
-export function playerSides(
-  roles: Partial<Record<SequencePlayer, SequenceRole>>,
-  players: readonly SequencePlayer[],
-): Record<SequencePlayer, 0 | 1> {
-  const sides = { A: 0, B: 1, C: 0, D: 1 } as Record<SequencePlayer, 0 | 1>;
-  const workers = players.filter((p) => roles[p] === "travaille");
-  const feeders = players.filter((p) => roles[p] !== "travaille");
-  if (workers.length === 0 || feeders.length === 0) return sides;
-  for (const p of players) sides[p] = roles[p] === "travaille" ? 0 : 1;
-  return sides;
-}
-
-/**
- * Joueur pré-sélectionné pour le coup ajouté à la position `index` (par
- * défaut : à la fin de la séquence).
- * - Coup n°1 : le premier relanceur (c'est lui qui met en jeu), sinon A.
- * - Ensuite : un joueur du camp opposé à celui qui vient de frapper ; s'il y
- *   en a plusieurs, celui qui n'a pas frappé depuis le plus longtemps
- *   (rotation), à égalité dans l'ordre A, B, C, D.
- * - Camp opposé vide (cas dégénéré) : joueur suivant dans l'ordre.
+ * Joueur pré-sélectionné pour le coup n°`index` (par défaut : en fin de
+ * séquence) : joueur suivant, du côté opposé au dernier frappeur.
+ * - Coup n°1 : A.
+ * - Ensuite : parmi les joueurs déjà vus dans le camp de ce coup (camp de
+ *   leur dernière frappe) et ceux qui n'ont pas encore joué, celui qui n'a pas
+ *   frappé depuis le plus longtemps (les nouveaux d'abord, dans l'ordre A–D).
+ *   À 2 joueurs : A, B, A, B… ; à 4 : A, B, C, D, A, B…
  */
 export function nextPlayer(
   steps: readonly SequenceStep[],
-  roles: Partial<Record<SequencePlayer, SequenceRole>>,
   playersCount: number,
   index: number = steps.length,
 ): SequencePlayer {
   const players = sequencePlayers(playersCount);
   if (players.length === 0) return "A";
   const previous = steps.slice(0, index);
-  const last = previous[previous.length - 1];
-  if (!last) {
-    return players.find((p) => roles[p] === "relance") ?? players[0];
-  }
-  const sides = playerSides(roles, players);
-  const opponents = players.filter((p) => sides[p] !== sides[last.player]);
-  if (opponents.length === 0) {
-    const i = players.indexOf(last.player);
-    return players[(i + 1) % players.length];
-  }
-  const lastPlayedAt = (p: SequencePlayer) => {
-    for (let i = previous.length - 1; i >= 0; i -= 1) {
-      if (previous[i].player === p) return i;
-    }
+  if (previous.length === 0) return players[0];
+
+  const lastIndex = (p: SequencePlayer) => {
+    for (let i = previous.length - 1; i >= 0; i -= 1) if (previous[i].player === p) return i;
     return -1;
   };
-  return opponents.reduce((best, p) => (lastPlayedAt(p) < lastPlayedAt(best) ? p : best));
+  const half = stepHalf(index);
+  const candidates = players.filter((p) => {
+    const last = lastIndex(p);
+    return last === -1 || stepHalf(last) === half;
+  });
+  if (candidates.length === 0) {
+    const lastPlayer = previous[previous.length - 1].player;
+    return players[(players.indexOf(lastPlayer) + 1) % players.length] ?? players[0];
+  }
+  return candidates.reduce((best, p) => (lastIndex(p) < lastIndex(best) ? p : best));
 }
+
+/** Joueurs présents dans chaque camp (légende du schéma, en-tête de la modale). */
+export function playersByHalf(steps: readonly SequenceStep[]): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
+  const top = new Set<SequencePlayer>();
+  const bottom = new Set<SequencePlayer>();
+  steps.forEach((step, i) => (stepHalf(i) === 1 ? top : bottom).add(step.player));
+  const order = (set: Set<SequencePlayer>) => SEQUENCE_PLAYERS.filter((p) => set.has(p));
+  return { top: order(top), bottom: order(bottom) };
+}
+
+/** Joueurs utilisés par la séquence mais absents pour ce nombre de joueurs. */
+export function missingPlayers(sequence: ExerciseSequence, playersCount: number): SequencePlayer[] {
+  const present = sequencePlayers(playersCount);
+  return SEQUENCE_PLAYERS.filter(
+    (p) => !present.includes(p) && sequence.steps.some((s) => s.player === p),
+  );
+}
+
+// ─── Grisage des coups ───────────────────────────────────────────────────────
 
 /**
  * Un coup est-il jouable à la position `index`, après `previousShot` ?
@@ -134,41 +136,120 @@ export function isShotAvailable(
   return def.startZones.some((zone) => arrival.includes(zone));
 }
 
-/** Zones d'où le coup n°`index` doit partir (pour le sous-titre du panneau). */
-export function requiredStartZones(
-  previousShot: ShotId | undefined,
-): readonly CourtZone[] | null {
+/** Zones d'où le coup suivant `previousShot` doit partir (contexte du panneau). */
+export function requiredStartZones(previousShot: ShotId | undefined): readonly CourtZone[] | null {
   if (!previousShot || previousShot === "au_choix") return null;
   return SHOTS_BY_ID[previousShot].arrivalZones;
 }
 
+// ─── Position latérale et directions ─────────────────────────────────────────
+
+export type Lane = "left" | "center" | "right";
+export type DirectionContext = "side" | "center";
+
+const SIDE_DIRECTIONS: readonly ShotDirection[] = ["droit", "croise", "centre"];
+const CENTER_DIRECTIONS: readonly ShotDirection[] = ["gauche", "centre", "droite"];
+
+export function directionContext(lane: Lane): DirectionContext {
+  return lane === "center" ? "center" : "side";
+}
+
+export function isDirectionAllowed(direction: ShotDirection, context: DirectionContext): boolean {
+  return (context === "side" ? SIDE_DIRECTIONS : CENTER_DIRECTIONS).includes(direction);
+}
+
 /**
- * Ids des coups devenus impossibles (après modification/suppression d'un coup
- * précédent, ou joueur absent après un changement du nombre de joueurs).
- * L'étape ne peut pas être validée tant que cette liste n'est pas vide.
+ * Couloir d'arrivée d'un coup joué depuis `lane` par un frappeur du camp
+ * `half`. Droit = même côté, Croisé = côté opposé, Centre = axe central ;
+ * depuis le centre, Gauche / Droite du point de vue du frappeur (le camp du
+ * haut fait face au bas : sa gauche est à droite de l'écran). Sans direction :
+ * Droit (Centre si le frappeur est au centre). Une direction hors contexte
+ * (coup à corriger) est traitée comme l'absence de direction.
  */
-export function findInvalidStepIds(
+export function arrivalLane(lane: Lane, half: 0 | 1, direction: ShotDirection | undefined): Lane {
+  const context = directionContext(lane);
+  const dir = direction && isDirectionAllowed(direction, context) ? direction : undefined;
+  if (context === "side") {
+    if (dir === "centre") return "center";
+    if (dir === "croise") return lane === "left" ? "right" : "left";
+    return lane;
+  }
+  if (dir === "gauche") return half === 1 ? "right" : "left";
+  if (dir === "droite") return half === 1 ? "left" : "right";
+  return "center";
+}
+
+/**
+ * Couloir de départ du coup du serveur : sa zone de service droite (il fait
+ * face au filet, donc à gauche de l'écran pour le camp du haut).
+ */
+export function serviceLane(half: 0 | 1): Lane {
+  return half === 1 ? "left" : "right";
+}
+
+/**
+ * Couloir du frappeur de chaque coup = couloir d'arrivée du coup précédent.
+ * Coup n°1 : un service part d'un côté, un autre coup part du centre.
+ * Après « Au choix » : centre.
+ */
+export function hitterLanes(steps: readonly SequenceStep[]): Lane[] {
+  const lanes: Lane[] = [];
+  steps.forEach((step, i) => {
+    if (i === 0) {
+      lanes.push(SHOTS_BY_ID[step.shot].isService ? serviceLane(stepHalf(0)) : "center");
+      return;
+    }
+    const prev = steps[i - 1];
+    lanes.push(
+      prev.shot === "au_choix" ? "center" : arrivalLane(lanes[i - 1], stepHalf(i - 1), prev.direction),
+    );
+  });
+  return lanes;
+}
+
+/**
+ * Contexte de direction du coup n°`index` en cours de saisie : dépend du
+ * coup précédent (et du coup lui-même pour le n°1 : service = côté).
+ */
+export function directionContextAt(
   steps: readonly SequenceStep[],
-  playersCount: number,
-): string[] {
+  index: number,
+  shot: ShotId | undefined,
+): DirectionContext {
+  if (index === 0) {
+    return shot && SHOTS_BY_ID[shot].isService ? "side" : "center";
+  }
+  const previous = steps.slice(0, index);
+  const prev = previous[index - 1];
+  if (!prev || prev.shot === "au_choix") return "center";
+  const lanes = hitterLanes(previous);
+  return directionContext(arrivalLane(lanes[index - 1], stepHalf(index - 1), prev.direction));
+}
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+/**
+ * Ids des coups à corriger : coup devenu impossible après le précédent,
+ * direction qui a changé de contexte (côté ↔ centre), ou joueur absent.
+ */
+export function findInvalidStepIds(steps: readonly SequenceStep[], playersCount: number): string[] {
   const players = sequencePlayers(playersCount);
+  const lanes = hitterLanes(steps);
   return steps
     .filter((step, i) => {
       if (!players.includes(step.player)) return true;
-      return !isShotAvailable(step.shot, steps[i - 1]?.shot, i);
+      if (!isShotAvailable(step.shot, steps[i - 1]?.shot, i)) return true;
+      if (step.direction && !isDirectionAllowed(step.direction, directionContext(lanes[i]))) return true;
+      return false;
     })
     .map((step) => step.id);
 }
 
 export function isSequenceValid(sequence: ExerciseSequence, playersCount: number): boolean {
-  if (sequence.steps.length === 0) return false;
-  if (findInvalidStepIds(sequence.steps, playersCount).length > 0) return false;
-  if (sequence.ending === "repetitions") {
-    const n = sequence.repetitions ?? 0;
-    return Number.isInteger(n) && n >= 1 && n <= MAX_SEQUENCE_REPETITIONS;
-  }
-  return true;
+  return sequence.steps.length > 0 && findInvalidStepIds(sequence.steps, playersCount).length === 0;
 }
+
+// ─── Libellés et texte généré ────────────────────────────────────────────────
 
 export function shotLabel(shot: ShotId): string {
   return SHOTS_BY_ID[shot].label;
@@ -178,43 +259,83 @@ export function directionLabel(direction: ShotDirection): string {
   return SHOT_DIRECTION_LABELS[direction];
 }
 
-/** Libellé court de la fin de séquence (badges, frise, schéma). */
-export function endingLabel(sequence: Pick<ExerciseSequence, "ending" | "repetitions">): string {
-  if (sequence.ending === "repetitions") return `× ${sequence.repetitions ?? 1} fois`;
-  if (sequence.ending === "jeu_libre") return "Puis jeu libre";
-  return "↻ En boucle";
+export function sequenceEnding(sequence: ExerciseSequence): SequenceEnding {
+  return sequence.ending ?? "boucle";
 }
 
-/** Symbole compact de la fin de séquence (aperçu texte, en-tête du schéma). */
-export function endingSymbol(sequence: Pick<ExerciseSequence, "ending" | "repetitions">): string {
-  if (sequence.ending === "repetitions") return `× ${sequence.repetitions ?? 1}`;
-  if (sequence.ending === "jeu_libre") return "→ jeu libre";
-  return "↻";
+export function shuttlesPerRound(sequence: ExerciseSequence): number {
+  return sequence.shuttlesPerRound ?? DEFAULT_SHUTTLES_PER_ROUND;
 }
 
-/** « A travaille · B relance · C relance » */
-export function rolesSummary(
-  roles: Partial<Record<SequencePlayer, SequenceRole>>,
-  playersCount: number,
-): string {
-  return sequencePlayers(playersCount)
-    .map((p) => `${p} ${roles[p] === "travaille" ? "travaille" : "relance"}`)
-    .join(" · ");
+/** Badge de distribution : « Volant continu » / « Multivolant · 15 volants ». */
+export function distributionLabel(sequence: ExerciseSequence): string {
+  return sequence.distribution === "multivolant"
+    ? `Multivolant · ${shuttlesPerRound(sequence)} volants`
+    : "Volant continu";
+}
+
+/** Badge de fin (volant continu uniquement) : « ↻ En boucle » / « Finir le point ». */
+export function endingLabel(sequence: ExerciseSequence): string | null {
+  if (sequence.distribution === "multivolant") return null;
+  return sequenceEnding(sequence) === "finir_point" ? "Finir le point" : "↻ En boucle";
+}
+
+/** Indicateur de fin du schéma : « ↻ En boucle », « Finir le point » ou « Multivolant · N volants ». */
+export function sequenceEndIndicator(sequence: ExerciseSequence): string {
+  return endingLabel(sequence) ?? distributionLabel(sequence);
+}
+
+/** Badge résumé du bloc du formulaire : « Séquence · 5 coups ↻ ». */
+export function sequenceSummary(sequence: ExerciseSequence): string {
+  const n = sequence.steps.length;
+  const base = `Séquence · ${n} coup${n > 1 ? "s" : ""}`;
+  if (sequence.distribution === "multivolant") return `${base} · ${shuttlesPerRound(sequence)} volants`;
+  return sequenceEnding(sequence) === "boucle" ? `${base} ↻` : base;
 }
 
 /**
- * Aperçu texte généré à la volée, ex. :
- * « B service long → A dégagement droit → B amorti croisé ↻ ».
- * Jamais stocké, ne modifie jamais la description libre de l'exercice.
+ * Texte ajouté à la description, ex. :
+ * « B service long → A dégagement droit → B amorti croisé ↻ »
+ * Variantes : « … puis point libre » (Finir le point), préfixe
+ * « Multivolant, 15 volants : » en multivolant.
  */
-export function sequencePreview(sequence: ExerciseSequence): string {
+export function generateSequenceText(sequence: ExerciseSequence): string {
   if (sequence.steps.length === 0) return "";
-  const parts = sequence.steps.map((step) => {
-    const shot = shotLabel(step.shot).toLowerCase();
-    const direction = step.direction ? ` ${directionLabel(step.direction).toLowerCase()}` : "";
-    return `${step.player} ${shot}${direction}`;
-  });
-  return `${parts.join(" → ")} ${endingSymbol(sequence)}`;
+  const chain = sequence.steps
+    .map((step) => {
+      const direction = step.direction ? ` ${directionLabel(step.direction).toLowerCase()}` : "";
+      return `${step.player} ${shotLabel(step.shot).toLowerCase()}${direction}`;
+    })
+    .join(" → ");
+  if (sequence.distribution === "multivolant") {
+    return `Multivolant, ${shuttlesPerRound(sequence)} volants : ${chain}`;
+  }
+  return sequenceEnding(sequence) === "finir_point" ? `${chain} puis point libre` : `${chain} ↻`;
+}
+
+/**
+ * Applique le texte généré à la description, sans jamais écraser la saisie
+ * de l'utilisateur :
+ * - texte précédent encore présent à l'identique → remplacé par le nouveau ;
+ * - description vide → devient le texte généré ;
+ * - sinon → ajouté à la fin après une ligne vide ; `staleCopyLeft` signale
+ *   qu'une ancienne version retouchée est restée (toast côté UI).
+ */
+export function applyGeneratedText(
+  description: string,
+  previousText: string | undefined,
+  nextText: string,
+): { description: string; staleCopyLeft: boolean } {
+  if (previousText && description.includes(previousText)) {
+    return { description: description.replace(previousText, nextText), staleCopyLeft: false };
+  }
+  if (description.trim().length === 0) {
+    return { description: nextText, staleCopyLeft: false };
+  }
+  return {
+    description: `${description.replace(/\s+$/, "")}\n\n${nextText}`,
+    staleCopyLeft: !!previousText,
+  };
 }
 
 // ─── Relecture depuis le stockage ────────────────────────────────────────────
@@ -223,20 +344,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-const ROLE_VALUES: readonly SequenceRole[] = ["travaille", "relance"];
-const DISTRIBUTION_VALUES: readonly SequenceDistribution[] = ["echange", "multivolant"];
-const ENDING_VALUES: readonly SequenceEnding[] = ["boucle", "repetitions", "jeu_libre"];
-const DIRECTION_VALUES: readonly ShotDirection[] = ["croise", "droit", "centre"];
+const DIRECTION_VALUES: readonly ShotDirection[] = ["droit", "croise", "centre", "gauche", "droite"];
 
 /**
  * Relit une séquence venue de l'extérieur (jsonb Supabase, AsyncStorage,
  * fichier de sauvegarde). Renvoie undefined si la forme est inutilisable,
  * pour que l'exercice reste valide « sans séquence » plutôt que de planter.
- * Les coups dont l'enchaînement est devenu impossible sont conservés : ils
- * seront signalés dans le wizard (findInvalidStepIds).
+ * Les coups devenus incohérents sont conservés : ils seront signalés dans la
+ * saisie express (findInvalidStepIds).
  */
 export function parseExerciseSequence(value: unknown): ExerciseSequence | undefined {
-  if (!isRecord(value) || !Array.isArray(value.steps)) return undefined;
+  if (!isRecord(value) || value.kind !== "sequence" || !Array.isArray(value.steps)) return undefined;
 
   const steps: SequenceStep[] = [];
   for (const raw of value.steps) {
@@ -256,29 +374,16 @@ export function parseExerciseSequence(value: unknown): ExerciseSequence | undefi
   }
   if (steps.length === 0) return undefined;
 
-  const roles: Partial<Record<SequencePlayer, SequenceRole>> = {};
-  if (isRecord(value.roles)) {
-    for (const p of SEQUENCE_PLAYERS) {
-      const role = value.roles[p];
-      if (ROLE_VALUES.includes(role as SequenceRole)) roles[p] = role as SequenceRole;
-    }
+  const generatedText = typeof value.generatedText === "string" ? value.generatedText : undefined;
+  const base = { kind: "sequence" as const, steps, ...(generatedText ? { generatedText } : {}) };
+
+  if (value.distribution === "multivolant") {
+    const n = typeof value.shuttlesPerRound === "number" ? value.shuttlesPerRound : DEFAULT_SHUTTLES_PER_ROUND;
+    return { ...base, distribution: "multivolant", shuttlesPerRound: clampShuttles(n) };
   }
-
-  const ending = ENDING_VALUES.includes(value.ending as SequenceEnding)
-    ? (value.ending as SequenceEnding)
-    : "boucle";
-  const repetitions =
-    typeof value.repetitions === "number" && Number.isInteger(value.repetitions) && value.repetitions >= 1
-      ? Math.min(value.repetitions, MAX_SEQUENCE_REPETITIONS)
-      : undefined;
-
   return {
-    roles,
-    distribution: DISTRIBUTION_VALUES.includes(value.distribution as SequenceDistribution)
-      ? (value.distribution as SequenceDistribution)
-      : "echange",
-    steps,
-    ending: ending === "repetitions" && repetitions === undefined ? "boucle" : ending,
-    ...(ending === "repetitions" && repetitions !== undefined ? { repetitions } : {}),
+    ...base,
+    distribution: "volant_continu",
+    ending: value.ending === "finir_point" ? "finir_point" : "boucle",
   };
 }

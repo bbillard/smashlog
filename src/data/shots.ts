@@ -15,6 +15,8 @@ import { CourtZone, ShotDirection, ShotId } from "@/src/types/index";
  * - arrivalZones : zones où le volant arrive chez l'adversaire. Plusieurs
  *   zones possibles pour certains coups (Block) : le coup suivant peut partir
  *   de n'importe laquelle (cf. isShotAvailable dans src/utils/exerciseSequence.ts).
+ * - Directions : possibles pour tous les coups, services compris (en exercice
+ *   on peut imposer une zone de service non réglementaire), toujours optionnelles.
  * - Le Slice arrive à l'avant comme l'amorti mais est placé plus long sur le
  *   schéma terrain (cf. src/utils/courtDiagram.ts).
  * - « Au choix » : toutes les zones, jamais grisé.
@@ -48,16 +50,25 @@ export const SHOTS_BY_ID: Record<ShotId, ShotDefinition> = Object.fromEntries(
   SHOTS.map((shot) => [shot.id, shot]),
 ) as Record<ShotId, ShotDefinition>;
 
-/** Directions possibles pour tous les coups, services compris (optionnelle). */
-export const SHOT_DIRECTION_OPTIONS: readonly { value: ShotDirection; label: string }[] = [
-  { value: "croise", label: "Croisé" },
-  { value: "droit", label: "Droit" },
-  { value: "centre", label: "Centre" },
-];
+/** Libellés de toutes les directions (frise, aperçu texte). */
+export const SHOT_DIRECTION_LABELS: Record<ShotDirection, string> = {
+  droit: "Droit",
+  croise: "Croisé",
+  centre: "Centre",
+  gauche: "Gauche",
+  droite: "Droite",
+};
 
-export const SHOT_DIRECTION_LABELS: Record<ShotDirection, string> = Object.fromEntries(
-  SHOT_DIRECTION_OPTIONS.map((option) => [option.value, option.label]),
-) as Record<ShotDirection, string>;
+/**
+ * Les trois boutons de direction du panneau de saisie, toujours à la même
+ * place : frappeur sur un côté → Droit / Croisé / Centre ; frappeur au
+ * centre → les mêmes boutons affichent Gauche / Centre / Droite.
+ */
+export const DIRECTION_SLOTS: readonly { side: ShotDirection; center: ShotDirection }[] = [
+  { side: "droit", center: "gauche" },
+  { side: "croise", center: "centre" },
+  { side: "centre", center: "droite" },
+];
 
 export const COURT_ZONE_LABELS: Record<CourtZone, string> = {
   avant: "Avant",

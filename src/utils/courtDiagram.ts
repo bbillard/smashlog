@@ -1,12 +1,12 @@
 import { SHOTS_BY_ID } from "@/src/data/shots";
+import { CourtZone, ExerciseSequence, SequencePlayer, SequenceStep } from "@/src/types/index";
 import {
-  CourtZone,
-  ExerciseSequence,
-  SequencePlayer,
-  SequenceStep,
-  ShotDirection,
-} from "@/src/types/index";
-import { playerSides, sequencePlayers } from "@/src/utils/exerciseSequence";
+  Lane,
+  arrivalLane,
+  hitterLanes,
+  playersByHalf,
+  stepHalf,
+} from "@/src/utils/exerciseSequence";
 
 /**
  * Calcul pur du schéma terrain d'une séquence de jeu (ticket v1.4.1 « Fiche
@@ -15,7 +15,7 @@ import { playerSides, sequencePlayers } from "@/src/utils/exerciseSequence";
  * Rien n'est stocké : le schéma est recalculé à chaque affichage à partir de
  * exercise.sequence. Toutes les coordonnées sont en MÈTRES, terrain en
  * PORTRAIT : x ∈ [0 ; 6,10] (largeur), y ∈ [0 ; 13,40] (longueur), filet en
- * y = 6,70. Demi-terrain du haut = relanceurs, du bas = travailleurs.
+ * y = 6,70. Camp du haut = joueur du coup n°1 (puis coups 3, 5…).
  * La rotation en paysage (fiche) se fait au rendu via toLandscape().
  */
 
@@ -42,9 +42,6 @@ export interface DiagramSegment {
   from: DiagramPoint;
   to: DiagramPoint;
 }
-
-/** 0 = demi-terrain du bas (travailleurs), 1 = demi-terrain du haut (relanceurs). */
-type Half = 0 | 1;
 
 /**
  * Lignes du terrain de badminton (pas de tracé de tennis) : périmètre double,
@@ -102,46 +99,25 @@ const SLICE_DEPTH = 2.3;
 const SERVICE_DEPTH = COURT.shortServiceFromNet + 0.35;
 
 const CENTER_X = COURT.width / 2;
-const LANE_OFFSET = 1.65;
-const LEFT_X = CENTER_X - LANE_OFFSET;
-const RIGHT_X = CENTER_X + LANE_OFFSET;
-/** Le serveur se place au milieu de sa zone de service (côté droit). */
+const LANE_X: Record<Lane, number> = {
+  left: CENTER_X - 1.65,
+  center: CENTER_X,
+  right: CENTER_X + 1.65,
+};
+/** Le serveur se place au milieu de sa zone de service. */
 const SERVICE_LANE_OFFSET = 1.3;
 
-function pointAt(half: Half, depth: number, x: number): DiagramPoint {
+/** Seuil (m) en deçà duquel deux trajets sont jugés « similaires ». */
+const SIMILAR_PATH_THRESHOLD = 1.0;
+/** Diamètre de pastille par défaut (m) si l'appelant n'en fournit pas. */
+const DEFAULT_MIN_DISTANCE = 0.6;
+
+function pointAt(half: 0 | 1, depth: number, x: number): DiagramPoint {
   return { x, y: half === 1 ? COURT.halfLength - depth : COURT.halfLength + depth };
 }
 
-function halfOf(point: DiagramPoint): Half {
-  return point.y < COURT.halfLength ? 1 : 0;
-}
-
-type Lateral = "left" | "center" | "right";
-
-function lateralOf(x: number): Lateral {
-  if (x < CENTER_X - 0.3) return "left";
-  if (x > CENTER_X + 0.3) return "right";
-  return "center";
-}
-
-/**
- * Position latérale d'arrivée selon la direction, relativement au frappeur :
- * Droit = même côté, Croisé = côté opposé, Centre = axe central.
- * Sans direction : Droit. Frappeur au centre : Droit reste au centre, Croisé
- * part alternativement à droite / à gauche (selon le numéro du coup) pour
- * éviter que les flèches se superposent.
- */
-export function arrivalX(hitterX: number, direction: ShotDirection | undefined, index: number): number {
-  const dir = direction ?? "droit";
-  if (dir === "centre") return CENTER_X;
-  const side = lateralOf(hitterX);
-  if (side === "center") {
-    if (dir === "droit") return CENTER_X;
-    return index % 2 === 0 ? RIGHT_X : LEFT_X;
-  }
-  const same = side === "left" ? LEFT_X : RIGHT_X;
-  const opposite = side === "left" ? RIGHT_X : LEFT_X;
-  return dir === "droit" ? same : opposite;
+function distance(a: DiagramPoint, b: DiagramPoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 /** Zone de départ « naturelle » d'un coup sans coup précédent exploitable. */
@@ -174,62 +150,159 @@ export interface DiagramShot {
   index: number;
   stepId: string;
   player: SequencePlayer;
-  /** Point de frappe (emplacement de la pastille numérotée). */
+  /** Point de frappe affiché (pastille), après décalage anti-superposition. */
   from: DiagramPoint;
-  /** Point d'arrivée (indicatif pour un coup « Au choix »). */
+  /** Point d'arrivée affiché (indicatif pour un coup « Au choix »). */
   to: DiagramPoint;
   /** Coup « Au choix » : flèche en pointillés, sans point d'arrivée précis. */
   approximate: boolean;
+  /**
+   * Courbure relative (signe = côté, |valeur| = intensité, 1 par défaut).
+   * Deux trajets similaires ont des courbes de côtés opposés.
+   */
+  curvature: number;
+}
+
+export interface DiagramOptions {
+  /**
+   * Distance minimale (m) entre deux pastilles : en pratique leur diamètre au
+   * rendu. Les points de frappe plus proches sont écartés.
+   */
+  minDistance?: number;
 }
 
 /**
- * Séquence → liste de flèches. Le point d'arrivée d'un coup devient le point
- * de frappe du suivant ; après un « Au choix », le coup suivant part d'une
- * position par défaut au centre de la zone du joueur.
+ * Écarte les points distants de moins de `minDistance` : chaque groupe est
+ * réparti en cercle autour de sa position moyenne, dans l'ordre des coups
+ * (premier point en haut), pour un rendu stable d'un affichage à l'autre.
+ */
+export function spreadPoints(points: DiagramPoint[], minDistance: number): DiagramPoint[] {
+  const parent = points.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      if (distance(points[i], points[j]) < minDistance) parent[find(j)] = find(i);
+    }
+  }
+  const groups = new Map<number, number[]>();
+  points.forEach((_, i) => {
+    const root = find(i);
+    groups.set(root, [...(groups.get(root) ?? []), i]);
+  });
+  const result = points.map((p) => ({ ...p }));
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    const k = members.length;
+    const cx = members.reduce((sum, i) => sum + points[i].x, 0) / k;
+    const cy = members.reduce((sum, i) => sum + points[i].y, 0) / k;
+    // Rayon tel que deux voisins sur le cercle soient espacés d'au moins minDistance.
+    const radius = (minDistance / (2 * Math.sin(Math.PI / k))) * 1.05;
+    members.forEach((i, rank) => {
+      const angle = -Math.PI / 2 + (2 * Math.PI * rank) / k;
+      result[i] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    });
+  }
+  return result;
+}
+
+/**
+ * Séquence → liste de flèches. Camps déduits de la séquence (coups
+ * consécutifs depuis des camps opposés, coup n°1 en haut). Le point
+ * d'arrivée d'un coup devient le point de frappe du suivant ; après un
+ * « Au choix », le coup suivant part d'une position par défaut au centre de
+ * la zone du joueur. Les pastilles trop proches sont écartées et les flèches
+ * suivent les positions décalées.
  */
 export function computeDiagramShots(
   sequence: ExerciseSequence,
-  playersCount: number,
+  options: DiagramOptions = {},
 ): DiagramShot[] {
-  const players = sequencePlayers(playersCount);
-  const sides = playerSides(sequence.roles, players.length > 0 ? players : ["A", "B"]);
-  // playerSides : 0 = travailleurs (bas), 1 = relanceurs (haut).
-  const halfOfPlayer = (p: SequencePlayer): Half => sides[p];
+  const minDistance = options.minDistance ?? DEFAULT_MIN_DISTANCE;
+  const steps = sequence.steps;
+  const lanes = hitterLanes(steps);
 
-  const shots: DiagramShot[] = [];
-  let previous: DiagramShot | undefined;
-
-  sequence.steps.forEach((step, index) => {
+  // 1. Positions brutes.
+  const rawFrom: DiagramPoint[] = [];
+  const rawTo: DiagramPoint[] = [];
+  steps.forEach((step, i) => {
+    const half = stepHalf(i);
     const def = SHOTS_BY_ID[step.shot];
-    const next = sequence.steps[index + 1];
-
-    let from: DiagramPoint;
-    if (previous && !previous.approximate) {
-      from = previous.to;
+    const prev = steps[i - 1];
+    if (i > 0 && prev.shot !== "au_choix") {
+      rawFrom.push(rawTo[i - 1]);
+    } else if (i === 0 && def.isService) {
+      // Zone de service droite du serveur (cf. serviceLane).
+      const x = half === 1 ? CENTER_X - SERVICE_LANE_OFFSET : CENTER_X + SERVICE_LANE_OFFSET;
+      rawFrom.push(pointAt(half, SERVICE_DEPTH, x));
     } else {
-      const half: Half = previous ? (halfOf(previous.from) === 1 ? 0 : 1) : halfOfPlayer(step.player);
-      if (!previous && def.isService) {
-        // Côté droit du serveur : il fait face au filet, donc sa droite est à
-        // gauche de l'écran pour le demi-terrain du haut.
-        const x = half === 1 ? CENTER_X - SERVICE_LANE_OFFSET : CENTER_X + SERVICE_LANE_OFFSET;
-        from = pointAt(half, SERVICE_DEPTH, x);
-      } else {
-        from = pointAt(half, ZONE_DEPTH[preferredStartZone(step)], CENTER_X);
-      }
+      rawFrom.push(pointAt(half, ZONE_DEPTH[preferredStartZone(step)], CENTER_X));
     }
-
-    const targetHalf: Half = halfOf(from) === 1 ? 0 : 1;
-    const approximate = step.shot === "au_choix";
-    const to = approximate
-      ? pointAt(targetHalf, ZONE_DEPTH.milieu, CENTER_X)
-      : pointAt(targetHalf, arrivalDepth(step, next), arrivalX(from.x, step.direction, index));
-
-    const shot: DiagramShot = { index, stepId: step.id, player: step.player, from, to, approximate };
-    shots.push(shot);
-    previous = shot;
+    const targetHalf = half === 1 ? 0 : 1;
+    rawTo.push(
+      step.shot === "au_choix"
+        ? pointAt(targetHalf, ZONE_DEPTH.milieu, CENTER_X)
+        : pointAt(targetHalf, arrivalDepth(step, steps[i + 1]), LANE_X[arrivalLane(lanes[i], half, step.direction)]),
+    );
   });
 
-  return shots;
+  // 2. Pastilles écartées si superposées.
+  const from = spreadPoints(rawFrom, minDistance);
+
+  // 3. Courbures : alternées par défaut. Les trajets similaires (même trajet
+  // dans un sens ou dans l'autre) forment un groupe : on alterne le côté
+  // géométrique de la courbe et on l'accentue tous les deux membres, pour
+  // que chaque flèche reste distincte.
+  const orientation = (i: number): 1 | -1 =>
+    rawTo[i].y > rawFrom[i].y || (rawTo[i].y === rawFrom[i].y && rawTo[i].x >= rawFrom[i].x) ? 1 : -1;
+  const groupOf: number[] = [];
+  const curvatures: number[] = [];
+  steps.forEach((_, j) => {
+    let group = j;
+    for (let i = 0; i < j; i += 1) {
+      const same =
+        distance(rawFrom[i], rawFrom[j]) < SIMILAR_PATH_THRESHOLD &&
+        distance(rawTo[i], rawTo[j]) < SIMILAR_PATH_THRESHOLD;
+      const reversed =
+        distance(rawFrom[i], rawTo[j]) < SIMILAR_PATH_THRESHOLD &&
+        distance(rawTo[i], rawFrom[j]) < SIMILAR_PATH_THRESHOLD;
+      if (same || reversed) {
+        group = groupOf[i];
+        break;
+      }
+    }
+    groupOf.push(group);
+    const defaultSign = group % 2 === 0 ? 1 : -1;
+    if (group === j) {
+      curvatures.push(defaultSign);
+      return;
+    }
+    // Rang parmi les membres du groupe qui vont dans le même sens : deux
+    // trajets identiques se courbent de côtés opposés ; les trajets en sens
+    // inverse reprennent l'alternance avec une courbe plus marquée.
+    const sameWay = groupOf
+      .slice(0, j)
+      .map((g, i) => ({ g, i }))
+      .filter(({ g, i }) => g === group && orientation(i) === orientation(j)).length;
+    const firstSide = defaultSign * orientation(group);
+    const side = sameWay % 2 === 0 ? firstSide : -firstSide;
+    const reversedWay = orientation(j) !== orientation(group) ? 0.6 : 0;
+    const magnitude = 1 + reversedWay + Math.floor(sameWay / 2) * 0.6;
+    curvatures.push(side * orientation(j) * magnitude);
+  });
+
+  return steps.map((step, i) => {
+    const approximate = step.shot === "au_choix";
+    const chained = !approximate && i + 1 < steps.length;
+    return {
+      index: i,
+      stepId: step.id,
+      player: step.player,
+      from: from[i],
+      to: chained ? from[i + 1] : rawTo[i],
+      approximate,
+      curvature: curvatures[i],
+    };
+  });
 }
 
 // ─── Géométrie de rendu ──────────────────────────────────────────────────────
@@ -311,17 +384,9 @@ export function polygonPoints(points: DiagramPoint[]): string {
 }
 
 /**
- * Groupes de légende : joueurs du demi-terrain du haut (relanceurs) et du
- * bas (travailleurs), ex. « B · relance », « A, C · travaille ».
+ * Légende des camps : joueurs du camp du haut (coups 1, 3, 5…) et du bas,
+ * affichés « Joueur A », « Joueur B »… de chaque côté du schéma.
  */
-export function diagramLegend(
-  sequence: ExerciseSequence,
-  playersCount: number,
-): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
-  const players = sequencePlayers(playersCount);
-  const sides = playerSides(sequence.roles, players);
-  return {
-    top: players.filter((p) => sides[p] === 1),
-    bottom: players.filter((p) => sides[p] === 0),
-  };
+export function diagramLegend(sequence: ExerciseSequence): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
+  return playersByHalf(sequence.steps);
 }

@@ -18,11 +18,10 @@ import {
   polygonPoints,
   toLandscape,
 } from "@/src/utils/courtDiagram";
-import { sequencePreview } from "@/src/utils/exerciseSequence";
+import { generateSequenceText } from "@/src/utils/exerciseSequence";
 
 interface CourtDiagramProps {
   sequence: ExerciseSequence;
-  playersCount: number;
   orientation: "portrait" | "landscape";
   /** Largeur affichée en px ; la hauteur découle des proportions du terrain. */
   width: number;
@@ -45,7 +44,7 @@ export function courtDiagramAspect(orientation: CourtDiagramProps["orientation"]
  * la taille d'affichage. Les positions viennent de computeDiagramShots
  * (src/utils/courtDiagram.ts) et ne sont jamais stockées.
  */
-export function CourtDiagram({ sequence, playersCount, orientation, width }: CourtDiagramProps) {
+export function CourtDiagram({ sequence, orientation, width }: CourtDiagramProps) {
   const landscape = orientation === "landscape";
   const viewW = (landscape ? COURT.length : COURT.width) + MARGIN * 2;
   const viewH = (landscape ? COURT.width : COURT.length) + MARGIN * 2;
@@ -54,9 +53,14 @@ export function CourtDiagram({ sequence, playersCount, orientation, width }: Cou
 
   const project = (p: DiagramPoint): DiagramPoint => (landscape ? toLandscape(p) : p);
 
-  const shots = useMemo(() => computeDiagramShots(sequence, playersCount), [sequence, playersCount]);
-
   const badgeRadius = (landscape ? 8 : 13) * pxToM;
+  // Pastilles jamais superposées : écart minimal = un diamètre (+ le liseré).
+  const minDistance = badgeRadius * 2 + 2 * pxToM;
+  const shots = useMemo(
+    () => computeDiagramShots(sequence, { minDistance }),
+    [sequence, minDistance],
+  );
+
   const lineWidth = (landscape ? 1 : 1.5) * pxToM;
   const arrowWidth = (landscape ? 1.6 : 2.5) * pxToM;
   const headLength = (landscape ? 6 : 10) * pxToM;
@@ -70,7 +74,7 @@ export function CourtDiagram({ sequence, playersCount, orientation, width }: Cou
   const rectY = Math.min(courtTopLeft.y, courtBottomRight.y);
   const net = courtNet();
 
-  const label = `Schéma terrain de la séquence : ${sequencePreview(sequence)}`;
+  const label = `Schéma terrain de la séquence : ${generateSequenceText(sequence)}`;
 
   return (
     <Svg
@@ -127,8 +131,9 @@ export function CourtDiagram({ sequence, playersCount, orientation, width }: Cou
       {shots.map((shot) => {
         const color = SEQUENCE_PLAYER_COLORS[shot.player];
         const geometry = arrowGeometry(project(shot.from), project(shot.to), {
-          // Courbure alternée d'un coup à l'autre pour limiter les chevauchements.
-          curvature: shot.index % 2 === 0 ? 0.12 : -0.12,
+          // Courbure calculée par computeDiagramShots (alternée, opposée pour
+          // deux trajets similaires).
+          curvature: 0.12 * shot.curvature,
           trimStart: badgeRadius,
           trimEnd: shot.approximate ? 0 : badgeRadius + 2 * pxToM,
           headLength,

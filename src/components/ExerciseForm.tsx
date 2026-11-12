@@ -18,24 +18,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { SequenceBuilder } from "@/src/components/exercise/SequenceBuilder";
+import { ExpressEntryBlock } from "@/src/components/exercise/ExpressEntryBlock";
+import { ExpressEntryModal } from "@/src/components/exercise/ExpressEntryModal";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
-import { WizardProgress } from "@/src/components/WizardProgress";
+import { Toast } from "@/src/components/Toast";
 import { DEFAULT_LABELS } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
 import { Exercise, ExerciseSequence } from "@/src/types/index";
 import {
-  createEmptySequence,
-  isSequenceValid,
-  normalizeRoles,
+  applyGeneratedText,
+  generateSequenceText,
+  missingPlayers,
 } from "@/src/utils/exerciseSequence";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ExercisePayload = Omit<Exercise, "id" | "createdAt">;
-
-type WizardStep = "infos" | "sequence" | "details";
 
 interface ExerciseFormProps {
   mode: "create" | "edit";
@@ -166,16 +165,6 @@ const chipStyles = StyleSheet.create({
 
 // ─── Main form ───────────────────────────────────────────────────────────────
 
-/**
- * Wizard de création / édition d'exercice (v1.4.1) :
- *   1. Infos — nom, description, nombre de joueurs, labels (obligatoires)
- *   2. Séquence de jeu — optionnelle, uniquement à partir de 2 joueurs
- *      (pas d'alternance possible en solo), « Passer » mène à l'étape 3
- *   3. Détails optionnels — durée, niveau, variantes, photos… puis enregistrement
- *
- * En édition, « Enregistrer » reste accessible dans l'en-tête à chaque étape
- * pour ne pas imposer tout le parcours pour une petite correction.
- */
 export function ExerciseForm({
   mode,
   initialData,
@@ -197,15 +186,10 @@ export function ExerciseForm({
     initialData?.labels ?? [],
   );
 
-  // ── Séquence de jeu ──
-  const [sequence, setSequence] = useState<ExerciseSequence>(() =>
-    initialData?.sequence
-      ? {
-          ...initialData.sequence,
-          roles: normalizeRoles(initialData.sequence.roles, initialData.playersCount ?? 2),
-        }
-      : createEmptySequence(initialData?.playersCount ?? 2),
-  );
+  // ── Saisie express ──
+  const [sequence, setSequence] = useState<ExerciseSequence | undefined>(initialData?.sequence);
+  const [expressOpen, setExpressOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Optional fields ──
   const [durationMinutes, setDurationMinutes] = useState(
@@ -228,60 +212,36 @@ export function ExerciseForm({
   const [photos, setPhotos] = useState<string[]>(initialData?.photos ?? []);
 
   // ── UI state ──
-  const [step, setStep] = useState<WizardStep>("infos");
+  const hasOptionalData =
+    mode === "edit" &&
+    !!(
+      initialData?.durationMinutes ||
+      initialData?.level ||
+      initialData?.orientation ||
+      initialData?.attentionPoints ||
+      initialData?.variantEasier ||
+      initialData?.variantHarder ||
+      initialData?.source ||
+      (initialData?.photos && initialData.photos.length > 0)
+    );
+  const [accordionOpen, setAccordionOpen] = useState(hasOptionalData);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [labelModalVisible, setLabelModalVisible] = useState(false);
   const [newLabelInput, setNewLabelInput] = useState("");
 
   // ── Derived ──
   const allLabels = [...DEFAULT_LABELS, ...customLabels];
-  const isInfosValid =
+  const isValid =
     name.trim().length > 0 &&
     description.trim().length > 0 &&
     playersCount !== null &&
     selectedLabels.length > 0;
-  const hasSequenceStep = playersCount !== null && playersCount >= 2;
-  const steps: WizardStep[] = hasSequenceStep
-    ? ["infos", "sequence", "details"]
-    : ["infos", "details"];
-  const stepIndex = Math.max(0, steps.indexOf(step));
-  const hasSequenceSteps = hasSequenceStep && sequence.steps.length > 0;
-  // Une séquence vide équivaut à « pas de séquence » ; une séquence entamée
-  // doit être cohérente (aucun coup impossible, nombre de répétitions valide).
-  const isSequenceStepValid =
-    !hasSequenceSteps || (playersCount !== null && isSequenceValid(sequence, playersCount));
-  const isValid = isInfosValid && isSequenceStepValid;
 
   // ── Handlers ──
   function toggleLabel(label: string) {
     setSelectedLabels((prev) =>
       prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label],
     );
-  }
-
-  function handlePlayersCount(n: 1 | 2 | 3 | 4) {
-    setPlayersCount(n);
-    // Les rôles suivent le nombre de joueurs ; les coups d'un joueur retiré
-    // restent visibles et signalés comme à corriger (findInvalidStepIds).
-    setSequence((prev) => ({ ...prev, roles: normalizeRoles(prev.roles, n) }));
-  }
-
-  function goTo(target: WizardStep) {
-    setFocusedField(null);
-    setStep(target);
-  }
-
-  function goBack() {
-    if (stepIndex === 0) {
-      onCancel();
-      return;
-    }
-    goTo(steps[stepIndex - 1]);
-  }
-
-  function goNext() {
-    const next = steps[stepIndex + 1];
-    if (next) goTo(next);
   }
 
   async function handleAddCustomLabel() {
@@ -311,8 +271,57 @@ export function ExerciseForm({
     }
   }
 
-  async function handleSave() {
+  /**
+   * Validation de la saisie express : la séquence est gardée dans le
+   * formulaire et son texte est ajouté à la description sans jamais écraser
+   * la saisie de l'utilisateur (applyGeneratedText). Si l'ancienne version
+   * du texte a été retouchée, elle reste en place : on le signale.
+   */
+  function handleExpressValidate(next: ExerciseSequence) {
+    const text = generateSequenceText(next);
+    const result = applyGeneratedText(description, sequence?.generatedText, text);
+    setDescription(result.description);
+    setSequence({ ...next, generatedText: text });
+    setExpressOpen(false);
+    if (result.staleCopyLeft) {
+      setToastMessage("Description complétée — pense à retirer l'ancienne version");
+    }
+  }
+
+  /** Supprimer la séquence ne modifie jamais la description. */
+  function handleExpressDelete() {
+    setSequence(undefined);
+  }
+
+  function handleSave() {
     if (!isValid || isSaving || playersCount === null) return;
+    const missing = sequence ? missingPlayers(sequence, playersCount) : [];
+    if (missing.length === 0) {
+      void save(sequence);
+      return;
+    }
+    const names = missing.join(", ");
+    const title = `La séquence utilise le joueur ${names}`;
+    const body = `Il n'existe plus avec ${playersCount} joueur${playersCount > 1 ? "s" : ""}. Supprimer la séquence pour enregistrer l'exercice ?`;
+    if (Platform.OS === "web") {
+      if (globalThis.confirm?.(`${title}. ${body}`)) void save(undefined);
+      return;
+    }
+    Alert.alert(title, body, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer la séquence",
+        style: "destructive",
+        onPress: () => {
+          setSequence(undefined);
+          void save(undefined);
+        },
+      },
+    ]);
+  }
+
+  async function save(sequenceToSave: ExerciseSequence | undefined) {
+    if (playersCount === null) return;
 
     const payload: ExercisePayload = {
       name: name.trim(),
@@ -331,22 +340,13 @@ export function ExerciseForm({
       ...(photos.length > 0 ? { photos } : {}),
       // Clé toujours présente : en édition, updateExercise fusionne les champs,
       // `undefined` explicite est donc nécessaire pour retirer une séquence.
-      sequence: hasSequenceSteps
-        ? { ...sequence, roles: normalizeRoles(sequence.roles, playersCount) }
-        : undefined,
+      sequence: sequenceToSave && sequenceToSave.steps.length > 0 ? sequenceToSave : undefined,
     };
 
     await onSave(payload);
   }
 
   // ── Render ──
-  const stepSubtitle =
-    step === "infos"
-      ? "Les champs marqués * sont obligatoires"
-      : step === "sequence"
-        ? "Qui joue quoi, dans quel ordre"
-        : "Durée, niveau, variantes, photos…";
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
@@ -356,37 +356,35 @@ export function ExerciseForm({
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <View style={styles.headerTopRow}>
-            <Pressable onPress={goBack} style={styles.backRow} hitSlop={8}>
+            <Pressable onPress={onCancel} style={styles.backRow} hitSlop={8}>
               <Ionicons name="chevron-back" size={16} color={theme.secondaryText} />
               <Text style={[styles.backText, { color: theme.secondaryText }]}>
-                {stepIndex === 0 ? "Mes exercices" : "Retour"}
+                Mes exercices
               </Text>
             </Pressable>
-            {mode === "edit" && stepIndex < steps.length - 1 ? (
-              <Pressable
-                onPress={handleSave}
-                disabled={!isValid || isSaving}
-                hitSlop={8}
-                style={styles.headerSave}
+            <Pressable
+              onPress={handleSave}
+              disabled={!isValid || isSaving}
+              hitSlop={8}
+              style={styles.headerSave}
+              accessibilityLabel="Enregistrer l'exercice"
+            >
+              <Text
+                style={[
+                  styles.headerSaveText,
+                  { color: theme.primary, opacity: !isValid || isSaving ? 0.4 : 1 },
+                ]}
               >
-                <Text
-                  style={[
-                    styles.headerSaveText,
-                    { color: theme.primary, opacity: !isValid || isSaving ? 0.4 : 1 },
-                  ]}
-                >
-                  Enregistrer
-                </Text>
-              </Pressable>
-            ) : null}
+                {isSaving ? "Enregistrement..." : "Enregistrer"}
+              </Text>
+            </Pressable>
           </View>
           <Text style={[styles.title, { color: theme.text }]}>
             {mode === "create" ? "Nouvel exercice" : "Modifier l'exercice"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.secondaryText }]}>{stepSubtitle}</Text>
-          <View style={styles.progress}>
-            <WizardProgress step={stepIndex + 1} total={steps.length} />
-          </View>
+          <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
+            Les champs marqués * sont obligatoires
+          </Text>
         </View>
 
         <ScrollView
@@ -395,113 +393,152 @@ export function ExerciseForm({
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          {step === "infos" ? (
-            <>
-              {/* ── Nom ── */}
-              <FieldCard label="Nom *" focused={focusedField === "name"}>
-                <TextInput
-                  style={[styles.textInput, { color: theme.text }]}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Ex: Routine smash croisé + block"
-                  placeholderTextColor={theme.secondaryText}
-                  maxLength={60}
-                  onFocus={() => setFocusedField("name")}
-                  onBlur={() => setFocusedField(null)}
-                  returnKeyType="next"
+          {/* ── Nom ── */}
+          <FieldCard label="Nom *" focused={focusedField === "name"}>
+            <TextInput
+              style={[styles.textInput, { color: theme.text }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Ex: Routine smash croisé + block"
+              placeholderTextColor={theme.secondaryText}
+              maxLength={60}
+              onFocus={() => setFocusedField("name")}
+              onBlur={() => setFocusedField(null)}
+              returnKeyType="next"
+            />
+            <Text style={[styles.charCount, { color: theme.secondaryText }]}>
+              {name.length}/60
+            </Text>
+          </FieldCard>
+
+          {/* ── Nombre de joueurs ── */}
+          <FieldCard label="Nombre de joueurs *">
+            <View style={styles.chipsRow}>
+              {([1, 2, 3, 4] as const).map((n) => (
+                <Chip
+                  key={n}
+                  label={String(n)}
+                  selected={playersCount === n}
+                  onPress={() => setPlayersCount(n)}
+                  accent="cyan"
                 />
-                <Text style={[styles.charCount, { color: theme.secondaryText }]}>
-                  {name.length}/60
-                </Text>
-              </FieldCard>
+              ))}
+            </View>
+          </FieldCard>
 
-              {/* ── Description ── */}
-              <FieldCard label="Description *" focused={focusedField === "desc"}>
-                <TextInput
-                  style={[styles.textInput, styles.multilineInput, { color: theme.text }]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Décris le déroulé de l'exercice..."
-                  placeholderTextColor={theme.secondaryText}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  onFocus={() => setFocusedField("desc")}
-                  onBlur={() => setFocusedField(null)}
+          {/* ── Saisie express ── */}
+          <ExpressEntryBlock
+            playersCount={playersCount}
+            sequence={sequence}
+            onOpen={() => setExpressOpen(true)}
+            onDelete={handleExpressDelete}
+          />
+
+          {/* ── Description ── */}
+          <FieldCard label="Description *" focused={focusedField === "desc"}>
+            <TextInput
+              style={[styles.textInput, styles.multilineInput, { color: theme.text }]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Décris le déroulé de l'exercice..."
+              placeholderTextColor={theme.secondaryText}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              onFocus={() => setFocusedField("desc")}
+              onBlur={() => setFocusedField(null)}
+            />
+          </FieldCard>
+
+          {/* ── Labels ── */}
+          <FieldCard label="Ce que ça travaille *">
+            <View style={styles.tagsGrid}>
+              {allLabels.map((label) => (
+                <Chip
+                  key={label}
+                  label={label}
+                  selected={selectedLabels.includes(label)}
+                  onPress={() => toggleLabel(label)}
+                  accent="green"
                 />
-              </FieldCard>
-
-              {/* ── Nombre de joueurs ── */}
-              <FieldCard label="Nombre de joueurs *">
-                <View style={styles.chipsRow}>
-                  {([1, 2, 3, 4] as const).map((n) => (
-                    <Chip
-                      key={n}
-                      label={String(n)}
-                      selected={playersCount === n}
-                      onPress={() => handlePlayersCount(n)}
-                      accent="cyan"
-                    />
-                  ))}
-                </View>
-              </FieldCard>
-
-              {/* ── Labels ── */}
-              <FieldCard label="Ce que ça travaille *">
-                <View style={styles.tagsGrid}>
-                  {allLabels.map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      selected={selectedLabels.includes(label)}
-                      onPress={() => toggleLabel(label)}
-                      accent="green"
-                    />
-                  ))}
-                  <Pressable
-                    onPress={() => setLabelModalVisible(true)}
-                    style={[
-                      chipStyles.chip,
-                      styles.addLabelChip,
-                      { borderColor: theme.border, backgroundColor: theme.surfaceAlt },
-                    ]}
-                  >
-                    <Ionicons name="add" size={13} color={theme.secondaryText} />
-                    <Text style={[chipStyles.text, { color: theme.secondaryText }]}>
-                      Ajouter
-                    </Text>
-                  </Pressable>
-                </View>
-              </FieldCard>
-            </>
-          ) : null}
-
-          {step === "sequence" && playersCount !== null ? (
-            <>
-              <View style={styles.stepIntro}>
-                <View style={styles.stepTitleRow}>
-                  <Text style={[styles.stepTitle, { color: theme.text }]}>Séquence de jeu</Text>
-                  <View style={[styles.optionalBadge, { backgroundColor: theme.surfaceAlt }]}>
-                    <Text style={[styles.optionalBadgeText, { color: theme.tertiaryText }]}>
-                      Optionnel
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.stepDescription, { color: theme.secondaryText }]}>
-                  Décris l'enchaînement des coups entre les joueurs. Un schéma du terrain sera
-                  généré sur la fiche de l'exercice.
+              ))}
+              <Pressable
+                onPress={() => setLabelModalVisible(true)}
+                style={[
+                  chipStyles.chip,
+                  styles.addLabelChip,
+                  { borderColor: theme.border, backgroundColor: theme.surfaceAlt },
+                ]}
+              >
+                <Ionicons name="add" size={13} color={theme.secondaryText} />
+                <Text style={[chipStyles.text, { color: theme.secondaryText }]}>
+                  Ajouter
                 </Text>
-              </View>
-              <SequenceBuilder
-                playersCount={playersCount}
-                value={sequence}
-                onChange={setSequence}
+              </Pressable>
+            </View>
+          </FieldCard>
+
+          {/* ── Accordion optionnel ── */}
+          <Pressable
+            onPress={() => setAccordionOpen((v) => !v)}
+            style={[
+              styles.accordionHead,
+              {
+                backgroundColor: accordionOpen ? theme.surface : theme.surfaceAlt,
+                borderColor: accordionOpen
+                  ? "rgba(0,229,255,0.2)"
+                  : "rgba(255,255,255,0.1)",
+                borderStyle: accordionOpen ? "solid" : "dashed",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.accIcon,
+                {
+                  backgroundColor: "rgba(0,229,255,0.08)",
+                  borderColor: "rgba(0,229,255,0.15)",
+                },
+              ]}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={15}
+                color={theme.accent3}
               />
-            </>
-          ) : null}
+            </View>
+            <View style={styles.accLabelWrap}>
+              <Text
+                style={[
+                  styles.accLabel,
+                  { color: accordionOpen ? theme.accent3 : theme.tertiaryText },
+                ]}
+              >
+                Détails optionnels
+              </Text>
+              {!accordionOpen ? (
+                <Text style={[styles.accSub, { color: theme.secondaryText }]}>
+                  Durée, niveau, variantes, photo...
+                </Text>
+              ) : null}
+            </View>
+            <Ionicons
+              name={accordionOpen ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={accordionOpen ? theme.accent3 : theme.secondaryText}
+            />
+          </Pressable>
 
-          {step === "details" ? (
-            <>
+          {accordionOpen ? (
+            <View
+              style={[
+                styles.accordionBody,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: "rgba(0,229,255,0.2)",
+                },
+              ]}
+            >
               {/* Durée + Niveau côte à côte */}
               <View style={styles.row}>
                 <FieldCard
@@ -677,44 +714,12 @@ export function ExerciseForm({
                   </Pressable>
                 ) : null}
               </View>
-            </>
+            </View>
           ) : null}
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
 
-        {/* Footer */}
-        <View
-          style={[
-            styles.footer,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
-          ]}
-        >
-          {step === "infos" ? (
-            <PrimaryButton label="Continuer →" onPress={goNext} disabled={!isInfosValid} />
-          ) : null}
-          {step === "sequence" ? (
-            <View style={styles.footerRow}>
-              {!hasSequenceSteps ? (
-                <PrimaryButton label="Passer" tone="secondary" onPress={goNext} />
-              ) : null}
-              <View style={styles.flex1}>
-                <PrimaryButton
-                  label="Continuer →"
-                  onPress={goNext}
-                  disabled={!hasSequenceSteps || !isSequenceStepValid}
-                />
-              </View>
-            </View>
-          ) : null}
-          {step === "details" ? (
-            <PrimaryButton
-              label={isSaving ? "Enregistrement..." : "Enregistrer l'exercice"}
-              onPress={handleSave}
-              disabled={!isValid || isSaving}
-            />
-          ) : null}
-        </View>
       </KeyboardAvoidingView>
 
       {/* ── Custom label modal ── */}
@@ -779,6 +784,18 @@ export function ExerciseForm({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {playersCount !== null ? (
+        <ExpressEntryModal
+          visible={expressOpen}
+          playersCount={playersCount}
+          initialSequence={sequence}
+          onValidate={handleExpressValidate}
+          onClose={() => setExpressOpen(false)}
+        />
+      ) : null}
+
+      <Toast message={toastMessage} onHide={() => setToastMessage(null)} />
     </SafeAreaView>
   );
 }
@@ -814,49 +831,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerSave: {
-    minHeight: 32,
+    minHeight: 44,
     justifyContent: "center",
   },
   headerSaveText: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: fonts.bodySemiBold,
-  },
-  progress: {
-    marginTop: 10,
-  },
-  stepIntro: {
-    gap: 8,
-    marginBottom: 6,
-  },
-  stepTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  stepTitle: {
-    fontSize: 26,
-    fontFamily: fonts.displayExtraBold,
-    letterSpacing: -0.4,
-  },
-  optionalBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  optionalBadgeText: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  stepDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily: fonts.bodyRegular,
-  },
-  footerRow: {
-    flexDirection: "row",
-    gap: 10,
   },
   backText: {
     fontSize: 12,
@@ -909,6 +889,41 @@ const styles = StyleSheet.create({
   smallChip: {
     paddingHorizontal: 8,
   },
+  accordionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+  },
+  accIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  accLabelWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  accLabel: {
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
+  },
+  accSub: {
+    fontSize: 10,
+    fontFamily: fonts.bodyRegular,
+  },
+  accordionBody: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
   row: {
     flexDirection: "row",
     gap: 8,
@@ -954,12 +969,6 @@ const styles = StyleSheet.create({
   photoAddText: {
     fontSize: 12,
     fontFamily: fonts.bodyRegular,
-  },
-  footer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
   },
   bottomSpacer: {
     height: 8,

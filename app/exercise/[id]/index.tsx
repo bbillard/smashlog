@@ -258,12 +258,11 @@ export default function ExerciseDetailScreen() {
           <CourtDiagramCard
             exerciseName={exercise.name}
             sequence={exercise.sequence}
-            playersCount={exercise.playersCount}
           />
         ) : null}
 
         {exercise.sequence ? (
-          <SequenceTimeline sequence={exercise.sequence} playersCount={exercise.playersCount} />
+          <SequenceTimeline sequence={exercise.sequence} />
         ) : null}
 
         <Field label="Description" value={exercise.description} />

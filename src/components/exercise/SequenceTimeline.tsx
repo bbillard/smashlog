@@ -7,30 +7,24 @@ import { fonts } from "@/src/theme/typography";
 import { ExerciseSequence } from "@/src/types/index";
 import {
   directionLabel,
+  distributionLabel,
   endingLabel,
-  rolesSummary,
   shotLabel,
 } from "@/src/utils/exerciseSequence";
 
 interface SequenceTimelineProps {
   sequence: ExerciseSequence;
-  playersCount: number;
 }
 
 /**
  * Section « Séquence » de la fiche exercice : frise verticale des coups
- * (pastille joueur, coup, direction), badges distribution / fin de séquence
- * et rappel des rôles. Purement présentationnel.
+ * (pastille joueur, coup, direction), badges de distribution (« Volant
+ * continu » / « Multivolant · 15 volants ») et de fin (« ↻ En boucle » /
+ * « Finir le point »). Purement présentationnel.
  */
-export function SequenceTimeline({ sequence, playersCount }: SequenceTimelineProps) {
+export function SequenceTimeline({ sequence }: SequenceTimelineProps) {
   const { theme } = useAppTheme();
-  const roles = rolesSummary(sequence.roles, playersCount);
-  const footer =
-    sequence.ending === "boucle"
-      ? `Retour au coup 1 · ${roles}`
-      : sequence.ending === "repetitions"
-        ? `Séquence répétée ${sequence.repetitions ?? 1} fois · ${roles}`
-        : `Puis jeu libre · ${roles}`;
+  const ending = endingLabel(sequence);
 
   return (
     <SectionCard>
@@ -38,13 +32,13 @@ export function SequenceTimeline({ sequence, playersCount }: SequenceTimelinePro
         <Text style={[styles.label, { color: theme.secondaryText }]}>Séquence</Text>
         <View style={styles.badges}>
           <View style={[styles.badge, { backgroundColor: "rgba(255,255,255,0.07)" }]}>
-            <Text style={[styles.badgeText, { color: theme.tertiaryText }]}>
-              {sequence.distribution === "multivolant" ? "Multivolant" : "Échange"}
-            </Text>
+            <Text style={[styles.badgeText, { color: theme.tertiaryText }]}>{distributionLabel(sequence)}</Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: "rgba(206,255,0,0.1)" }]}>
-            <Text style={[styles.badgeText, { color: theme.primary }]}>{endingLabel(sequence)}</Text>
-          </View>
+          {ending ? (
+            <View style={[styles.badge, { backgroundColor: "rgba(206,255,0,0.1)" }]}>
+              <Text style={[styles.badgeText, { color: theme.primary }]}>{ending}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -70,13 +64,6 @@ export function SequenceTimeline({ sequence, playersCount }: SequenceTimelinePro
           </View>
         ))}
       </View>
-
-      <Text style={[styles.footer, { color: theme.secondaryText }]}>
-        {sequence.ending === "boucle" ? (
-          <Text style={{ color: theme.primary }}>↻ </Text>
-        ) : null}
-        {footer}
-      </Text>
     </SectionCard>
   );
 }
@@ -87,6 +74,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    flexWrap: "wrap",
   },
   label: {
     fontSize: 13,
@@ -134,10 +122,6 @@ const styles = StyleSheet.create({
   },
   stepMeta: {
     fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-  },
-  footer: {
-    fontSize: 12,
     fontFamily: fonts.bodyRegular,
   },
 });

@@ -7,6 +7,7 @@ declare module "react-native-svg" {
   export const Rect: ComponentType<any>;
   export const Line: ComponentType<any>;
   export const Polygon: ComponentType<any>;
+  export const Polyline: ComponentType<any>;
   export const G: ComponentType<any>;
   export const Text: ComponentType<any>;
   export const SvgUri: ComponentType<any>;

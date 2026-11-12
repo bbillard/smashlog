@@ -23,7 +23,7 @@ import { shareImageAsync } from "@/src/services/sharing";
 import { fonts } from "@/src/theme/typography";
 import { ExerciseSequence } from "@/src/types/index";
 import { diagramLegend } from "@/src/utils/courtDiagram";
-import { endingSymbol } from "@/src/utils/exerciseSequence";
+import { sequenceEndIndicator } from "@/src/utils/exerciseSequence";
 
 const logoSource = require("../../../img/smashlog-logo.png");
 
@@ -31,7 +31,6 @@ interface CourtDiagramModalProps {
   visible: boolean;
   exerciseName: string;
   sequence: ExerciseSequence;
-  playersCount: number;
   onClose: () => void;
 }
 
@@ -51,7 +50,6 @@ export function CourtDiagramModal({
   visible,
   exerciseName,
   sequence,
-  playersCount,
   onClose,
 }: CourtDiagramModalProps) {
   const { theme } = useAppTheme();
@@ -64,8 +62,8 @@ export function CourtDiagramModal({
     160,
     Math.min(windowWidth - 48, (windowHeight - RESERVED_HEIGHT) / aspect),
   );
-  const legend = diagramLegend(sequence, playersCount);
-  const kicker = `Schéma · ${sequence.steps.length} coup${sequence.steps.length > 1 ? "s" : ""} ${endingSymbol(sequence)}`;
+  const legend = diagramLegend(sequence);
+  const kicker = `Schéma · ${sequence.steps.length} coup${sequence.steps.length > 1 ? "s" : ""} · ${sequenceEndIndicator(sequence)}`;
 
   async function handleExport() {
     if (isExporting) return;
@@ -126,14 +124,13 @@ export function CourtDiagramModal({
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {exerciseName}
             </Text>
-            <DiagramLegend players={legend.top} roles={sequence.roles} color={theme.tertiaryText} />
+            <DiagramLegend players={legend.top} color={theme.tertiaryText} />
             <CourtDiagram
               sequence={sequence}
-              playersCount={playersCount}
               orientation="portrait"
               width={diagramWidth}
             />
-            <DiagramLegend players={legend.bottom} roles={sequence.roles} color={theme.tertiaryText} />
+            <DiagramLegend players={legend.bottom} color={theme.tertiaryText} />
             <View style={styles.brand}>
               <Image source={logoSource} style={styles.logo} />
               <Text style={[styles.brandText, { color: theme.secondaryText }]}>Smashlog</Text>
