@@ -15,6 +15,7 @@ import {
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
+import { buildLibraryView } from "@/src/utils/exerciseLibrary";
 
 interface ExercisesAccordionProps {
   /** IDs des exercices liés à la séance en cours */
@@ -32,12 +33,11 @@ interface ExercisesAccordionProps {
   /** Ouvre l'accordéon par défaut (utile en mode édition quand des exercices existent déjà) */
   defaultOpen?: boolean;
   /**
-   * Filtre optionnel appliqué à la bibliothèque affichée dans la modale
-   * (ex: ne montrer que les exercices taggés "Renfo" pour une séance de
-   * renforcement). Un exercice qui possède le label en plus d'autres reste
-   * visible — le filtre n'est pas exclusif.
+   * Label mis en avant dans la modale (ex: « Renfo » pour une séance de
+   * renforcement) : ses exercices sont listés en premier. Aucun exercice
+   * n'est masqué — cf. buildLibraryView.
    */
-  libraryFilter?: (exercise: Exercise) => boolean;
+  preferredLabel?: string;
 }
 
 export function ExercisesAccordion({
@@ -48,7 +48,7 @@ export function ExercisesAccordion({
   onCreateNew,
   onOpenLibrary,
   defaultOpen = false,
-  libraryFilter,
+  preferredLabel,
 }: ExercisesAccordionProps) {
   const { theme } = useAppTheme();
   const [open, setOpen] = useState(defaultOpen);
@@ -63,21 +63,15 @@ export function ExercisesAccordion({
     [exerciseIds, allExercises],
   );
 
-  const filteredExercises = useMemo(
-    () => (libraryFilter ? allExercises.filter(libraryFilter) : allExercises),
-    [allExercises, libraryFilter],
+  const library = useMemo(
+    () => buildLibraryView(allExercises, { excludeIds: exerciseIds, search, preferredLabel }),
+    [allExercises, exerciseIds, search, preferredLabel],
   );
 
-  const available = useMemo(
-    () =>
-      filteredExercises.filter(
-        (e) =>
-          !exerciseIds.includes(e.id) &&
-          (search.trim() === "" ||
-            e.name.toLowerCase().includes(search.trim().toLowerCase())),
-      ),
-    [filteredExercises, exerciseIds, search],
-  );
+  function closeLibrary() {
+    setLibraryVisible(false);
+    setSearch("");
+  }
 
   const headerLabel =
     exerciseIds.length === 0
@@ -214,7 +208,7 @@ export function ExercisesAccordion({
         visible={libraryVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setLibraryVisible(false)}
+        onRequestClose={closeLibrary}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -222,7 +216,7 @@ export function ExercisesAccordion({
         >
           <Pressable
             style={styles.modalOverlay}
-            onPress={() => setLibraryVisible(false)}
+            onPress={closeLibrary}
           >
           <Pressable
             style={[
@@ -236,7 +230,7 @@ export function ExercisesAccordion({
               <Text style={[styles.modalTitle, { color: theme.text }]}>
                 Ma bibliothèque
               </Text>
-              <Pressable onPress={() => setLibraryVisible(false)} hitSlop={10}>
+              <Pressable onPress={closeLibrary} hitSlop={10}>
                 <Ionicons name="close" size={20} color={theme.secondaryText} />
               </Pressable>
             </View>
@@ -264,55 +258,87 @@ export function ExercisesAccordion({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {available.length === 0 ? (
+              {library.emptyReason === "library_empty" ? (
+                <View style={styles.modalEmptyBlock}>
+                  <Text style={[styles.modalEmptyTitle, { color: theme.text }]}>
+                    Ta bibliothèque est vide
+                  </Text>
+                  <Text style={[styles.modalEmpty, styles.modalEmptyInBlock, { color: theme.secondaryText }]}>
+                    Crée ton premier exercice pour l'ajouter à cette séance.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      closeLibrary();
+                      onCreateNew();
+                    }}
+                    style={[
+                      styles.modalEmptyButton,
+                      { backgroundColor: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.2)" },
+                    ]}
+                  >
+                    <Ionicons name="add" size={15} color={theme.accent3} />
+                    <Text style={[styles.actionText, { color: theme.accent3 }]}>Créer un exercice</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {library.emptyReason === "all_added" ? (
                 <Text style={[styles.modalEmpty, { color: theme.secondaryText }]}>
-                  {allExercises.length === 0
-                    ? "Aucun exercice dans ta bibliothèque."
-                    : filteredExercises.length === 0
-                      ? "Aucun exercice correspondant dans ta bibliothèque."
-                      : "Tous les exercices sont déjà ajoutés."}
+                  Tous les exercices sont déjà ajoutés.
                 </Text>
               ) : null}
-              {available.map((ex) => (
-                <Pressable
-                  key={ex.id}
-                  onPress={() => {
-                    onAdd(ex.id);
-                    setLibraryVisible(false);
-                    setSearch("");
-                  }}
-                  style={[
-                    styles.modalItem,
-                    { borderBottomColor: theme.border },
-                  ]}
-                >
-                  <View style={styles.modalItemContent}>
-                    <Text style={[styles.modalItemName, { color: theme.text }]} numberOfLines={1}>
-                      {ex.name}
+              {library.emptyReason === "no_match" ? (
+                <Text style={[styles.modalEmpty, { color: theme.secondaryText }]}>
+                  Aucun exercice correspondant dans ta bibliothèque.
+                </Text>
+              ) : null}
+              {library.sections.map((section) => (
+                <View key={section.title ?? "all"}>
+                  {section.title ? (
+                    <Text style={[styles.modalSectionTitle, { color: theme.secondaryText }]}>
+                      {section.title}
                     </Text>
-                    <View style={styles.modalItemMeta}>
-                      {ex.labels.slice(0, 2).map((l) => (
-                        <View
-                          key={l}
-                          style={[
-                            styles.modalItemTag,
-                            { backgroundColor: theme.primaryMuted },
-                          ]}
-                        >
-                          <Text style={[styles.modalItemTagText, { color: theme.primary }]}>
-                            {l}
-                          </Text>
-                        </View>
-                      ))}
-                      {ex.durationMinutes ? (
-                        <Text style={[styles.modalItemDur, { color: theme.secondaryText }]}>
-                          {ex.durationMinutes}′
+                  ) : null}
+                  {section.exercises.map((ex) => (
+                    <Pressable
+                      key={ex.id}
+                      onPress={() => {
+                        onAdd(ex.id);
+                        closeLibrary();
+                      }}
+                      style={[
+                        styles.modalItem,
+                        { borderBottomColor: theme.border },
+                      ]}
+                    >
+                      <View style={styles.modalItemContent}>
+                        <Text style={[styles.modalItemName, { color: theme.text }]} numberOfLines={1}>
+                          {ex.name}
                         </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                  <Ionicons name="add-circle-outline" size={20} color={theme.accent3} />
-                </Pressable>
+                        <View style={styles.modalItemMeta}>
+                          {ex.labels.slice(0, 2).map((l) => (
+                            <View
+                              key={l}
+                              style={[
+                                styles.modalItemTag,
+                                { backgroundColor: theme.primaryMuted },
+                              ]}
+                            >
+                              <Text style={[styles.modalItemTagText, { color: theme.primary }]}>
+                                {l}
+                              </Text>
+                            </View>
+                          ))}
+                          {ex.durationMinutes ? (
+                            <Text style={[styles.modalItemDur, { color: theme.secondaryText }]}>
+                              {ex.durationMinutes}′
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <Ionicons name="add-circle-outline" size={20} color={theme.accent3} />
+                    </Pressable>
+                  ))}
+                </View>
               ))}
               <View style={styles.modalListBottom} />
             </ScrollView>
@@ -509,6 +535,36 @@ const styles = StyleSheet.create({
   modalItemDur: {
     fontSize: 11,
     fontFamily: fonts.bodyRegular,
+  },
+  modalSectionTitle: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalEmptyBlock: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 20,
+  },
+  modalEmptyInBlock: {
+    paddingVertical: 0,
+  },
+  modalEmptyTitle: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+  },
+  modalEmptyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
   },
   modalListBottom: {
     height: 20,

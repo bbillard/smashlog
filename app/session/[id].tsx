@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ExercisesAccordion } from "@/src/components/ExercisesAccordion";
@@ -16,10 +16,12 @@ import { Screen } from "@/src/components/Screen";
 import { SectionCard } from "@/src/components/SectionCard";
 import { SessionTypePicker } from "@/src/components/SessionTypePicker";
 import { SESSION_TYPE_LABELS } from "@/src/constants/sessionOptions";
+import { RENFO_LABEL } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { useExerciseLibrary } from "@/src/hooks/useExerciseLibrary";
 import { getNotificationSettings } from "@/src/services/settings";
 import { rescheduleNotifications } from "@/src/services/notifications";
-import { deleteSession, getExerciseById, getExercises, getSessionById, getSessions, updateSession } from "@/src/services/storage";
+import { deleteSession, getExerciseById, getSessionById, getSessions, updateSession } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
 import { Match, Session } from "@/src/types/session";
@@ -342,11 +344,15 @@ export default function SessionDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [linkedExercises, setLinkedExercises] = useState<Exercise[]>([]);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [editingExerciseIds, setEditingExerciseIds] = useState<string[]>([]);
   const [editingMatches, setEditingMatches] = useState<Match[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
+  // Bibliothèque partagée avec la création de séance (même chargement, même
+  // sélecteur) ; un exercice créé depuis l'édition est lié au retour.
+  const exerciseLibrary = useExerciseLibrary((newIds) =>
+    setEditingExerciseIds((prev) => [...prev, ...newIds]),
+  );
+  const allExercises = exerciseLibrary.exercises;
 
   // Surcharge du bouton retour quand on vient des Stats (calendrier) : retour
   // sur l'onglet Stats plutôt que sur l'Accueil
@@ -405,18 +411,6 @@ export default function SessionDetailScreen() {
       setLinkedExercises(exs.filter((e): e is Exercise => e !== null));
     } else {
       setLinkedExercises([]);
-    }
-    // Charge tous les exercices pour l'accordéon d'édition
-    const allExs = await getExercises();
-    setAllExercises(allExs);
-    // Détecte un exercice créé depuis le mode édition (retour de /exercise/new)
-    if (exerciseSnapshotRef.current !== null) {
-      const snapshot = exerciseSnapshotRef.current;
-      exerciseSnapshotRef.current = null;
-      const newIds = allExs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
-      if (newIds.length > 0) {
-        setEditingExerciseIds((prev) => [...prev, ...newIds]);
-      }
     }
     setIsLoading(false);
   }, [id]);
@@ -659,21 +653,19 @@ export default function SessionDetailScreen() {
             onChangeText={(freeNotes) => setDraft((current) => (current ? { ...current, freeNotes } : current))}
             value={draft.freeNotes}
           />
-          {draft.type === "entrainement" ? (
+          {draft.type === "entrainement" || draft.type === "renforcement" ? (
             <ExercisesAccordion
               exerciseIds={editingExerciseIds}
               allExercises={allExercises}
               defaultOpen={editingExerciseIds.length > 0}
+              preferredLabel={draft.type === "renforcement" ? RENFO_LABEL : undefined}
               onAdd={(exId) => setEditingExerciseIds((prev) => [...prev, exId])}
               onRemove={(exId) => setEditingExerciseIds((prev) => prev.filter((e) => e !== exId))}
               onCreateNew={() => {
-                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
+                exerciseLibrary.markBeforeCreate();
                 router.push({ pathname: "/exercise/new", params: { fromWizard: "true" } });
               }}
-              onOpenLibrary={async () => {
-                const exs = await getExercises();
-                setAllExercises(exs);
-              }}
+              onOpenLibrary={exerciseLibrary.reload}
             />
           ) : null}
           {draft.type === "match" || draft.type === "jeu_libre" ? (

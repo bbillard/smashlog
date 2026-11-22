@@ -1,5 +1,5 @@
-import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Stack, router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -17,12 +17,12 @@ import { SessionTypePicker } from "@/src/components/SessionTypePicker";
 import { WizardProgress } from "@/src/components/WizardProgress";
 import { RENFO_LABEL } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { useExerciseLibrary } from "@/src/hooks/useExerciseLibrary";
 import { rescheduleNotifications } from "@/src/services/notifications";
 import { isPostSessionPayload, resolveSessionTypeForFamily } from "@/src/services/postSessionNotification";
 import { computeSharingPayload } from "@/src/services/sharingOrchestrator";
 import { getNotificationSettings } from "@/src/services/settings";
-import { addSession, getExercises, getSessions, updateSession } from "@/src/services/storage";
-import { Exercise } from "@/src/types/index";
+import { addSession, getSessions, updateSession } from "@/src/services/storage";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { fonts } from "@/src/theme/typography";
 import { createId } from "@/src/utils/id";
@@ -178,34 +178,12 @@ export default function NewSessionScreen() {
     }));
   }
   const [isSaving, setIsSaving] = useState(false);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  // Snapshot pris juste avant de naviguer vers la création d'exercice
-  const exerciseSnapshotRef = useRef<Set<string> | null>(null);
-
-  // Chargement garanti au montage
-  useEffect(() => {
-    getExercises().then(setAllExercises);
-  }, []);
-
-  // Rechargement au retour de focus + détection du nouvel exercice créé
-  useFocusEffect(
-    useCallback(() => {
-      getExercises().then((exs) => {
-        setAllExercises(exs);
-        if (exerciseSnapshotRef.current !== null) {
-          const snapshot = exerciseSnapshotRef.current;
-          exerciseSnapshotRef.current = null;
-          const newIds = exs.filter((e) => !snapshot.has(e.id)).map((e) => e.id);
-          if (newIds.length > 0) {
-            setDraft((prev) => ({
-              ...prev,
-              exerciseIds: [...prev.exerciseIds, ...newIds],
-            }));
-          }
-        }
-      });
-    }, []),
+  // Bibliothèque relue à chaque focus et à l'ouverture du sélecteur ; un
+  // exercice créé depuis la séance y est lié automatiquement au retour.
+  const exerciseLibrary = useExerciseLibrary((newIds) =>
+    setDraft((prev) => ({ ...prev, exerciseIds: [...prev.exerciseIds, ...newIds] })),
   );
+  const allExercises = exerciseLibrary.exercises;
 
   const hasUnsavedDraft =
     step > 1 ||
@@ -424,11 +402,7 @@ export default function NewSessionScreen() {
             <ExercisesAccordion
               exerciseIds={draft.exerciseIds}
               allExercises={allExercises}
-              libraryFilter={
-                draft.type === "renforcement"
-                  ? (exercise) => exercise.labels.includes(RENFO_LABEL)
-                  : undefined
-              }
+              preferredLabel={draft.type === "renforcement" ? RENFO_LABEL : undefined}
               onAdd={(id) =>
                 setDraft((current) => ({
                   ...current,
@@ -442,16 +416,13 @@ export default function NewSessionScreen() {
                 }))
               }
               onCreateNew={() => {
-                exerciseSnapshotRef.current = new Set(allExercises.map((e) => e.id));
+                exerciseLibrary.markBeforeCreate();
                 router.push({
                   pathname: "/exercise/new",
                   params: { fromWizard: "true", sessionType: draft.type ?? "" },
                 });
               }}
-              onOpenLibrary={async () => {
-                const exs = await getExercises();
-                setAllExercises(exs);
-              }}
+              onOpenLibrary={exerciseLibrary.reload}
             />
           ) : null}
         </View>
