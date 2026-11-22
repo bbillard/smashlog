@@ -1,9 +1,10 @@
 import { SHOTS_BY_ID } from "@/src/data/shots";
-import { CourtZone, ExerciseSequence, SequencePlayer, SequenceStep } from "@/src/types/index";
+import { CourtZone, SequencePlayer, SequenceStep, ShotSequence } from "@/src/types/index";
 import {
   Lane,
   arrivalLane,
   hitterLanes,
+  needsFromSide,
   playersByHalf,
   stepHalf,
 } from "@/src/utils/exerciseSequence";
@@ -104,7 +105,7 @@ const LANE_X: Record<Lane, number> = {
   center: CENTER_X,
   right: CENTER_X + 1.65,
 };
-/** Le serveur se place au milieu de sa zone de service. */
+/** Le serveur se place au milieu de sa zone de service (côté « Depuis »). */
 const SERVICE_LANE_OFFSET = 1.3;
 
 /** Seuil (m) en deçà duquel deux trajets sont jugés « similaires ». */
@@ -208,13 +209,13 @@ export function spreadPoints(points: DiagramPoint[], minDistance: number): Diagr
 /**
  * Séquence → liste de flèches. Camps déduits de la séquence (coups
  * consécutifs depuis des camps opposés, coup n°1 en haut). Le point
- * d'arrivée d'un coup devient le point de frappe du suivant ; après un
- * « Au choix », le coup suivant part d'une position par défaut au centre de
- * la zone du joueur. Les pastilles trop proches sont écartées et les flèches
+ * d'arrivée d'un coup devient le point de frappe du suivant. Coup n°1 et
+ * coup qui suit un « Au choix » : le frappeur part du côté « Depuis »
+ * (fromSide), ce qui ancre le schéma (pas de rendu en miroir). Les pastilles trop proches sont écartées et les flèches
  * suivent les positions décalées.
  */
 export function computeDiagramShots(
-  sequence: ExerciseSequence,
+  sequence: ShotSequence,
   options: DiagramOptions = {},
 ): DiagramShot[] {
   const minDistance = options.minDistance ?? DEFAULT_MIN_DISTANCE;
@@ -227,15 +228,14 @@ export function computeDiagramShots(
   steps.forEach((step, i) => {
     const half = stepHalf(i);
     const def = SHOTS_BY_ID[step.shot];
-    const prev = steps[i - 1];
-    if (i > 0 && prev.shot !== "au_choix") {
+    if (!needsFromSide(steps, i)) {
       rawFrom.push(rawTo[i - 1]);
-    } else if (i === 0 && def.isService) {
-      // Zone de service droite du serveur (cf. serviceLane).
-      const x = half === 1 ? CENTER_X - SERVICE_LANE_OFFSET : CENTER_X + SERVICE_LANE_OFFSET;
-      rawFrom.push(pointAt(half, SERVICE_DEPTH, x));
+    } else if (def.isService) {
+      // Zone de service du côté « Depuis » (au milieu de la zone).
+      const offset = lanes[i] === "left" ? -SERVICE_LANE_OFFSET : lanes[i] === "right" ? SERVICE_LANE_OFFSET : 0;
+      rawFrom.push(pointAt(half, SERVICE_DEPTH, CENTER_X + offset));
     } else {
-      rawFrom.push(pointAt(half, ZONE_DEPTH[preferredStartZone(step)], CENTER_X));
+      rawFrom.push(pointAt(half, ZONE_DEPTH[preferredStartZone(step)], LANE_X[lanes[i]]));
     }
     const targetHalf = half === 1 ? 0 : 1;
     rawTo.push(
@@ -387,6 +387,6 @@ export function polygonPoints(points: DiagramPoint[]): string {
  * Légende des camps : joueurs du camp du haut (coups 1, 3, 5…) et du bas,
  * affichés « Joueur A », « Joueur B »… de chaque côté du schéma.
  */
-export function diagramLegend(sequence: ExerciseSequence): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
+export function diagramLegend(sequence: ShotSequence): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
   return playersByHalf(sequence.steps);
 }

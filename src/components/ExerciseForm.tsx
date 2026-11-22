@@ -25,9 +25,10 @@ import { Toast } from "@/src/components/Toast";
 import { DEFAULT_LABELS } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { Exercise, ExerciseSequence } from "@/src/types/index";
+import { Exercise, ExerciseSequence, ShotSequence } from "@/src/types/index";
 import {
   applyGeneratedText,
+  asShotSequence,
   generateSequenceText,
   missingPlayers,
 } from "@/src/utils/exerciseSequence";
@@ -277,7 +278,7 @@ export function ExerciseForm({
    * la saisie de l'utilisateur (applyGeneratedText). Si l'ancienne version
    * du texte a été retouchée, elle reste en place : on le signale.
    */
-  function handleExpressValidate(next: ExerciseSequence) {
+  function handleExpressValidate(next: ShotSequence) {
     const text = generateSequenceText(next);
     const result = applyGeneratedText(description, sequence?.generatedText, text);
     setDescription(result.description);
@@ -340,7 +341,10 @@ export function ExerciseForm({
       ...(photos.length > 0 ? { photos } : {}),
       // Clé toujours présente : en édition, updateExercise fusionne les champs,
       // `undefined` explicite est donc nécessaire pour retirer une séquence.
-      sequence: sequenceToSave && sequenceToSave.steps.length > 0 ? sequenceToSave : undefined,
+      // Une séquence de coups vide n'est pas enregistrée.
+      sequence: sequenceToSave && !(sequenceToSave.kind === "sequence" && sequenceToSave.steps.length === 0)
+        ? sequenceToSave
+        : undefined,
     };
 
     await onSave(payload);
@@ -429,7 +433,7 @@ export function ExerciseForm({
           {/* ── Saisie express ── */}
           <ExpressEntryBlock
             playersCount={playersCount}
-            sequence={sequence}
+            sequence={asShotSequence(sequence)}
             onOpen={() => setExpressOpen(true)}
             onDelete={handleExpressDelete}
           />
@@ -789,7 +793,7 @@ export function ExerciseForm({
         <ExpressEntryModal
           visible={expressOpen}
           playersCount={playersCount}
-          initialSequence={sequence}
+          initialSequence={asShotSequence(sequence)}
           onValidate={handleExpressValidate}
           onClose={() => setExpressOpen(false)}
         />

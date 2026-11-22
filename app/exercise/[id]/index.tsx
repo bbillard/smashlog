@@ -23,6 +23,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { deleteExercise, getExerciseById } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
+import { asShotSequence } from "@/src/utils/exerciseSequence";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,7 @@ export default function ExerciseDetailScreen() {
     );
   }
 
+  const shotSequence = asShotSequence(exercise.sequence);
   const hasAttention = !!exercise.attentionPoints?.trim();
   const hasVariants =
     !!exercise.variantEasier?.trim() || !!exercise.variantHarder?.trim();
@@ -254,15 +256,15 @@ export default function ExerciseDetailScreen() {
           </View>
         </SectionCard>
 
-        {exercise.sequence ? (
+        {shotSequence ? (
           <CourtDiagramCard
             exerciseName={exercise.name}
-            sequence={exercise.sequence}
+            sequence={shotSequence}
           />
         ) : null}
 
-        {exercise.sequence ? (
-          <SequenceTimeline sequence={exercise.sequence} />
+        {shotSequence ? (
+          <SequenceTimeline sequence={shotSequence} />
         ) : null}
 
         <Field label="Description" value={exercise.description} />

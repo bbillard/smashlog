@@ -4,7 +4,7 @@ import { PlayerBadge } from "@/src/components/exercise/PlayerBadge";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence } from "@/src/types/index";
+import { CourtSide, ShotSequence } from "@/src/types/index";
 import {
   directionLabel,
   distributionLabel,
@@ -12,15 +12,21 @@ import {
   shotLabel,
 } from "@/src/utils/exerciseSequence";
 
+const FROM_SIDE_LABELS: Record<CourtSide, string> = {
+  gauche: "la gauche",
+  centre: "le centre",
+  droite: "la droite",
+};
+
 interface SequenceTimelineProps {
-  sequence: ExerciseSequence;
+  sequence: ShotSequence;
 }
 
 /**
  * Section « Séquence » de la fiche exercice : frise verticale des coups
- * (pastille joueur, coup, direction), badges de distribution (« Volant
- * continu » / « Multivolant · 15 volants ») et de fin (« ↻ En boucle » /
- * « Finir le point »). Purement présentationnel.
+ * (pastille joueur, coup, côté de départ s'il est précisé, direction),
+ * badges « Volant continu » et de fin (« ↻ En boucle » / « Finir le point »).
+ * Purement présentationnel.
  */
 export function SequenceTimeline({ sequence }: SequenceTimelineProps) {
   const { theme } = useAppTheme();
@@ -34,11 +40,9 @@ export function SequenceTimeline({ sequence }: SequenceTimelineProps) {
           <View style={[styles.badge, { backgroundColor: "rgba(255,255,255,0.07)" }]}>
             <Text style={[styles.badgeText, { color: theme.tertiaryText }]}>{distributionLabel(sequence)}</Text>
           </View>
-          {ending ? (
-            <View style={[styles.badge, { backgroundColor: "rgba(206,255,0,0.1)" }]}>
-              <Text style={[styles.badgeText, { color: theme.primary }]}>{ending}</Text>
-            </View>
-          ) : null}
+          <View style={[styles.badge, { backgroundColor: "rgba(206,255,0,0.1)" }]}>
+            <Text style={[styles.badgeText, { color: theme.primary }]}>{ending}</Text>
+          </View>
         </View>
       </View>
 
@@ -55,9 +59,14 @@ export function SequenceTimeline({ sequence }: SequenceTimelineProps) {
               <Text style={[styles.stepShot, { color: theme.text }]}>
                 {index + 1}. {shotLabel(step.shot)}
               </Text>
-              {step.direction ? (
+              {step.fromSide || step.direction ? (
                 <Text style={[styles.stepMeta, { color: theme.secondaryText }]}>
-                  {directionLabel(step.direction).toLowerCase()}
+                  {[
+                    step.fromSide ? `depuis ${FROM_SIDE_LABELS[step.fromSide]}` : null,
+                    step.direction ? directionLabel(step.direction).toLowerCase() : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </Text>
               ) : null}
             </View>

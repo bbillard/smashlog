@@ -5,12 +5,13 @@ import { CourtDiagramThumbnail } from "@/src/components/exercise/CourtDiagramThu
 import { CourtIcon } from "@/src/components/exercise/CourtIcon";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence } from "@/src/types/index";
+import { ShotSequence } from "@/src/types/index";
 import { sequenceSummary } from "@/src/utils/exerciseSequence";
 
 interface ExpressEntryBlockProps {
   playersCount: number | null;
-  sequence: ExerciseSequence | undefined;
+  /** Séquence de coups (le mode Poste fixe sera affiché par son ticket). */
+  sequence: ShotSequence | undefined;
   onOpen: () => void;
   onDelete: () => void;
 }

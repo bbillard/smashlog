@@ -8,13 +8,13 @@ import { DiagramLegend } from "@/src/components/exercise/DiagramLegend";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence } from "@/src/types/index";
+import { ShotSequence } from "@/src/types/index";
 import { diagramLegend } from "@/src/utils/courtDiagram";
-import { sequenceEndIndicator } from "@/src/utils/exerciseSequence";
+import { endingLabel } from "@/src/utils/exerciseSequence";
 
 interface CourtDiagramCardProps {
   exerciseName: string;
-  sequence: ExerciseSequence;
+  sequence: ShotSequence;
 }
 
 /**
@@ -32,7 +32,7 @@ export function CourtDiagramCard({ exerciseName, sequence }: CourtDiagramCardPro
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
           <Text style={[styles.label, { color: theme.secondaryText }]}>Schéma</Text>
-          <Text style={[styles.indicator, { color: theme.primary }]}>{sequenceEndIndicator(sequence)}</Text>
+          <Text style={[styles.indicator, { color: theme.primary }]}>{endingLabel(sequence)}</Text>
         </View>
         <Pressable
           onPress={() => setExpanded(true)}

@@ -8,12 +8,14 @@ import { SEQUENCE_PLAYER_COLORS, SEQUENCE_PLAYER_COLORS_BG } from "@/src/constan
 import { DIRECTION_SLOTS, SHOTS } from "@/src/data/shots";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { CourtZone, SequencePlayer, SequenceStep, ShotDirection, ShotId } from "@/src/types/index";
+import { CourtSide, CourtZone, SequencePlayer, SequenceStep, ShotDirection, ShotId } from "@/src/types/index";
 import {
+  defaultFromSide,
   directionContextAt,
   directionLabel,
   isDirectionAllowed,
   isShotAvailable,
+  needsFromSide,
   requiredStartZones,
   sequencePlayers,
 } from "@/src/utils/exerciseSequence";
@@ -42,6 +44,13 @@ interface ShotPickerProps {
   onClose: () => void;
 }
 
+/** Boutons « Depuis », du point de vue du frappeur face au filet. */
+const FROM_SIDE_OPTIONS: readonly { value: CourtSide; label: string }[] = [
+  { value: "gauche", label: "Gauche" },
+  { value: "centre", label: "Centre" },
+  { value: "droite", label: "Droite" },
+];
+
 const ZONE_PHRASES: Record<CourtZone, string> = {
   avant: "l'avant",
   milieu: "le milieu",
@@ -52,6 +61,9 @@ const ZONE_PHRASES: Record<CourtZone, string> = {
  * Panneau du bas de saisie d'un coup, affiché par-dessus la modale « Saisie
  * express » (overlay plutôt que Modal imbriquée, plus fiable sur iOS).
  *
+ * - « Depuis » (coup n°1 et coup qui suit un « Au choix ») : côté de départ
+ *   du frappeur, obligatoire ; défaut Droite pour un service, Centre sinon.
+ *   Il ancre tout le schéma (sinon une routine peut être dessinée en miroir).
  * - Grille : TOUJOURS les 12 coups, même ordre, même place ; les coups
  *   impossibles sont grisés (isShotAvailable).
  * - Direction : trois boutons fixes dont les libellés suivent la position du
@@ -87,10 +99,14 @@ export function ShotPicker({
     initial.shot && isShotAvailable(initial.shot, previousShot, index) ? initial.shot : undefined,
   );
   const [direction, setDirection] = useState<ShotDirection | undefined>(initial.direction);
+  // Côté choisi explicitement ; sinon valeur par défaut, qui suit le coup choisi.
+  const [fromSideChoice, setFromSideChoice] = useState<CourtSide | undefined>(initial.fromSide);
 
-  const context = directionContextAt(previousSteps, index, shot);
-  // Une direction devenue hors contexte (ex. on passe d'un service à un lob
-  // en coup n°1) est ignorée plutôt que conservée en silence.
+  const asksFromSide = needsFromSide(previousSteps, index);
+  const fromSide = asksFromSide ? (fromSideChoice ?? defaultFromSide(shot)) : undefined;
+  const context = directionContextAt(previousSteps, index, fromSide);
+  // Une direction devenue hors contexte (ex. on passe de « Depuis : Droite »
+  // à « Depuis : Centre ») est ignorée plutôt que conservée en silence.
   const effectiveDirection =
     direction && isDirectionAllowed(direction, context) ? direction : undefined;
 
@@ -99,7 +115,12 @@ export function ShotPicker({
 
   function draft(): ShotDraft | null {
     if (!shot) return null;
-    return { player, shot, ...(effectiveDirection ? { direction: effectiveDirection } : {}) };
+    return {
+      player,
+      shot,
+      ...(effectiveDirection ? { direction: effectiveDirection } : {}),
+      ...(fromSide ? { fromSide } : {}),
+    };
   }
 
   return (
@@ -164,6 +185,42 @@ export function ShotPicker({
               })}
             </View>
           </View>
+
+          {/* Depuis — coup n°1 et coup qui suit un « Au choix » */}
+          {asksFromSide ? (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>
+                Depuis{" "}
+                <Text style={[styles.sectionHint, { color: theme.secondaryText }]}>
+                  · vu par le frappeur, face au filet
+                </Text>
+              </Text>
+              <View style={styles.grid}>
+                {FROM_SIDE_OPTIONS.map((option) => {
+                  const selected = option.value === fromSide;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => setFromSideChoice(option.value)}
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Depuis : ${option.label}`}
+                      style={[
+                        styles.gridCell,
+                        {
+                          borderColor: selected ? theme.primary : theme.border,
+                          backgroundColor: selected ? "rgba(206,255,0,0.1)" : "transparent",
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.cellText, { color: selected ? theme.primary : theme.text }]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
 
           {/* Coup */}
           <View style={styles.section}>

@@ -7,7 +7,7 @@ import {
   SEQUENCE_PLAYER_ON_COLOR,
 } from "@/src/constants/sequenceColors";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence } from "@/src/types/index";
+import { ShotSequence } from "@/src/types/index";
 import {
   COURT,
   DiagramPoint,
@@ -21,7 +21,7 @@ import {
 import { generateSequenceText } from "@/src/utils/exerciseSequence";
 
 interface CourtDiagramProps {
-  sequence: ExerciseSequence;
+  sequence: ShotSequence;
   orientation: "portrait" | "landscape";
   /** Largeur affichée en px ; la hauteur découle des proportions du terrain. */
   width: number;

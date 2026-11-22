@@ -9,22 +9,18 @@ import { ShotDraft, ShotPicker } from "@/src/components/exercise/ShotPicker";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence, SequenceEnding, SequencePlayer } from "@/src/types/index";
+import { CourtSide, SequenceEnding, SequencePlayer, SequenceStep, ShotSequence } from "@/src/types/index";
 import {
-  MAX_SHUTTLES_PER_ROUND,
-  MIN_SHUTTLES_PER_ROUND,
-  clampShuttles,
   createEmptySequence,
   directionLabel,
   findInvalidStepIds,
   generateSequenceText,
   isSequenceValid,
   nextPlayer,
+  normalizeSteps,
   sequenceEnding,
   sequencePlayers,
   shotLabel,
-  shuttlesPerRound,
-  withDistribution,
 } from "@/src/utils/exerciseSequence";
 import { createId } from "@/src/utils/id";
 
@@ -32,15 +28,20 @@ interface ExpressEntryModalProps {
   visible: boolean;
   playersCount: number;
   /** Séquence existante à modifier ; absente = nouvelle saisie. */
-  initialSequence?: ExerciseSequence;
-  onValidate: (sequence: ExerciseSequence) => void;
+  initialSequence?: ShotSequence;
+  onValidate: (sequence: ShotSequence) => void;
   onClose: () => void;
 }
 
 /**
- * Modale « Saisie express » ouverte depuis le formulaire d'exercice : type
- * d'exercice, distribution, liste de coups (panneau ShotPicker), fin de
- * séquence ou volants par passage, aperçu du texte ajouté à la description.
+ * Modale « Saisie express » ouverte depuis le formulaire d'exercice :
+ * distribution PUIS type d'exercice, liste de coups (panneau ShotPicker), fin
+ * de séquence, aperçu du texte ajouté à la description.
+ *
+ * Seule la « Séquence de coups » en volant continu est disponible : tant que
+ * le ticket « Saisie express — mode Poste fixe » n'est pas livré
+ * (FIXED_POST_AVAILABLE), « Multivolant » et « Poste fixe » sont affichés
+ * mais désactivés (« Bientôt disponible »).
  *
  * Travaille sur une copie : rien n'est appliqué au formulaire avant
  * « Valider ». Le formulaire se charge ensuite d'ajouter le texte à la
@@ -60,6 +61,16 @@ type PanelState =
   | { open: true; mode: "add"; index: number; initial: Partial<ShotDraft> & { player: SequencePlayer }; key: string }
   | { open: true; mode: "edit"; index: number; key: string };
 
+/** Passera à true avec le ticket « Saisie express — mode Poste fixe ». */
+const FIXED_POST_AVAILABLE = false;
+const COMING_SOON = "Bientôt disponible";
+
+const FROM_SIDE_LABELS: Record<CourtSide, string> = {
+  gauche: "Depuis la gauche",
+  centre: "Depuis le centre",
+  droite: "Depuis la droite",
+};
+
 const ENDING_OPTIONS: readonly { value: SequenceEnding; label: string; hint: string }[] = [
   { value: "boucle", label: "↻ En boucle", hint: "On reprend au coup 1" },
   { value: "finir_point", label: "Finir le point", hint: "Jeu libre ensuite" },
@@ -72,7 +83,7 @@ function ExpressEntryContent({
   onClose,
 }: Omit<ExpressEntryModalProps, "visible">) {
   const { theme } = useAppTheme();
-  const [sequence, setSequence] = useState<ExerciseSequence>(initialSequence ?? createEmptySequence());
+  const [sequence, setSequence] = useState<ShotSequence>(initialSequence ?? createEmptySequence());
   const [panel, setPanel] = useState<PanelState>({ open: false });
 
   const steps = sequence.steps;
@@ -81,8 +92,9 @@ function ExpressEntryContent({
   const preview = generateSequenceText(sequence);
   const canValidate = isSequenceValid(sequence, playersCount);
 
-  function setSteps(next: typeof steps) {
-    setSequence((prev) => ({ ...prev, steps: next }));
+  /** Toute modification de la liste repasse par normalizeSteps (fromSide). */
+  function setSteps(next: SequenceStep[]) {
+    setSequence((prev) => ({ ...prev, steps: normalizeSteps(next) }));
   }
 
   function openAdd(fromSteps = steps) {
@@ -97,7 +109,7 @@ function ExpressEntryContent({
   }
 
   function handleNext(draft: ShotDraft) {
-    const next = [...steps, { id: createId(), ...draft }];
+    const next = normalizeSteps([...steps, { id: createId(), ...draft }]);
     setSteps(next);
     openAdd(next);
   }
@@ -131,11 +143,6 @@ function ExpressEntryContent({
     setSequence((prev) => ({ ...prev, ending }));
   }
 
-  function changeShuttles(delta: number) {
-    setSequence((prev) => ({ ...prev, shuttlesPerRound: clampShuttles(shuttlesPerRound(prev) + delta) }));
-  }
-
-  const shuttles = shuttlesPerRound(sequence);
   const editedStep = panel.open && panel.mode === "edit" ? steps[panel.index] : undefined;
 
   return (
@@ -160,31 +167,38 @@ function ExpressEntryContent({
         <View style={styles.intro}>
           <Text style={[styles.title, { color: theme.text }]}>Schéma de jeu</Text>
           <Text style={[styles.introText, { color: theme.secondaryText }]}>
-            Choisis le type d'exercice puis les coups. Le schéma et la description sont générés pour toi.
+            Choisis la distribution, puis le type d'exercice.
           </Text>
         </View>
 
-        {/* Type d'exercice — « Poste fixe » arrivera avec son ticket dédié. */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>Type d'exercice</Text>
-          <OptionCard selected label="Séquence de coups" hint="Chaque coup, dans l'ordre" onPress={() => {}} />
-        </View>
-
-        {/* Distribution */}
+        {/* 1er choix — Distribution. La séquence de coups n'existe qu'en volant continu. */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>Distribution</Text>
           <View style={styles.twoCols}>
+            <OptionCard selected label="Volant continu" hint="Le volant reste en jeu" onPress={() => {}} />
             <OptionCard
-              selected={sequence.distribution === "volant_continu"}
-              label="Volant continu"
-              hint="Le volant reste en jeu"
-              onPress={() => setSequence((prev) => withDistribution(prev, "volant_continu"))}
-            />
-            <OptionCard
-              selected={sequence.distribution === "multivolant"}
+              selected={false}
+              disabled={!FIXED_POST_AVAILABLE}
+              note={FIXED_POST_AVAILABLE ? undefined : COMING_SOON}
               label="Multivolant"
               hint="Distribution de piles de volants"
-              onPress={() => setSequence((prev) => withDistribution(prev, "multivolant"))}
+              onPress={() => {}}
+            />
+          </View>
+        </View>
+
+        {/* 2e choix — Type d'exercice. */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>Type d'exercice</Text>
+          <View style={styles.twoCols}>
+            <OptionCard selected label="Séquence de coups" hint="Chaque coup, dans l'ordre" onPress={() => {}} />
+            <OptionCard
+              selected={false}
+              disabled={!FIXED_POST_AVAILABLE}
+              note={FIXED_POST_AVAILABLE ? undefined : COMING_SOON}
+              label="Poste fixe"
+              hint="Un ou plusieurs relanceurs fixes"
+              onPress={() => {}}
             />
           </View>
         </View>
@@ -232,9 +246,12 @@ function ExpressEntryContent({
                     <Text style={[styles.stepMeta, { color: invalid ? theme.danger : theme.secondaryText }]}>
                       {invalid
                         ? "À corriger · touche pour modifier"
-                        : step.direction
-                          ? directionLabel(step.direction)
-                          : "Sans direction"}
+                        : [
+                            step.fromSide ? FROM_SIDE_LABELS[step.fromSide] : null,
+                            step.direction ? directionLabel(step.direction) : "Sans direction",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </Text>
                   </View>
                   <Pressable
@@ -258,8 +275,8 @@ function ExpressEntryContent({
           </View>
         )}
 
-        {/* Fin de séquence / volants par passage */}
-        {steps.length > 0 && sequence.distribution === "volant_continu" ? (
+        {/* Fin de séquence */}
+        {steps.length > 0 ? (
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>À la fin de la séquence</Text>
             <View style={styles.twoCols}>
@@ -276,33 +293,6 @@ function ExpressEntryContent({
             </View>
           </View>
         ) : null}
-        {steps.length > 0 && sequence.distribution === "multivolant" ? (
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.tertiaryText }]}>Volants par passage</Text>
-            <View style={[styles.counterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Pressable
-                onPress={() => changeShuttles(-1)}
-                disabled={shuttles <= MIN_SHUTTLES_PER_ROUND}
-                accessibilityLabel="Un volant de moins"
-                style={[styles.counterButton, { borderColor: theme.border, opacity: shuttles <= MIN_SHUTTLES_PER_ROUND ? 0.35 : 1 }]}
-              >
-                <Ionicons name="remove" size={20} color={theme.text} />
-              </Pressable>
-              <Text style={[styles.counterValue, { color: theme.text }]}>{shuttles}</Text>
-              <Pressable
-                onPress={() => changeShuttles(1)}
-                disabled={shuttles >= MAX_SHUTTLES_PER_ROUND}
-                accessibilityLabel="Un volant de plus"
-                style={[styles.counterButton, { borderColor: theme.border, opacity: shuttles >= MAX_SHUTTLES_PER_ROUND ? 0.35 : 1 }]}
-              >
-                <Ionicons name="add" size={20} color={theme.text} />
-              </Pressable>
-            </View>
-            <Text style={[styles.introText, { color: theme.secondaryText }]}>
-              La séquence se répète jusqu'à épuisement de la pile.
-            </Text>
-          </View>
-        ) : null}
 
         {/* Aperçu */}
         {preview ? (
@@ -314,7 +304,11 @@ function ExpressEntryContent({
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: theme.border }]}>
-        <PrimaryButton label="Valider" onPress={() => onValidate(sequence)} disabled={!canValidate} />
+        <PrimaryButton
+          label="Valider"
+          onPress={() => onValidate({ ...sequence, steps: normalizeSteps(sequence.steps) })}
+          disabled={!canValidate}
+        />
       </View>
 
       {panel.open ? (
@@ -344,24 +338,31 @@ function OptionCard({
   selected,
   onPress,
   compact = false,
+  disabled = false,
+  note,
 }: {
   label: string;
   hint: string;
   selected: boolean;
   onPress: () => void;
   compact?: boolean;
+  disabled?: boolean;
+  /** Mention sous l'indication (ex. « Bientôt disponible »). */
+  note?: string;
 }) {
   const { theme } = useAppTheme();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityState={{ selected }}
+      disabled={disabled}
+      accessibilityState={{ selected, disabled }}
       style={[
         styles.optionCard,
         compact ? styles.optionCardCompact : null,
         {
           borderColor: selected ? theme.primary : theme.border,
           backgroundColor: selected ? "rgba(206,255,0,0.08)" : theme.surface,
+          opacity: disabled ? 0.45 : 1,
         },
       ]}
     >
@@ -371,6 +372,11 @@ function OptionCard({
       <Text style={[styles.optionHint, { color: theme.secondaryText }, compact ? styles.centerText : null]}>
         {hint}
       </Text>
+      {note ? (
+        <Text style={[styles.optionNote, { color: theme.tertiaryText }, compact ? styles.centerText : null]}>
+          {note}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -458,6 +464,11 @@ const styles = StyleSheet.create({
   optionHint: {
     fontSize: 12,
     fontFamily: fonts.bodyRegular,
+  },
+  optionNote: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 2,
   },
   centerText: {
     textAlign: "center",
@@ -553,26 +564,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontFamily: fonts.bodyMedium,
-  },
-  counterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 8,
-  },
-  counterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  counterValue: {
-    fontSize: 22,
-    fontFamily: fonts.displayExtraBold,
   },
   preview: {
     borderWidth: 1,

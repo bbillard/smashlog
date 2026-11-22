@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { CourtDiagram } from "@/src/components/exercise/CourtDiagram";
 import { COURT_DIAGRAM_COLORS } from "@/src/constants/sequenceColors";
-import { ExerciseSequence } from "@/src/types/index";
+import { ShotSequence } from "@/src/types/index";
 
 interface CourtDiagramThumbnailProps {
-  sequence: ExerciseSequence;
+  sequence: ShotSequence;
   onPress?: () => void;
   accessibilityLabel?: string;
 }

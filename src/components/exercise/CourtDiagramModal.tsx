@@ -21,16 +21,16 @@ import { COURT_DIAGRAM_COLORS } from "@/src/constants/sequenceColors";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { shareImageAsync } from "@/src/services/sharing";
 import { fonts } from "@/src/theme/typography";
-import { ExerciseSequence } from "@/src/types/index";
+import { ShotSequence } from "@/src/types/index";
 import { diagramLegend } from "@/src/utils/courtDiagram";
-import { sequenceEndIndicator } from "@/src/utils/exerciseSequence";
+import { endingLabel } from "@/src/utils/exerciseSequence";
 
 const logoSource = require("../../../img/smashlog-logo.png");
 
 interface CourtDiagramModalProps {
   visible: boolean;
   exerciseName: string;
-  sequence: ExerciseSequence;
+  sequence: ShotSequence;
   onClose: () => void;
 }
 
@@ -63,7 +63,7 @@ export function CourtDiagramModal({
     Math.min(windowWidth - 48, (windowHeight - RESERVED_HEIGHT) / aspect),
   );
   const legend = diagramLegend(sequence);
-  const kicker = `Schéma · ${sequence.steps.length} coup${sequence.steps.length > 1 ? "s" : ""} · ${sequenceEndIndicator(sequence)}`;
+  const kicker = `Schéma · ${sequence.steps.length} coup${sequence.steps.length > 1 ? "s" : ""} · ${endingLabel(sequence)}`;
 
   async function handleExport() {
     if (isExporting) return;

@@ -1,11 +1,11 @@
 import { CourtZone, ShotDirection, ShotId } from "@/src/types/index";
 
 /**
- * Référentiel statique des coups utilisables dans une séquence de jeu
- * (ticket v1.4.1 « Wizard exercice — étape Séquence de jeu »).
+ * Référentiel statique des coups utilisables dans la « Saisie express »
+ * (ticket v1.4.1 « Formulaire exercice — Saisie express (séquence de coups) »).
  *
  * L'ordre du tableau est l'ordre d'affichage de la grille du panneau
- * « Ajouter un coup » : il ne doit jamais varier (l'utilisateur prend ses
+ * de saisie d'un coup : il ne doit jamais varier (l'utilisateur prend ses
  * repères, les coups indisponibles sont grisés mais restent à leur place).
  *
  * Libellés imposés partout dans l'app : « Dégagement » (jamais « Dégagé »),

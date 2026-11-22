@@ -1,13 +1,14 @@
 import { SHOT_DIRECTION_LABELS, SHOTS_BY_ID } from "@/src/data/shots";
 import {
+  CourtSide,
   CourtZone,
   ExerciseSequence,
-  SequenceDistribution,
   SequenceEnding,
   SequencePlayer,
   SequenceStep,
   ShotDirection,
   ShotId,
+  ShotSequence,
 } from "@/src/types/index";
 
 /**
@@ -17,6 +18,9 @@ import {
  * direction, génération / remplacement du texte de description, validation et
  * relecture d'une séquence venue du stockage.
  *
+ * Seul le cas `kind: "sequence"` (volant continu) est implémenté ; le cas
+ * « Poste fixe » est typé (src/types/index.ts) et sera traité par son ticket.
+ *
  * Repère : deux coups consécutifs sont toujours joués depuis des camps
  * opposés ; le coup n°1 part du camp du haut (portrait). Les couloirs
  * latéraux (« lanes ») sont absolus, vus du dessus du terrain en portrait :
@@ -25,33 +29,26 @@ import {
 
 export const SEQUENCE_PLAYERS: readonly SequencePlayer[] = ["A", "B", "C", "D"];
 
-export const DEFAULT_SHUTTLES_PER_ROUND = 15;
-export const MIN_SHUTTLES_PER_ROUND = 1;
-export const MAX_SHUTTLES_PER_ROUND = 50;
-
 /** Joueurs présents selon le nombre de joueurs de l'exercice. */
 export function sequencePlayers(playersCount: number): SequencePlayer[] {
   const count = Math.max(0, Math.min(4, Math.floor(playersCount)));
   return SEQUENCE_PLAYERS.slice(0, count);
 }
 
-export function createEmptySequence(): ExerciseSequence {
-  return { kind: "sequence", distribution: "volant_continu", ending: "boucle", steps: [] };
+export function createEmptySequence(): ShotSequence {
+  return {
+    schemaVersion: 1,
+    kind: "sequence",
+    distribution: "volant_continu",
+    ending: "boucle",
+    steps: [],
+    generatedText: "",
+  };
 }
 
-/** Change la distribution en gardant des champs cohérents (fin OU volants par passage). */
-export function withDistribution(
-  sequence: ExerciseSequence,
-  distribution: SequenceDistribution,
-): ExerciseSequence {
-  const { ending, shuttlesPerRound, ...rest } = sequence;
-  return distribution === "multivolant"
-    ? { ...rest, distribution, shuttlesPerRound: shuttlesPerRound ?? DEFAULT_SHUTTLES_PER_ROUND }
-    : { ...rest, distribution, ending: ending ?? "boucle" };
-}
-
-export function clampShuttles(n: number): number {
-  return Math.max(MIN_SHUTTLES_PER_ROUND, Math.min(MAX_SHUTTLES_PER_ROUND, Math.round(n)));
+/** Séquence de coups, ou undefined pour un autre mode (Poste fixe) ou une absence. */
+export function asShotSequence(sequence: ExerciseSequence | undefined): ShotSequence | undefined {
+  return sequence?.kind === "sequence" ? sequence : undefined;
 }
 
 // ─── Camps et alternance ─────────────────────────────────────────────────────
@@ -105,12 +102,25 @@ export function playersByHalf(steps: readonly SequenceStep[]): { top: SequencePl
   return { top: order(top), bottom: order(bottom) };
 }
 
+/** Joueurs utilisés par la donnée de saisie express, quel que soit le mode. */
+export function usedPlayers(sequence: ExerciseSequence): SequencePlayer[] {
+  const used = new Set<SequencePlayer>();
+  if (sequence.kind === "sequence") {
+    sequence.steps.forEach((s) => used.add(s.player));
+  } else if (sequence.distribution === "volant_continu") {
+    sequence.fixedPosts.forEach((p) => used.add(p.player));
+    sequence.orderedSends?.forEach((s) => used.add(s.player));
+  } else {
+    sequence.feeders.forEach((p) => used.add(p));
+    used.add(sequence.worker);
+  }
+  return SEQUENCE_PLAYERS.filter((p) => used.has(p));
+}
+
 /** Joueurs utilisés par la séquence mais absents pour ce nombre de joueurs. */
 export function missingPlayers(sequence: ExerciseSequence, playersCount: number): SequencePlayer[] {
   const present = sequencePlayers(playersCount);
-  return SEQUENCE_PLAYERS.filter(
-    (p) => !present.includes(p) && sequence.steps.some((s) => s.player === p),
-  );
+  return usedPlayers(sequence).filter((p) => !present.includes(p));
 }
 
 // ─── Grisage des coups ───────────────────────────────────────────────────────
@@ -180,57 +190,89 @@ export function arrivalLane(lane: Lane, half: 0 | 1, direction: ShotDirection | 
 }
 
 /**
- * Couloir de départ du coup du serveur : sa zone de service droite (il fait
- * face au filet, donc à gauche de l'écran pour le camp du haut).
+ * Couloir absolu (vue de dessus, portrait) d'un côté exprimé du point de vue
+ * d'un joueur du camp `half`, face au filet : le camp du haut fait face au
+ * bas, sa droite est donc à gauche de l'écran.
  */
-export function serviceLane(half: 0 | 1): Lane {
-  return half === 1 ? "left" : "right";
+export function sideToLane(side: CourtSide, half: 0 | 1): Lane {
+  if (side === "centre") return "center";
+  if (side === "droite") return half === 1 ? "left" : "right";
+  return half === 1 ? "right" : "left";
+}
+
+/** Contexte de direction d'un frappeur qui part du côté `side`. */
+export function sideContext(side: CourtSide): DirectionContext {
+  return side === "centre" ? "center" : "side";
+}
+
+/**
+ * Le coup n°`index` doit-il préciser son côté de départ (« Depuis ») ?
+ * Oui pour le coup n°1 et pour le coup qui suit un « Au choix » : rien ne
+ * permet alors de déduire la position latérale du frappeur.
+ */
+export function needsFromSide(steps: readonly SequenceStep[], index: number): boolean {
+  return index === 0 || steps[index - 1]?.shot === "au_choix";
+}
+
+/** Valeur par défaut de « Depuis » : Droite pour un service, Centre sinon. */
+export function defaultFromSide(shot: ShotId | undefined): CourtSide {
+  return shot && SHOTS_BY_ID[shot].isService ? "droite" : "centre";
 }
 
 /**
  * Couloir du frappeur de chaque coup = couloir d'arrivée du coup précédent.
- * Coup n°1 : un service part d'un côté, un autre coup part du centre.
- * Après « Au choix » : centre.
+ * Coup n°1 et coup qui suit un « Au choix » : côté « Depuis » (fromSide) ;
+ * s'il manque (coup à corriger), valeur par défaut.
  */
 export function hitterLanes(steps: readonly SequenceStep[]): Lane[] {
   const lanes: Lane[] = [];
   steps.forEach((step, i) => {
-    if (i === 0) {
-      lanes.push(SHOTS_BY_ID[step.shot].isService ? serviceLane(stepHalf(0)) : "center");
+    if (needsFromSide(steps, i)) {
+      lanes.push(sideToLane(step.fromSide ?? defaultFromSide(step.shot), stepHalf(i)));
       return;
     }
     const prev = steps[i - 1];
-    lanes.push(
-      prev.shot === "au_choix" ? "center" : arrivalLane(lanes[i - 1], stepHalf(i - 1), prev.direction),
-    );
+    lanes.push(arrivalLane(lanes[i - 1], stepHalf(i - 1), prev.direction));
   });
   return lanes;
 }
 
 /**
- * Contexte de direction du coup n°`index` en cours de saisie : dépend du
- * coup précédent (et du coup lui-même pour le n°1 : service = côté).
+ * Contexte de direction du coup n°`index` en cours de saisie : côté
+ * « Depuis » choisi (`fromSide`) quand il est demandé, sinon point d'arrivée
+ * latéral du coup précédent.
  */
 export function directionContextAt(
   steps: readonly SequenceStep[],
   index: number,
-  shot: ShotId | undefined,
+  fromSide: CourtSide | undefined,
 ): DirectionContext {
-  if (index === 0) {
-    return shot && SHOTS_BY_ID[shot].isService ? "side" : "center";
-  }
   const previous = steps.slice(0, index);
-  const prev = previous[index - 1];
-  if (!prev || prev.shot === "au_choix") return "center";
+  if (needsFromSide(previous, index)) return sideContext(fromSide ?? "centre");
   const lanes = hitterLanes(previous);
+  const prev = previous[index - 1];
   return directionContext(arrivalLane(lanes[index - 1], stepHalf(index - 1), prev.direction));
+}
+
+/**
+ * Retire `fromSide` des coups qui n'en ont pas besoin (il redevient déduit
+ * de l'enchaînement, ex. après suppression d'un « Au choix »). Un coup qui en
+ * aurait besoin et n'en a pas reste tel quel : il est signalé à corriger.
+ */
+export function normalizeSteps(steps: readonly SequenceStep[]): SequenceStep[] {
+  return steps.map((step, i) => {
+    if (needsFromSide(steps, i) || step.fromSide === undefined) return step;
+    const { fromSide: _fromSide, ...rest } = step;
+    return rest;
+  });
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
 /**
  * Ids des coups à corriger : coup devenu impossible après le précédent,
- * direction qui a changé de contexte (côté ↔ centre), ou joueur absent.
+ * direction qui a changé de contexte (côté ↔ centre), côté « Depuis »
+ * manquant (coup devenu n°1 ou suivant un « Au choix »), ou joueur absent.
  */
 export function findInvalidStepIds(steps: readonly SequenceStep[], playersCount: number): string[] {
   const players = sequencePlayers(playersCount);
@@ -238,6 +280,7 @@ export function findInvalidStepIds(steps: readonly SequenceStep[], playersCount:
   return steps
     .filter((step, i) => {
       if (!players.includes(step.player)) return true;
+      if (needsFromSide(steps, i) && !step.fromSide) return true;
       if (!isShotAvailable(step.shot, steps[i - 1]?.shot, i)) return true;
       if (step.direction && !isDirectionAllowed(step.direction, directionContext(lanes[i]))) return true;
       return false;
@@ -245,7 +288,7 @@ export function findInvalidStepIds(steps: readonly SequenceStep[], playersCount:
     .map((step) => step.id);
 }
 
-export function isSequenceValid(sequence: ExerciseSequence, playersCount: number): boolean {
+export function isSequenceValid(sequence: ShotSequence, playersCount: number): boolean {
   return sequence.steps.length > 0 && findInvalidStepIds(sequence.steps, playersCount).length === 0;
 }
 
@@ -259,58 +302,55 @@ export function directionLabel(direction: ShotDirection): string {
   return SHOT_DIRECTION_LABELS[direction];
 }
 
-export function sequenceEnding(sequence: ExerciseSequence): SequenceEnding {
+export function sequenceEnding(sequence: ShotSequence): SequenceEnding {
   return sequence.ending ?? "boucle";
 }
 
-export function shuttlesPerRound(sequence: ExerciseSequence): number {
-  return sequence.shuttlesPerRound ?? DEFAULT_SHUTTLES_PER_ROUND;
-}
-
-/** Badge de distribution : « Volant continu » / « Multivolant · 15 volants ». */
+/** Badge de distribution : « Volant continu » / « Multivolant ». */
 export function distributionLabel(sequence: ExerciseSequence): string {
-  return sequence.distribution === "multivolant"
-    ? `Multivolant · ${shuttlesPerRound(sequence)} volants`
-    : "Volant continu";
+  return sequence.distribution === "multivolant" ? "Multivolant" : "Volant continu";
 }
 
-/** Badge de fin (volant continu uniquement) : « ↻ En boucle » / « Finir le point ». */
-export function endingLabel(sequence: ExerciseSequence): string | null {
-  if (sequence.distribution === "multivolant") return null;
+/** Badge et indicateur de fin : « ↻ En boucle » / « Finir le point ». */
+export function endingLabel(sequence: ShotSequence): string {
   return sequenceEnding(sequence) === "finir_point" ? "Finir le point" : "↻ En boucle";
-}
-
-/** Indicateur de fin du schéma : « ↻ En boucle », « Finir le point » ou « Multivolant · N volants ». */
-export function sequenceEndIndicator(sequence: ExerciseSequence): string {
-  return endingLabel(sequence) ?? distributionLabel(sequence);
 }
 
 /** Badge résumé du bloc du formulaire : « Séquence · 5 coups ↻ ». */
 export function sequenceSummary(sequence: ExerciseSequence): string {
+  if (sequence.kind !== "sequence") return "Poste fixe";
   const n = sequence.steps.length;
   const base = `Séquence · ${n} coup${n > 1 ? "s" : ""}`;
-  if (sequence.distribution === "multivolant") return `${base} · ${shuttlesPerRound(sequence)} volants`;
   return sequenceEnding(sequence) === "boucle" ? `${base} ↻` : base;
 }
 
+const FROM_SIDE_PHRASES: Record<CourtSide, string> = {
+  gauche: "la gauche",
+  centre: "le centre",
+  droite: "la droite",
+};
+
 /**
  * Texte ajouté à la description, ex. :
- * « B service long → A dégagement droit → B amorti croisé ↻ »
- * Variantes : « … puis point libre » (Finir le point), préfixe
- * « Multivolant, 15 volants : » en multivolant.
+ * « Depuis la droite : B service long → A dégagement droit → B amorti croisé ↻ »
+ * - le côté de départ du coup n°1 ouvre le texte ;
+ * - après un « Au choix », le côté de départ du coup suivant est rappelé
+ *   entre parenthèses (« A lob (depuis la gauche) ») ;
+ * - « … puis point libre » pour Finir le point.
  */
-export function generateSequenceText(sequence: ExerciseSequence): string {
-  if (sequence.steps.length === 0) return "";
-  const chain = sequence.steps
-    .map((step) => {
+export function generateSequenceText(sequence: ShotSequence): string {
+  const { steps } = sequence;
+  if (steps.length === 0) return "";
+  const chain = steps
+    .map((step, i) => {
       const direction = step.direction ? ` ${directionLabel(step.direction).toLowerCase()}` : "";
-      return `${step.player} ${shotLabel(step.shot).toLowerCase()}${direction}`;
+      const from = i > 0 && step.fromSide && needsFromSide(steps, i) ? ` (depuis ${FROM_SIDE_PHRASES[step.fromSide]})` : "";
+      return `${step.player} ${shotLabel(step.shot).toLowerCase()}${direction}${from}`;
     })
     .join(" → ");
-  if (sequence.distribution === "multivolant") {
-    return `Multivolant, ${shuttlesPerRound(sequence)} volants : ${chain}`;
-  }
-  return sequenceEnding(sequence) === "finir_point" ? `${chain} puis point libre` : `${chain} ↻`;
+  const prefix = steps[0].fromSide ? `Depuis ${FROM_SIDE_PHRASES[steps[0].fromSide]} : ` : "";
+  const suffix = sequenceEnding(sequence) === "finir_point" ? " puis point libre" : " ↻";
+  return `${prefix}${chain}${suffix}`;
 }
 
 /**
@@ -345,21 +385,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const DIRECTION_VALUES: readonly ShotDirection[] = ["droit", "croise", "centre", "gauche", "droite"];
+const SIDE_VALUES: readonly CourtSide[] = ["gauche", "centre", "droite"];
 
 /**
- * Relit une séquence venue de l'extérieur (jsonb Supabase, AsyncStorage,
+ * Relit une donnée venue de l'extérieur (jsonb Supabase, AsyncStorage,
  * fichier de sauvegarde). Renvoie undefined si la forme est inutilisable,
  * pour que l'exercice reste valide « sans séquence » plutôt que de planter.
- * Les coups devenus incohérents sont conservés : ils seront signalés dans la
- * saisie express (findInvalidStepIds).
+ *
+ * - Seul `schemaVersion: 1` est accepté : les formats antérieurs (rôles,
+ *   « echange », multivolant en mode séquence, sans côté de départ) sont
+ *   ignorés — rien n'avait été mis en production.
+ * - Seul le cas `kind: "sequence"` est relu pour l'instant : le cas
+ *   « poste_fixe » sera ajouté par le ticket Poste fixe.
+ * - Les coups devenus incohérents sont conservés : ils seront signalés dans
+ *   la saisie express (findInvalidStepIds).
  */
 export function parseExerciseSequence(value: unknown): ExerciseSequence | undefined {
-  if (!isRecord(value) || value.kind !== "sequence" || !Array.isArray(value.steps)) return undefined;
+  if (!isRecord(value) || value.schemaVersion !== 1) return undefined;
+  if (value.kind !== "sequence" || value.distribution !== "volant_continu") return undefined;
+  if (!Array.isArray(value.steps)) return undefined;
 
   const steps: SequenceStep[] = [];
   for (const raw of value.steps) {
     if (!isRecord(raw)) return undefined;
-    const { id, player, shot, direction } = raw;
+    const { id, player, shot, direction, fromSide } = raw;
     if (typeof id !== "string") return undefined;
     if (!SEQUENCE_PLAYERS.includes(player as SequencePlayer)) return undefined;
     if (typeof shot !== "string" || !(shot in SHOTS_BY_ID)) return undefined;
@@ -370,20 +419,17 @@ export function parseExerciseSequence(value: unknown): ExerciseSequence | undefi
       ...(DIRECTION_VALUES.includes(direction as ShotDirection)
         ? { direction: direction as ShotDirection }
         : {}),
+      ...(SIDE_VALUES.includes(fromSide as CourtSide) ? { fromSide: fromSide as CourtSide } : {}),
     });
   }
   if (steps.length === 0) return undefined;
 
-  const generatedText = typeof value.generatedText === "string" ? value.generatedText : undefined;
-  const base = { kind: "sequence" as const, steps, ...(generatedText ? { generatedText } : {}) };
-
-  if (value.distribution === "multivolant") {
-    const n = typeof value.shuttlesPerRound === "number" ? value.shuttlesPerRound : DEFAULT_SHUTTLES_PER_ROUND;
-    return { ...base, distribution: "multivolant", shuttlesPerRound: clampShuttles(n) };
-  }
   return {
-    ...base,
+    schemaVersion: 1,
+    kind: "sequence",
     distribution: "volant_continu",
     ending: value.ending === "finir_point" ? "finir_point" : "boucle",
+    steps: normalizeSteps(steps),
+    generatedText: typeof value.generatedText === "string" ? value.generatedText : "",
   };
 }
