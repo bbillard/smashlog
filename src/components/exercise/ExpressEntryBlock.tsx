@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { CourtDiagramModal } from "@/src/components/exercise/CourtDiagramModal";
 import { CourtDiagramThumbnail } from "@/src/components/exercise/CourtDiagramThumbnail";
 import { CourtIcon } from "@/src/components/exercise/CourtIcon";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -12,6 +14,8 @@ interface ExpressEntryBlockProps {
   playersCount: number | null;
   /** Séquence de coups (le mode Poste fixe sera affiché par son ticket). */
   sequence: ShotSequence | undefined;
+  /** Nom saisi dans le formulaire (titre de la vue plein écran et nom du PNG). */
+  exerciseName: string;
   onOpen: () => void;
   onDelete: () => void;
 }
@@ -20,11 +24,14 @@ interface ExpressEntryBlockProps {
  * Bloc « Saisie express » du formulaire d'exercice, entre le nombre de
  * joueurs et la description :
  * - vide : bouton large en pointillés lime ;
- * - rempli : badge résumé, miniature du schéma, Modifier / Supprimer ;
+ * - rempli : badge résumé, miniature du schéma (touchable), Agrandir /
+ *   Modifier / Supprimer ; « Agrandir » ouvre la vue plein écran exportable
+ *   en PNG, comme sur la fiche exercice ;
  * - moins de 2 joueurs : grisé, non cliquable.
  */
-export function ExpressEntryBlock({ playersCount, sequence, onOpen, onDelete }: ExpressEntryBlockProps) {
+export function ExpressEntryBlock({ playersCount, sequence, exerciseName, onOpen, onDelete }: ExpressEntryBlockProps) {
   const { theme } = useAppTheme();
+  const [expanded, setExpanded] = useState(false);
   const available = playersCount !== null && playersCount >= 2;
   const unavailableHint =
     playersCount === null ? "Choisis d'abord le nombre de joueurs" : "Disponible à partir de 2 joueurs";
@@ -41,11 +48,24 @@ export function ExpressEntryBlock({ playersCount, sequence, onOpen, onDelete }: 
             <Text style={[styles.badgeText, { color: theme.primary }]}>{sequenceSummary(sequence)}</Text>
           </View>
         </View>
-        <CourtDiagramThumbnail sequence={sequence} />
+        <CourtDiagramThumbnail
+          sequence={sequence}
+          onPress={() => setExpanded(true)}
+          accessibilityLabel="Ouvrir le schéma en plein écran"
+        />
         {!available ? (
           <Text style={[styles.hint, { color: theme.secondaryText }]}>{unavailableHint}</Text>
         ) : null}
         <View style={styles.actions}>
+          <Pressable
+            onPress={() => setExpanded(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Agrandir le schéma"
+            style={[styles.action, styles.actionWithIcon, { borderColor: theme.border }]}
+          >
+            <Ionicons name="expand-outline" size={15} color={theme.text} />
+            <Text style={[styles.actionText, { color: theme.text }]}>Agrandir</Text>
+          </Pressable>
           <Pressable
             onPress={onOpen}
             disabled={!available}
@@ -57,6 +77,12 @@ export function ExpressEntryBlock({ playersCount, sequence, onOpen, onDelete }: 
             <Text style={[styles.actionText, { color: theme.danger }]}>Supprimer</Text>
           </Pressable>
         </View>
+        <CourtDiagramModal
+          visible={expanded}
+          exerciseName={exerciseName.trim() || "Nouvel exercice"}
+          sequence={sequence}
+          onClose={() => setExpanded(false)}
+        />
       </View>
     );
   }
@@ -174,6 +200,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  actionWithIcon: {
+    flexDirection: "row",
+    gap: 6,
   },
   actionText: {
     fontSize: 14,

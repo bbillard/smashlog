@@ -31,3 +31,25 @@ export const COURT_DIAGRAM_COLORS = {
   lines: "rgba(255,255,255,0.75)",
   net: "#F2F2F5",
 } as const;
+
+/**
+ * Couleurs fixes de la vue plein écran du schéma et de son export PNG
+ * (maquette écran 5 bis) : identiques quel que soit le thème de l'app, pour
+ * que l'image partagée soit toujours la même. Gris ≥ 4.5:1 sur leur fond.
+ */
+export const SCHEMA_SCREEN_COLORS = {
+  background: "#0D0D0F",
+  card: "#16161A",
+  cardBorder: "rgba(255,255,255,0.06)",
+  title: "#F2F2F5",
+  accent: "#CEFF00",
+  accentBg: "rgba(206,255,0,0.08)",
+  accentBorder: "rgba(206,255,0,0.4)",
+  buttonBg: "#16161A",
+  buttonBorder: "rgba(255,255,255,0.1)",
+  legend: "#D0D0D8",
+  listTitle: "#B4B4C0",
+  muted: "#9A9AA8",
+  logoFallback: "#9A9AA8",
+  pageDot: "rgba(255,255,255,0.25)",
+} as const;

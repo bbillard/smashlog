@@ -50,7 +50,7 @@ export function SequenceTimeline({ sequence }: SequenceTimelineProps) {
         {sequence.steps.map((step, index) => (
           <View key={step.id} style={styles.stepRow}>
             <View style={styles.rail}>
-              <PlayerBadge player={step.player} size={26} />
+              <PlayerBadge player={step.player} size={26} weight="bold" />
               {index < sequence.steps.length - 1 ? (
                 <View style={[styles.railLine, { backgroundColor: theme.border }]} />
               ) : null}

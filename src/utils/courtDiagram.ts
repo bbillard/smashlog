@@ -173,37 +173,56 @@ export interface DiagramOptions {
 }
 
 /**
- * Écarte les points distants de moins de `minDistance` : chaque groupe est
- * réparti en cercle autour de sa position moyenne, dans l'ordre des coups
- * (premier point en haut), pour un rendu stable d'un affichage à l'autre.
+ * Écarte les points distants de moins de `minDistance`, de façon
+ * déterministe (même entrée → même rendu) : chaque groupe de points proches
+ * est réparti en cercle autour de sa position moyenne d'origine, dans
+ * l'ordre des coups (premier point en haut).
+ *
+ * Un point écarté peut se retrouver trop près d'un voisin qui n'était pas
+ * dans son groupe : on recommence alors en FUSIONNANT les groupes (un groupe
+ * ne se défait jamais), puis on répartit le groupe fusionné sur un cercle
+ * plus grand. Les groupes ne font que grossir : au plus n passes.
  */
 export function spreadPoints(points: DiagramPoint[], minDistance: number): DiagramPoint[] {
   const parent = points.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
-  for (let i = 0; i < points.length; i += 1) {
-    for (let j = i + 1; j < points.length; j += 1) {
-      if (distance(points[i], points[j]) < minDistance) parent[find(j)] = find(i);
+  let current = points.map((p) => ({ ...p }));
+
+  for (let pass = 0; pass < Math.max(1, points.length); pass += 1) {
+    let merged = false;
+    for (let i = 0; i < current.length; i += 1) {
+      for (let j = i + 1; j < current.length; j += 1) {
+        // Petite tolérance : des voisins déjà écartés à minDistance pile ne
+        // sont pas considérés comme superposés.
+        if (find(i) !== find(j) && distance(current[i], current[j]) < minDistance - 1e-6) {
+          parent[find(j)] = find(i);
+          merged = true;
+        }
+      }
     }
-  }
-  const groups = new Map<number, number[]>();
-  points.forEach((_, i) => {
-    const root = find(i);
-    groups.set(root, [...(groups.get(root) ?? []), i]);
-  });
-  const result = points.map((p) => ({ ...p }));
-  for (const members of groups.values()) {
-    if (members.length < 2) continue;
-    const k = members.length;
-    const cx = members.reduce((sum, i) => sum + points[i].x, 0) / k;
-    const cy = members.reduce((sum, i) => sum + points[i].y, 0) / k;
-    // Rayon tel que deux voisins sur le cercle soient espacés d'au moins minDistance.
-    const radius = (minDistance / (2 * Math.sin(Math.PI / k))) * 1.05;
-    members.forEach((i, rank) => {
-      const angle = -Math.PI / 2 + (2 * Math.PI * rank) / k;
-      result[i] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    if (!merged) break;
+
+    const groups = new Map<number, number[]>();
+    points.forEach((_, i) => {
+      const root = find(i);
+      groups.set(root, [...(groups.get(root) ?? []), i]);
     });
+    const next = points.map((p) => ({ ...p }));
+    for (const members of groups.values()) {
+      if (members.length < 2) continue;
+      const k = members.length;
+      const cx = members.reduce((sum, i) => sum + points[i].x, 0) / k;
+      const cy = members.reduce((sum, i) => sum + points[i].y, 0) / k;
+      // Rayon tel que deux voisins sur le cercle soient espacés d'au moins minDistance.
+      const radius = (minDistance / (2 * Math.sin(Math.PI / k))) * 1.05;
+      members.forEach((i, rank) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * rank) / k;
+        next[i] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+      });
+    }
+    current = next;
   }
-  return result;
+  return current;
 }
 
 /**

@@ -434,6 +434,7 @@ export function ExerciseForm({
           <ExpressEntryBlock
             playersCount={playersCount}
             sequence={asShotSequence(sequence)}
+            exerciseName={name}
             onOpen={() => setExpressOpen(true)}
             onDelete={handleExpressDelete}
           />

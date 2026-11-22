@@ -7,10 +7,12 @@ import { SequencePlayer } from "@/src/types/index";
 interface PlayerBadgeProps {
   player: SequencePlayer;
   size?: number;
+  /** Graisse de la lettre : Syne ExtraBold par défaut, Syne Bold pour la frise de séquence. */
+  weight?: "bold" | "extraBold";
 }
 
 /** Pastille carrée arrondie à la couleur d'un joueur de séquence (A, B, C, D). */
-export function PlayerBadge({ player, size = 30 }: PlayerBadgeProps) {
+export function PlayerBadge({ player, size = 30, weight = "extraBold" }: PlayerBadgeProps) {
   return (
     <View
       style={[
@@ -26,6 +28,7 @@ export function PlayerBadge({ player, size = 30 }: PlayerBadgeProps) {
       <Text
         style={[
           styles.text,
+          weight === "bold" ? styles.textBold : null,
           { fontSize: Math.round(size * 0.47), color: SEQUENCE_PLAYER_ON_COLOR },
         ]}
       >
@@ -43,5 +46,8 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: fonts.displayExtraBold,
+  },
+  textBold: {
+    fontFamily: fonts.displayBold,
   },
 });

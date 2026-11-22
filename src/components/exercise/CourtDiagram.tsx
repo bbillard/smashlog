@@ -53,7 +53,7 @@ export function CourtDiagram({ sequence, orientation, width }: CourtDiagramProps
 
   const project = (p: DiagramPoint): DiagramPoint => (landscape ? toLandscape(p) : p);
 
-  const badgeRadius = (landscape ? 8 : 13) * pxToM;
+  const badgeRadius = (landscape ? 8 : 11) * pxToM;
   // Pastilles jamais superposées : écart minimal = un diamètre (+ le liseré).
   const minDistance = badgeRadius * 2 + 2 * pxToM;
   const shots = useMemo(
@@ -61,11 +61,11 @@ export function CourtDiagram({ sequence, orientation, width }: CourtDiagramProps
     [sequence, minDistance],
   );
 
-  const lineWidth = (landscape ? 1 : 1.5) * pxToM;
-  const arrowWidth = (landscape ? 1.6 : 2.5) * pxToM;
-  const headLength = (landscape ? 6 : 10) * pxToM;
-  const headWidth = (landscape ? 6 : 10) * pxToM;
-  const fontSize = (landscape ? 8.5 : 13.5) * pxToM;
+  const lineWidth = (landscape ? 1 : 1.3) * pxToM;
+  const arrowWidth = (landscape ? 1.6 : 2) * pxToM;
+  const headLength = (landscape ? 6 : 8) * pxToM;
+  const headWidth = (landscape ? 6 : 8) * pxToM;
+  const fontSize = (landscape ? 8.5 : 11.5) * pxToM;
   const borderWidth = 2 * pxToM;
 
   const courtTopLeft = project({ x: 0, y: 0 });
@@ -176,8 +176,8 @@ export function CourtDiagram({ sequence, orientation, width }: CourtDiagramProps
               y={p.y + fontSize * 0.35}
               textAnchor="middle"
               fontSize={fontSize}
-              fontFamily={fonts.displayExtraBold}
-              fontWeight="800"
+              fontFamily={fonts.displayBold}
+              fontWeight="700"
               fill={SEQUENCE_PLAYER_ON_COLOR}
             >
               {String(shot.index + 1)}
