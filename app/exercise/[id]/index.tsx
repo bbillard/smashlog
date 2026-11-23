@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { CourtDiagramCard } from "@/src/components/exercise/CourtDiagramCard";
+import { FixedPostDetails } from "@/src/components/exercise/FixedPostDetails";
 import { SequenceTimeline } from "@/src/components/exercise/SequenceTimeline";
 import { LoadingView } from "@/src/components/LoadingView";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -23,7 +24,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { deleteExercise, getExerciseById } from "@/src/services/storage";
 import { fonts } from "@/src/theme/typography";
 import { Exercise } from "@/src/types/index";
-import { asShotSequence } from "@/src/utils/exerciseSequence";
+import { hasDiagram } from "@/src/utils/expressEntry";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  const shotSequence = asShotSequence(exercise.sequence);
+  const sequence = hasDiagram(exercise.sequence) ? exercise.sequence : undefined;
   const hasAttention = !!exercise.attentionPoints?.trim();
   const hasVariants =
     !!exercise.variantEasier?.trim() || !!exercise.variantHarder?.trim();
@@ -256,15 +257,17 @@ export default function ExerciseDetailScreen() {
           </View>
         </SectionCard>
 
-        {shotSequence ? (
+        {sequence ? (
           <CourtDiagramCard
             exerciseName={exercise.name}
-            sequence={shotSequence}
+            sequence={sequence}
+            playersCount={exercise.playersCount}
           />
         ) : null}
 
-        {shotSequence ? (
-          <SequenceTimeline sequence={shotSequence} />
+        {sequence?.kind === "sequence" ? <SequenceTimeline sequence={sequence} /> : null}
+        {sequence?.kind === "poste_fixe" ? (
+          <FixedPostDetails sequence={sequence} playersCount={exercise.playersCount} />
         ) : null}
 
         <Field label="Description" value={exercise.description} />

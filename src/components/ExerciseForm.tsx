@@ -25,13 +25,9 @@ import { Toast } from "@/src/components/Toast";
 import { DEFAULT_LABELS } from "@/src/data/exerciseData";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { Exercise, ExerciseSequence, ShotSequence } from "@/src/types/index";
-import {
-  applyGeneratedText,
-  asShotSequence,
-  generateSequenceText,
-  missingPlayers,
-} from "@/src/utils/exerciseSequence";
+import { Exercise, ExerciseSequence } from "@/src/types/index";
+import { applyGeneratedText } from "@/src/utils/exerciseSequence";
+import { generateExpressText, hasDiagram, sequenceConflict } from "@/src/utils/expressEntry";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -278,8 +274,9 @@ export function ExerciseForm({
    * la saisie de l'utilisateur (applyGeneratedText). Si l'ancienne version
    * du texte a été retouchée, elle reste en place : on le signale.
    */
-  function handleExpressValidate(next: ShotSequence) {
-    const text = generateSequenceText(next);
+  function handleExpressValidate(next: ExerciseSequence) {
+    if (playersCount === null) return;
+    const text = generateExpressText(next, playersCount);
     const result = applyGeneratedText(description, sequence?.generatedText, text);
     setDescription(result.description);
     setSequence({ ...next, generatedText: text });
@@ -296,14 +293,13 @@ export function ExerciseForm({
 
   function handleSave() {
     if (!isValid || isSaving || playersCount === null) return;
-    const missing = sequence ? missingPlayers(sequence, playersCount) : [];
-    if (missing.length === 0) {
+    // Joueur utilisé qui n'existe plus, ou poste fixe sans joueur qui travaille.
+    const conflict = sequence ? sequenceConflict(sequence, playersCount) : null;
+    if (!conflict) {
       void save(sequence);
       return;
     }
-    const names = missing.join(", ");
-    const title = `La séquence utilise le joueur ${names}`;
-    const body = `Il n'existe plus avec ${playersCount} joueur${playersCount > 1 ? "s" : ""}. Supprimer la séquence pour enregistrer l'exercice ?`;
+    const { title, body } = conflict;
     if (Platform.OS === "web") {
       if (globalThis.confirm?.(`${title}. ${body}`)) void save(undefined);
       return;
@@ -341,10 +337,8 @@ export function ExerciseForm({
       ...(photos.length > 0 ? { photos } : {}),
       // Clé toujours présente : en édition, updateExercise fusionne les champs,
       // `undefined` explicite est donc nécessaire pour retirer une séquence.
-      // Une séquence de coups vide n'est pas enregistrée.
-      sequence: sequenceToSave && !(sequenceToSave.kind === "sequence" && sequenceToSave.steps.length === 0)
-        ? sequenceToSave
-        : undefined,
+      // Une saisie express vide n'est pas enregistrée.
+      sequence: hasDiagram(sequenceToSave) ? sequenceToSave : undefined,
     };
 
     await onSave(payload);
@@ -433,7 +427,7 @@ export function ExerciseForm({
           {/* ── Saisie express ── */}
           <ExpressEntryBlock
             playersCount={playersCount}
-            sequence={asShotSequence(sequence)}
+            sequence={sequence}
             exerciseName={name}
             onOpen={() => setExpressOpen(true)}
             onDelete={handleExpressDelete}
@@ -794,7 +788,7 @@ export function ExerciseForm({
         <ExpressEntryModal
           visible={expressOpen}
           playersCount={playersCount}
-          initialSequence={asShotSequence(sequence)}
+          initialSequence={sequence}
           onValidate={handleExpressValidate}
           onClose={() => setExpressOpen(false)}
         />

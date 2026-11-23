@@ -3,10 +3,11 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { CourtDiagram } from "@/src/components/exercise/CourtDiagram";
 import { COURT_DIAGRAM_COLORS } from "@/src/constants/sequenceColors";
-import { ShotSequence } from "@/src/types/index";
+import { ExerciseSequence } from "@/src/types/index";
 
 interface CourtDiagramThumbnailProps {
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
+  playersCount: number;
   onPress?: () => void;
   accessibilityLabel?: string;
 }
@@ -16,10 +17,10 @@ interface CourtDiagramThumbnailProps {
  * layout). Utilisé par la fiche exercice et par le bloc « Saisie express »
  * rempli du formulaire.
  */
-export function CourtDiagramThumbnail({ sequence, onPress, accessibilityLabel }: CourtDiagramThumbnailProps) {
+export function CourtDiagramThumbnail({ sequence, playersCount, onPress, accessibilityLabel }: CourtDiagramThumbnailProps) {
   const [width, setWidth] = useState(0);
   const content =
-    width > 0 ? <CourtDiagram sequence={sequence} orientation="landscape" width={width} /> : null;
+    width > 0 ? <CourtDiagram sequence={sequence} playersCount={playersCount} orientation="landscape" width={width} /> : null;
   const style = [styles.wrap, { backgroundColor: COURT_DIAGRAM_COLORS.background }];
   const onLayout = (e: { nativeEvent: { layout: { width: number } } }) =>
     setWidth(Math.floor(e.nativeEvent.layout.width));

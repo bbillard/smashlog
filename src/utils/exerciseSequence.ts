@@ -18,8 +18,9 @@ import {
  * direction, génération / remplacement du texte de description, validation et
  * relecture d'une séquence venue du stockage.
  *
- * Seul le cas `kind: "sequence"` (volant continu) est implémenté ; le cas
- * « Poste fixe » est typé (src/types/index.ts) et sera traité par son ticket.
+ * Ce module couvre le cas `kind: "sequence"` (volant continu) ; le mode
+ * « Poste fixe » a ses règles dans src/utils/fixedPost.ts et le point d'entrée
+ * commun à tous les modes est src/utils/expressEntry.ts.
  *
  * Repère : deux coups consécutifs sont toujours joués depuis des camps
  * opposés ; le coup n°1 part du camp du haut (portrait). Les couloirs
@@ -302,7 +303,8 @@ export function directionLabel(direction: ShotDirection): string {
   return SHOT_DIRECTION_LABELS[direction];
 }
 
-export function sequenceEnding(sequence: ShotSequence): SequenceEnding {
+/** Fin de séquence en volant continu (séquence de coups ou poste fixe). */
+export function sequenceEnding(sequence: { ending?: SequenceEnding }): SequenceEnding {
   return sequence.ending ?? "boucle";
 }
 
@@ -312,13 +314,12 @@ export function distributionLabel(sequence: ExerciseSequence): string {
 }
 
 /** Badge et indicateur de fin : « ↻ En boucle » / « Finir le point ». */
-export function endingLabel(sequence: ShotSequence): string {
+export function endingLabel(sequence: { ending?: SequenceEnding }): string {
   return sequenceEnding(sequence) === "finir_point" ? "Finir le point" : "↻ En boucle";
 }
 
-/** Badge résumé du bloc du formulaire : « Séquence · 5 coups ↻ ». */
-export function sequenceSummary(sequence: ExerciseSequence): string {
-  if (sequence.kind !== "sequence") return "Poste fixe";
+/** Badge résumé du bloc du formulaire : « Séquence · 5 coups ↻ » (poste fixe : cf. expressSummary). */
+export function sequenceSummary(sequence: ShotSequence): string {
   const n = sequence.steps.length;
   const base = `Séquence · ${n} coup${n > 1 ? "s" : ""}`;
   return sequenceEnding(sequence) === "boucle" ? `${base} ↻` : base;
@@ -388,19 +389,19 @@ const DIRECTION_VALUES: readonly ShotDirection[] = ["droit", "croise", "centre",
 const SIDE_VALUES: readonly CourtSide[] = ["gauche", "centre", "droite"];
 
 /**
- * Relit une donnée venue de l'extérieur (jsonb Supabase, AsyncStorage,
- * fichier de sauvegarde). Renvoie undefined si la forme est inutilisable,
- * pour que l'exercice reste valide « sans séquence » plutôt que de planter.
+ * Relit une séquence de coups venue de l'extérieur (jsonb Supabase,
+ * AsyncStorage, fichier de sauvegarde). Appelée par parseExerciseSequence
+ * (src/utils/expressEntry.ts), qui aiguille selon `kind`. Renvoie undefined
+ * si la forme est inutilisable, pour que l'exercice reste valide « sans
+ * séquence » plutôt que de planter.
  *
  * - Seul `schemaVersion: 1` est accepté : les formats antérieurs (rôles,
  *   « echange », multivolant en mode séquence, sans côté de départ) sont
  *   ignorés — rien n'avait été mis en production.
- * - Seul le cas `kind: "sequence"` est relu pour l'instant : le cas
- *   « poste_fixe » sera ajouté par le ticket Poste fixe.
  * - Les coups devenus incohérents sont conservés : ils seront signalés dans
  *   la saisie express (findInvalidStepIds).
  */
-export function parseExerciseSequence(value: unknown): ExerciseSequence | undefined {
+export function parseShotSequence(value: unknown): ShotSequence | undefined {
   if (!isRecord(value) || value.schemaVersion !== 1) return undefined;
   if (value.kind !== "sequence" || value.distribution !== "volant_continu") return undefined;
   if (!Array.isArray(value.steps)) return undefined;

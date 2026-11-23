@@ -156,6 +156,13 @@ export interface FixedPostMultishuttle extends SequenceBase {
   strikes: MultishuttleStrike[];
   /** Défaut 15, de 1 à 50. */
   shuttlesPerRound: number;
+  /**
+   * « ordre » : les frappes s'enchaînent dans l'ordre de la liste (numérotées) ;
+   * « aleatoire » : le distributeur choisit l'ordre (pas de numéros). Absent =
+   * « ordre » (données saisies avant l'ajout du choix). Simple clé du jsonb,
+   * sans migration.
+   */
+  order?: "ordre" | "aleatoire";
 }
 
 export type FixedPostSequence = FixedPostContinuous | FixedPostMultishuttle;

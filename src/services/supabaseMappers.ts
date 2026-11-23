@@ -4,7 +4,7 @@ import type { ScheduledSlot } from "@/src/services/onboarding";
 import { Exercise, Player } from "@/src/types/index";
 import { Match, Session, SessionType } from "@/src/types/session";
 import { deterministicId } from "@/src/utils/deterministicId";
-import { parseExerciseSequence } from "@/src/utils/exerciseSequence";
+import { parseExerciseSequence } from "@/src/utils/expressEntry";
 import { isMatchResult } from "@/src/utils/matchResult";
 
 /**

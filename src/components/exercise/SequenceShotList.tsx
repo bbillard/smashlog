@@ -4,19 +4,20 @@ import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, Text, 
 import { ShotNumberBadge } from "@/src/components/exercise/ShotNumberBadge";
 import { SCHEMA_SCREEN_COLORS } from "@/src/constants/sequenceColors";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
+import { ExerciseSequence } from "@/src/types/index";
 import {
   LIST_ROWS,
   LIST_VISIBLE_COLUMNS,
   SequenceListItem,
   listColumns,
+  listLayout,
   listPageCount,
   listPageIndex,
   sequenceListItems,
 } from "@/src/utils/diagramLayout";
 
 interface SequenceShotListProps {
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
   /**
    * « screen » : grille de 3 lignes, défilement horizontal accroché colonne
    * par colonne au-delà de 6 éléments. « export » : liste complète sur
@@ -34,24 +35,29 @@ const ROW_GAP = 2;
 const COLUMN_GAP = 12;
 /** Largeur d'une colonne à l'écran : la 3e colonne dépasse du bord droit. */
 const SCREEN_COLUMN_RATIO = 0.46;
+/** Une seule colonne (multivolant) : la colonne suivante dépasse aussi du bord droit. */
+const SINGLE_COLUMN_RATIO = 0.9;
 
 /** Hauteur fixe de la grille à l'écran (3 lignes). */
 export const SCREEN_LIST_HEIGHT = LIST_ROWS * ROW_HEIGHT + (LIST_ROWS - 1) * ROW_GAP;
 
 /**
- * Liste de la séquence sous le terrain (écran 5 bis) : une ligne par coup
- * (pastille numérotée à la couleur du joueur, coup en gras, direction en
- * gris), puis la ligne de fin. Répartition calculée par listColumns
- * (src/utils/diagramLayout.ts).
+ * Liste sous le terrain (écran 5 bis) : une ligne par coup (pastille
+ * numérotée à la couleur du joueur, coup en gras, direction en gris), puis la
+ * ligne de fin. En poste fixe : zones d'envoi (pastille flèche ou numéro) ou
+ * frappes du multivolant sur une seule colonne (lignes longues).
+ * Répartition calculée par listColumns (src/utils/diagramLayout.ts).
  */
 export function SequenceShotList({ sequence, mode, width }: SequenceShotListProps) {
   const items = sequenceListItems(sequence);
-  const columns = listColumns(items, mode);
+  const layout = listLayout(sequence);
+  const visibleColumns = layout === "single" ? 1 : LIST_VISIBLE_COLUMNS;
+  const columns = listColumns(items, mode, layout);
   const innerWidth = Math.max(0, width - LIST_SIDE_PADDING * 2);
   const [page, setPage] = useState(0);
 
   if (mode === "export") {
-    const columnWidth = (innerWidth - COLUMN_GAP) / 2;
+    const columnWidth = layout === "single" ? innerWidth : (innerWidth - COLUMN_GAP) / 2;
     return (
       <View style={[styles.exportRow, { paddingHorizontal: LIST_SIDE_PADDING }]}>
         {columns.map((column, c) => (
@@ -65,10 +71,10 @@ export function SequenceShotList({ sequence, mode, width }: SequenceShotListProp
     );
   }
 
-  const columnWidth = Math.floor(innerWidth * SCREEN_COLUMN_RATIO);
+  const columnWidth = Math.floor(innerWidth * (layout === "single" ? SINGLE_COLUMN_RATIO : SCREEN_COLUMN_RATIO));
   const snapInterval = columnWidth + COLUMN_GAP;
-  const pageCount = listPageCount(columns.length);
-  const scrollable = columns.length > LIST_VISIBLE_COLUMNS;
+  const pageCount = listPageCount(columns.length, visibleColumns);
+  const scrollable = columns.length > visibleColumns;
 
   const grid = columns.map((column, c) => (
     <View key={`c${c}`} style={[styles.column, { width: columnWidth, height: SCREEN_LIST_HEIGHT }]}>
@@ -96,7 +102,7 @@ export function SequenceShotList({ sequence, mode, width }: SequenceShotListProp
         onScroll={onScroll}
         scrollEventThrottle={32}
         contentContainerStyle={[styles.screenRow, { paddingHorizontal: LIST_SIDE_PADDING }]}
-        accessibilityLabel="Séquence de coups, faire défiler horizontalement pour voir la suite"
+        accessibilityLabel="Liste du schéma, faire défiler horizontalement pour voir la suite"
       >
         {grid}
       </ScrollView>
@@ -128,13 +134,35 @@ function ListRow({ item, wrap = false }: { item: SequenceListItem; wrap?: boolea
       </View>
     );
   }
+  if (item.kind === "send") {
+    return (
+      <View
+        style={[styles.row, wrap ? styles.rowWrap : styles.rowFixed]}
+        accessible
+        accessibilityLabel={`${item.number !== undefined ? `Envoi ${item.number}` : "Envoi"} du joueur ${item.player} vers : ${item.label}`}
+      >
+        {item.number !== undefined ? (
+          <ShotNumberBadge kind="shot" number={item.number} player={item.player} />
+        ) : (
+          <ShotNumberBadge kind="send" player={item.player} />
+        )}
+        <Text style={styles.shot} numberOfLines={lines}>
+          {item.label}
+        </Text>
+      </View>
+    );
+  }
   return (
     <View
       style={[styles.row, wrap ? styles.rowWrap : styles.rowFixed]}
       accessible
-      accessibilityLabel={`Coup ${item.number}, joueur ${item.player} : ${item.shot}${item.direction ? ` ${item.direction}` : ""}`}
+      accessibilityLabel={`${item.number !== undefined ? `Coup ${item.number}` : "Coup"}, joueur ${item.player} : ${item.shot}${item.direction ? ` ${item.direction}` : ""}`}
     >
-      <ShotNumberBadge kind="shot" number={item.number} player={item.player} />
+      {item.number !== undefined ? (
+        <ShotNumberBadge kind="shot" number={item.number} player={item.player} />
+      ) : (
+        <ShotNumberBadge kind="send" player={item.player} />
+      )}
       <Text style={styles.shot} numberOfLines={lines}>
         {item.shot}
         {item.direction ? <Text style={styles.direction}> {item.direction}</Text> : null}

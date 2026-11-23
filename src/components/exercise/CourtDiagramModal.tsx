@@ -28,7 +28,7 @@ import { LIST_SIDE_PADDING, SequenceShotList } from "@/src/components/exercise/S
 import { SCHEMA_SCREEN_COLORS } from "@/src/constants/sequenceColors";
 import { shareImageAsync } from "@/src/services/sharing";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
+import { ExerciseSequence } from "@/src/types/index";
 import {
   exportCaptureSize,
   exportFileName,
@@ -39,7 +39,8 @@ import {
 interface CourtDiagramModalProps {
   visible: boolean;
   exerciseName: string;
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
+  playersCount: number;
   onClose: () => void;
 }
 
@@ -57,7 +58,7 @@ function ensureFileUri(uri: string) {
  * capturée à 1080 px de large puis renommée
  * smashlog-schema-[slug].png et proposée via la feuille de partage native.
  */
-export function CourtDiagramModal({ visible, exerciseName, sequence, onClose }: CourtDiagramModalProps) {
+export function CourtDiagramModal({ visible, exerciseName, sequence, playersCount, onClose }: CourtDiagramModalProps) {
   const { width: windowWidth } = useWindowDimensions();
   // Marges de sécurité lues dans l'écran parent (hors de la Modal) : un
   // SafeAreaView placé dans la Modal mesure ses marges pendant l'animation
@@ -147,6 +148,7 @@ export function CourtDiagramModal({ visible, exerciseName, sequence, onClose }: 
           <SchemaExportView
             ref={exportRef}
             sequence={sequence}
+            playersCount={playersCount}
             exerciseName={exerciseName}
             onLayout={setExportSize}
           />
@@ -159,6 +161,7 @@ export function CourtDiagramModal({ visible, exerciseName, sequence, onClose }: 
 
           <SchemaCourtCard
             sequence={sequence}
+            playersCount={playersCount}
             courtWidth={courtWidth}
             style={styles.card}
             onLayout={(size) =>

@@ -5,7 +5,7 @@ import { SchemaCourtCard, SchemaHeader } from "@/src/components/exercise/SchemaP
 import { LIST_SIDE_PADDING, SequenceShotList } from "@/src/components/exercise/SequenceShotList";
 import { SCHEMA_SCREEN_COLORS } from "@/src/constants/sequenceColors";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
+import { ExerciseSequence } from "@/src/types/index";
 import { sequenceListTitle } from "@/src/utils/diagramLayout";
 
 /** Largeur logique de la vue d'export ; capturée à 1080 px (EXPORT_WIDTH_PX). */
@@ -15,7 +15,8 @@ const CARD_MARGIN = 12;
 const EXPORT_COURT_WIDTH = Math.round((EXPORT_VIEW_WIDTH - CARD_MARGIN * 2) * 0.69);
 
 interface SchemaExportViewProps {
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
+  playersCount: number;
   exerciseName: string;
   onLayout?: (size: { width: number; height: number }) => void;
   onLogoLoad?: () => void;
@@ -28,7 +29,7 @@ interface SchemaExportViewProps {
  * 2 colonnes (l'image s'allonge au-delà de 6 éléments).
  */
 export const SchemaExportView = forwardRef<View, SchemaExportViewProps>(function SchemaExportView(
-  { sequence, exerciseName, onLayout, onLogoLoad },
+  { sequence, playersCount, exerciseName, onLayout, onLogoLoad },
   ref,
 ) {
   return (
@@ -45,6 +46,7 @@ export const SchemaExportView = forwardRef<View, SchemaExportViewProps>(function
       <SchemaHeader sequence={sequence} exerciseName={exerciseName} />
       <SchemaCourtCard
         sequence={sequence}
+        playersCount={playersCount}
         courtWidth={EXPORT_COURT_WIDTH}
         style={styles.card}
         onLogoLoad={onLogoLoad}

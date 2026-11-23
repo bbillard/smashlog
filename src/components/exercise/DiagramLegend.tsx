@@ -15,13 +15,16 @@ interface DiagramLegendProps {
    * plein écran et export PNG, écran 5 bis).
    */
   variant?: "badge" | "dot";
+  /** Rôle du camp en poste fixe : « Joueur B · poste fixe », « Joueur A · travaille ». */
+  role?: string;
 }
 
 /** Hauteur d'une ligne de légende « dot », réservée dans le calcul de la taille du terrain. */
 export const DOT_LEGEND_HEIGHT = 18;
 
 /** Légende d'un camp du schéma : « ● Joueur A   ● Joueur C »… */
-export function DiagramLegend({ players, color, align = "center", variant = "badge" }: DiagramLegendProps) {
+export function DiagramLegend({ players, color, align = "center", variant = "badge", role }: DiagramLegendProps) {
+  const suffix = role ? ` · ${role}` : "";
   if (variant === "dot") {
     return (
       <View style={[styles.dotRow, { justifyContent: align }]}>
@@ -30,6 +33,7 @@ export function DiagramLegend({ players, color, align = "center", variant = "bad
             <View style={[styles.dot, { backgroundColor: SEQUENCE_PLAYER_COLORS[p] }]} />
             <Text style={[styles.text, { color }]} numberOfLines={1}>
               Joueur {p}
+              {suffix}
             </Text>
           </View>
         ))}
@@ -42,7 +46,10 @@ export function DiagramLegend({ players, color, align = "center", variant = "bad
       {players.map((p) => (
         <View key={p} style={styles.item}>
           <PlayerBadge player={p} size={18} />
-          <Text style={[styles.text, { color }]}>Joueur {p}</Text>
+          <Text style={[styles.text, { color }]}>
+            Joueur {p}
+            {suffix}
+          </Text>
         </View>
       ))}
     </View>
