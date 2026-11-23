@@ -10,7 +10,7 @@ import {
 } from "@/src/services/entitySync";
 import { Session } from "@/src/types/session";
 import { Exercise, Player } from "@/src/types/index";
-import { parseExerciseSequence } from "@/src/utils/exerciseSequence";
+import { parseExerciseSequence } from "@/src/utils/expressEntry";
 import { createId } from "@/src/utils/id";
 
 export const SESSIONS_KEY = "badminton_journal_sessions";

@@ -7,13 +7,13 @@ import { CourtDiagramThumbnail } from "@/src/components/exercise/CourtDiagramThu
 import { CourtIcon } from "@/src/components/exercise/CourtIcon";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
-import { sequenceSummary } from "@/src/utils/exerciseSequence";
+import { ExerciseSequence } from "@/src/types/index";
+import { expressSummary, hasDiagram } from "@/src/utils/expressEntry";
 
 interface ExpressEntryBlockProps {
   playersCount: number | null;
-  /** Séquence de coups (le mode Poste fixe sera affiché par son ticket). */
-  sequence: ShotSequence | undefined;
+  /** Donnée de saisie express, quel que soit le mode (séquence, poste fixe, multivolant). */
+  sequence: ExerciseSequence | undefined;
   /** Nom saisi dans le formulaire (titre de la vue plein écran et nom du PNG). */
   exerciseName: string;
   onOpen: () => void;
@@ -36,7 +36,7 @@ export function ExpressEntryBlock({ playersCount, sequence, exerciseName, onOpen
   const unavailableHint =
     playersCount === null ? "Choisis d'abord le nombre de joueurs" : "Disponible à partir de 2 joueurs";
 
-  if (sequence && sequence.steps.length > 0) {
+  if (hasDiagram(sequence) && playersCount !== null) {
     return (
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: "rgba(206,255,0,0.3)" }]}>
         <View style={styles.cardHeader}>
@@ -45,11 +45,12 @@ export function ExpressEntryBlock({ playersCount, sequence, exerciseName, onOpen
             <Text style={[styles.cardTitle, { color: theme.primary }]}>Saisie express</Text>
           </View>
           <View style={styles.badge}>
-            <Text style={[styles.badgeText, { color: theme.primary }]}>{sequenceSummary(sequence)}</Text>
+            <Text style={[styles.badgeText, { color: theme.primary }]}>{expressSummary(sequence)}</Text>
           </View>
         </View>
         <CourtDiagramThumbnail
           sequence={sequence}
+          playersCount={playersCount}
           onPress={() => setExpanded(true)}
           accessibilityLabel="Ouvrir le schéma en plein écran"
         />
@@ -81,6 +82,7 @@ export function ExpressEntryBlock({ playersCount, sequence, exerciseName, onOpen
           visible={expanded}
           exerciseName={exerciseName.trim() || "Nouvel exercice"}
           sequence={sequence}
+          playersCount={playersCount}
           onClose={() => setExpanded(false)}
         />
       </View>

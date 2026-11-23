@@ -8,31 +8,33 @@ import { DiagramLegend } from "@/src/components/exercise/DiagramLegend";
 import { SectionCard } from "@/src/components/SectionCard";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
-import { diagramLegend } from "@/src/utils/courtDiagram";
-import { endingLabel } from "@/src/utils/exerciseSequence";
+import { ExerciseSequence } from "@/src/types/index";
+import { schemaLegend } from "@/src/utils/diagramScene";
+import { schemaIndicator } from "@/src/utils/expressEntry";
 
 interface CourtDiagramCardProps {
   exerciseName: string;
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
+  playersCount: number;
 }
 
 /**
  * Section « Schéma » de la fiche exercice : terrain en paysage (camp du
- * coup n°1 à gauche), légende des joueurs, indicateur de fin et bouton
+ * coup n°1, du relanceur ou du distributeur à gauche), légende des joueurs,
+ * indicateur de fin (ou volants par passage en multivolant) et bouton
  * « Agrandir » vers la vue plein écran exportable en PNG.
  */
-export function CourtDiagramCard({ exerciseName, sequence }: CourtDiagramCardProps) {
+export function CourtDiagramCard({ exerciseName, sequence, playersCount }: CourtDiagramCardProps) {
   const { theme } = useAppTheme();
   const [expanded, setExpanded] = useState(false);
-  const legend = diagramLegend(sequence);
+  const legend = schemaLegend(sequence, playersCount);
 
   return (
     <SectionCard>
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
           <Text style={[styles.label, { color: theme.secondaryText }]}>Schéma</Text>
-          <Text style={[styles.indicator, { color: theme.primary }]}>{endingLabel(sequence)}</Text>
+          <Text style={[styles.indicator, { color: theme.primary }]}>{schemaIndicator(sequence)}</Text>
         </View>
         <Pressable
           onPress={() => setExpanded(true)}
@@ -46,19 +48,21 @@ export function CourtDiagramCard({ exerciseName, sequence }: CourtDiagramCardPro
 
       <CourtDiagramThumbnail
         sequence={sequence}
+        playersCount={playersCount}
         onPress={() => setExpanded(true)}
         accessibilityLabel="Ouvrir le schéma en plein écran"
       />
 
       <View style={styles.legendRow}>
-        <DiagramLegend players={legend.top} color={theme.tertiaryText} align="flex-start" />
-        <DiagramLegend players={legend.bottom} color={theme.tertiaryText} align="flex-end" />
+        <DiagramLegend players={legend.top} role={legend.topRole} color={theme.tertiaryText} align="flex-start" />
+        <DiagramLegend players={legend.bottom} role={legend.bottomRole} color={theme.tertiaryText} align="flex-end" />
       </View>
 
       <CourtDiagramModal
         visible={expanded}
         exerciseName={exerciseName}
         sequence={sequence}
+        playersCount={playersCount}
         onClose={() => setExpanded(false)}
       />
     </SectionCard>

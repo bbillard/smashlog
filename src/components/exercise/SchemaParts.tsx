@@ -6,9 +6,9 @@ import { DOT_LEGEND_HEIGHT, DiagramLegend } from "@/src/components/exercise/Diag
 import { SchemaLogo, schemaLogoWidth } from "@/src/components/exercise/SchemaLogo";
 import { SCHEMA_SCREEN_COLORS } from "@/src/constants/sequenceColors";
 import { fonts } from "@/src/theme/typography";
-import { ShotSequence } from "@/src/types/index";
-import { diagramLegend } from "@/src/utils/courtDiagram";
+import { ExerciseSequence } from "@/src/types/index";
 import { diagramContextLine } from "@/src/utils/diagramLayout";
+import { schemaLegend } from "@/src/utils/diagramScene";
 
 /**
  * Briques communes à la vue plein écran du schéma et à son export PNG
@@ -27,7 +27,7 @@ export const CARD_HORIZONTAL_RESERVE = CARD_PADDING_H * 2;
 export const CARD_VERTICAL_RESERVE = CARD_PADDING_V * 2 + DOT_LEGEND_HEIGHT * 2 + CARD_GAP * 2;
 
 interface SchemaHeaderTextProps {
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
   exerciseName: string;
   /** Boutons à droite (vue plein écran) ; absents dans le PNG. */
   actions?: ReactNode;
@@ -51,7 +51,8 @@ export function SchemaHeader({ sequence, exerciseName, actions }: SchemaHeaderTe
 }
 
 interface SchemaCourtCardProps {
-  sequence: ShotSequence;
+  sequence: ExerciseSequence;
+  playersCount: number;
   /** Largeur du terrain (px), calculée par l'appelant (fitCourtWidth à l'écran). */
   courtWidth: number;
   style?: StyleProp<ViewStyle>;
@@ -65,8 +66,8 @@ interface SchemaCourtCardProps {
  * (et une colonne vide de même largeur à gauche) : il ne chevauche jamais la
  * légende, qui reste centrée.
  */
-export function SchemaCourtCard({ sequence, courtWidth, style, onLayout, onLogoLoad }: SchemaCourtCardProps) {
-  const legend = diagramLegend(sequence);
+export function SchemaCourtCard({ sequence, playersCount, courtWidth, style, onLayout, onLogoLoad }: SchemaCourtCardProps) {
+  const legend = schemaLegend(sequence, playersCount);
   const logoWidth = schemaLogoWidth(LOGO_HEIGHT);
   return (
     <View
@@ -77,16 +78,16 @@ export function SchemaCourtCard({ sequence, courtWidth, style, onLayout, onLogoL
           : undefined
       }
     >
-      <DiagramLegend variant="dot" players={legend.top} color={SCHEMA_SCREEN_COLORS.legend} />
+      <DiagramLegend variant="dot" players={legend.top} role={legend.topRole} color={SCHEMA_SCREEN_COLORS.legend} />
       {courtWidth > 0 ? (
-        <CourtDiagram sequence={sequence} orientation="portrait" width={courtWidth} />
+        <CourtDiagram sequence={sequence} playersCount={playersCount} orientation="portrait" width={courtWidth} />
       ) : (
         <View style={styles.courtPlaceholder} />
       )}
       <View style={styles.bottomRow}>
         <View style={{ width: logoWidth }} />
         <View style={styles.bottomLegend}>
-          <DiagramLegend variant="dot" players={legend.bottom} color={SCHEMA_SCREEN_COLORS.legend} />
+          <DiagramLegend variant="dot" players={legend.bottom} role={legend.bottomRole} color={SCHEMA_SCREEN_COLORS.legend} />
         </View>
         <View style={[styles.logoSlot, { width: logoWidth }]}>
           <SchemaLogo height={LOGO_HEIGHT} onLoad={onLogoLoad} />

@@ -53,3 +53,16 @@ export const SCHEMA_SCREEN_COLORS = {
   logoFallback: "#9A9AA8",
   pageDot: "rgba(255,255,255,0.25)",
 } as const;
+
+/**
+ * Teinte translucide d'une couleur joueur (#RRGGBB), pour surligner les
+ * zones du poste fixe sur le schéma : zone fixe du relanceur plus marquée,
+ * zones d'envoi plus légères.
+ */
+export function playerTint(player: SequencePlayer, alpha: number): string {
+  const hex = SEQUENCE_PLAYER_COLORS[player].replace("#", "");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

@@ -1,5 +1,5 @@
 import { SHOTS_BY_ID } from "@/src/data/shots";
-import { CourtZone, SequencePlayer, SequenceStep, ShotSequence } from "@/src/types/index";
+import { CourtZone, SequencePlayer, SequenceStep, ShotId, ShotSequence } from "@/src/types/index";
 import {
   Lane,
   arrivalLane,
@@ -89,7 +89,7 @@ export function courtNet(): { line: DiagramSegment; posts: DiagramPoint[] } {
 // ─── Positions ───────────────────────────────────────────────────────────────
 
 /** Distance au filet du point d'impact selon la zone. */
-const ZONE_DEPTH: Record<CourtZone, number> = {
+export const ZONE_DEPTH: Record<CourtZone, number> = {
   avant: 1.3,
   milieu: 3.5,
   fond: 5.75,
@@ -99,8 +99,8 @@ const SLICE_DEPTH = 2.3;
 /** Les services partent juste derrière la ligne de service court. */
 const SERVICE_DEPTH = COURT.shortServiceFromNet + 0.35;
 
-const CENTER_X = COURT.width / 2;
-const LANE_X: Record<Lane, number> = {
+export const CENTER_X = COURT.width / 2;
+export const LANE_X: Record<Lane, number> = {
   left: CENTER_X - 1.65,
   center: CENTER_X,
   right: CENTER_X + 1.65,
@@ -113,11 +113,12 @@ const SIMILAR_PATH_THRESHOLD = 1.0;
 /** Diamètre de pastille par défaut (m) si l'appelant n'en fournit pas. */
 const DEFAULT_MIN_DISTANCE = 0.6;
 
-function pointAt(half: 0 | 1, depth: number, x: number): DiagramPoint {
+/** Point d'un demi-terrain (1 = haut, 0 = bas) à `depth` m du filet, abscisse `x`. */
+export function pointAt(half: 0 | 1, depth: number, x: number): DiagramPoint {
   return { x, y: half === 1 ? COURT.halfLength - depth : COURT.halfLength + depth };
 }
 
-function distance(a: DiagramPoint, b: DiagramPoint): number {
+export function distance(a: DiagramPoint, b: DiagramPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
@@ -134,14 +135,24 @@ function preferredStartZone(step: SequenceStep): CourtZone {
  * retient ; sinon on se place à la limite entre les zones.
  */
 export function arrivalDepth(step: SequenceStep, next: SequenceStep | undefined): number {
-  if (step.shot === "slice") return SLICE_DEPTH;
   const zones = SHOTS_BY_ID[step.shot].arrivalZones;
-  if (zones.length === 1) return ZONE_DEPTH[zones[0]];
-  if (next && next.shot !== "au_choix") {
+  if (step.shot !== "slice" && zones.length > 1 && next && next.shot !== "au_choix") {
     const starts = SHOTS_BY_ID[next.shot].startZones;
     const common = zones.filter((z) => starts.includes(z));
     if (common.length === 1) return ZONE_DEPTH[common[0]];
   }
+  return shotArrivalDepth(step.shot);
+}
+
+/**
+ * Profondeur d'arrivée d'un coup sans coup suivant pour lever l'ambiguïté
+ * (multivolant : chaque frappe est indépendante). Slice : entre l'avant et
+ * le milieu ; plusieurs zones possibles : à la limite entre les zones.
+ */
+export function shotArrivalDepth(shot: ShotId): number {
+  if (shot === "slice") return SLICE_DEPTH;
+  const zones = SHOTS_BY_ID[shot].arrivalZones;
+  if (zones.length === 1) return ZONE_DEPTH[zones[0]];
   const depths = zones.map((z) => ZONE_DEPTH[z]);
   return (Math.min(...depths) + Math.max(...depths)) / 2;
 }
@@ -267,15 +278,37 @@ export function computeDiagramShots(
   // 2. Pastilles écartées si superposées.
   const from = spreadPoints(rawFrom, minDistance);
 
-  // 3. Courbures : alternées par défaut. Les trajets similaires (même trajet
-  // dans un sens ou dans l'autre) forment un groupe : on alterne le côté
-  // géométrique de la courbe et on l'accentue tous les deux membres, pour
-  // que chaque flèche reste distincte.
+  // 3. Courbures (cf. pathCurvatures).
+  const curvatures = pathCurvatures(rawFrom, rawTo);
+
+  return steps.map((step, i) => {
+    const approximate = step.shot === "au_choix";
+    const chained = !approximate && i + 1 < steps.length;
+    return {
+      index: i,
+      stepId: step.id,
+      player: step.player,
+      from: from[i],
+      to: chained ? from[i + 1] : rawTo[i],
+      approximate,
+      curvature: curvatures[i],
+    };
+  });
+}
+
+/**
+ * Courbures des flèches `rawFrom[i] → rawTo[i]` (positions avant écartement) :
+ * alternées par défaut. Les trajets similaires (même trajet dans un sens ou
+ * dans l'autre) forment un groupe : on alterne le côté géométrique de la
+ * courbe et on l'accentue tous les deux membres, pour que chaque flèche
+ * reste distincte. Partagé par la séquence de coups et le multivolant.
+ */
+export function pathCurvatures(rawFrom: readonly DiagramPoint[], rawTo: readonly DiagramPoint[]): number[] {
   const orientation = (i: number): 1 | -1 =>
     rawTo[i].y > rawFrom[i].y || (rawTo[i].y === rawFrom[i].y && rawTo[i].x >= rawFrom[i].x) ? 1 : -1;
   const groupOf: number[] = [];
   const curvatures: number[] = [];
-  steps.forEach((_, j) => {
+  rawFrom.forEach((_, j) => {
     let group = j;
     for (let i = 0; i < j; i += 1) {
       const same =
@@ -308,20 +341,7 @@ export function computeDiagramShots(
     const magnitude = 1 + reversedWay + Math.floor(sameWay / 2) * 0.6;
     curvatures.push(side * orientation(j) * magnitude);
   });
-
-  return steps.map((step, i) => {
-    const approximate = step.shot === "au_choix";
-    const chained = !approximate && i + 1 < steps.length;
-    return {
-      index: i,
-      stepId: step.id,
-      player: step.player,
-      from: from[i],
-      to: chained ? from[i + 1] : rawTo[i],
-      approximate,
-      curvature: curvatures[i],
-    };
-  });
+  return curvatures;
 }
 
 // ─── Géométrie de rendu ──────────────────────────────────────────────────────
@@ -336,6 +356,8 @@ export interface ArrowGeometry {
   path: string;
   /** Triangle de la pointe (vide pour une flèche sans pointe). */
   head: DiagramPoint[];
+  /** Courbe complète (départ, contrôle, pointe) : placement d'un numéro sur la flèche. */
+  curve?: { start: DiagramPoint; control: DiagramPoint; end: DiagramPoint };
 }
 
 export interface ArrowOptions {
@@ -394,7 +416,19 @@ export function arrowGeometry(from: DiagramPoint, to: DiagramPoint, options: Arr
         { x: base.x + hy * (options.headWidth / 2), y: base.y - hx * (options.headWidth / 2) },
       ]
     : [];
-  return { path, head };
+  return { path, head, curve: { start, control, end: tip } };
+}
+
+/** Point de la courbe quadratique au paramètre t ∈ [0 ; 1]. */
+export function quadraticPoint(
+  curve: { start: DiagramPoint; control: DiagramPoint; end: DiagramPoint },
+  t: number,
+): DiagramPoint {
+  const u = 1 - t;
+  return {
+    x: u * u * curve.start.x + 2 * u * t * curve.control.x + t * t * curve.end.x,
+    y: u * u * curve.start.y + 2 * u * t * curve.control.y + t * t * curve.end.y,
+  };
 }
 
 /** Points d'un polygone au format de l'attribut SVG `points`. */
@@ -408,4 +442,85 @@ export function polygonPoints(points: DiagramPoint[]): string {
  */
 export function diagramLegend(sequence: ShotSequence): { top: SequencePlayer[]; bottom: SequencePlayer[] } {
   return playersByHalf(sequence.steps);
+}
+
+// ─── Scène générique (tous les modes de la Saisie express) ──────────────────
+
+/**
+ * Description indépendante du mode de ce que le rendu dessine (mètres,
+ * portrait) : zones surlignées, flèches et pastilles. La séquence de coups y
+ * est convertie par shotSequenceScene ; le poste fixe par
+ * src/utils/diagramScene.ts. Rien n'est stocké.
+ */
+export interface SceneZone {
+  key: string;
+  player: SequencePlayer;
+  /** Rectangle en mètres (portrait). */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** « post » : zone fixe d'un relanceur (contour pointillé) ; « target » : zone d'envoi (plus légère). */
+  emphasis: "post" | "target";
+}
+
+export interface SceneArrow {
+  key: string;
+  player: SequencePlayer;
+  from: DiagramPoint;
+  to: DiagramPoint;
+  /** Courbure relative (cf. DiagramShot.curvature) ; 0 = droite. */
+  curvature: number;
+  /** Pointillés sans pointe (coup « Au choix »). */
+  approximate: boolean;
+  /** Une pastille est posée au point d'arrivée : la pointe s'arrête avant. */
+  endsAtBadge: boolean;
+  /** Numéro affiché sur la flèche (envois « Dans l'ordre »). */
+  number?: number;
+}
+
+export interface SceneBadge {
+  key: string;
+  player: SequencePlayer;
+  at: DiagramPoint;
+  /** Numéro du coup ou lettre du joueur. */
+  label: string;
+}
+
+/** Mention posée sous un point (« distribue »), à une pastille de distance. */
+export interface SceneLabel {
+  key: string;
+  at: DiagramPoint;
+  text: string;
+}
+
+export interface DiagramScene {
+  zones: SceneZone[];
+  arrows: SceneArrow[];
+  badges: SceneBadge[];
+  labels: SceneLabel[];
+}
+
+/** Séquence de coups → scène (mêmes positions que computeDiagramShots). */
+export function shotSequenceScene(sequence: ShotSequence, options: DiagramOptions = {}): DiagramScene {
+  const shots = computeDiagramShots(sequence, options);
+  return {
+    zones: [],
+    arrows: shots.map((shot) => ({
+      key: `a${shot.stepId}`,
+      player: shot.player,
+      from: shot.from,
+      to: shot.to,
+      curvature: shot.curvature,
+      approximate: shot.approximate,
+      endsAtBadge: !shot.approximate,
+    })),
+    badges: shots.map((shot) => ({
+      key: `b${shot.stepId}`,
+      player: shot.player,
+      at: shot.from,
+      label: String(shot.index + 1),
+    })),
+    labels: [],
+  };
 }
